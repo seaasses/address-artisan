@@ -1,0 +1,7 @@
+[package]
+name = "address-artisan"
+version = "0.1.0"
+edition = "2021"
+authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
+
+[dependencies]
