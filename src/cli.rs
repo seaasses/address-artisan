@@ -9,17 +9,40 @@ use clap::Parser;
 
 pub struct Cli {
     #[arg(
-        short = 'p',
+        short='P',
         long = "pubkey-hash",
         help = "Bitcoin public key hash (20 bytes in hex)",
         value_parser = Cli::validate_pubkey_hash
     )]
     pub pubkey_hash: [u8; 20],
+
+    #[arg(short = 'p', long = "prefix", help = "Prefix for the address", value_parser = Cli::validate_prefix)]
+    pub prefix: String,
 }
 
 impl Cli {
     pub fn parse_args() -> Self {
         Self::parse()
+    }
+
+    fn validate_prefix(prefix: &str) -> Result<String, String> {
+        let valid_base58_chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+        if prefix.is_empty() {
+            return Err("Prefix cannot be empty".to_string());
+        }
+
+        for c in prefix.chars() {
+            if !valid_base58_chars.contains(c) {
+                return Err(format!("Invalid character: {}", c));
+            }
+        }
+
+        if !prefix.starts_with("1") {
+            return Err("Prefix must start with 1".to_string());
+        }
+
+        Ok(prefix.to_string())
     }
 
     fn validate_pubkey_hash(pubkey_hash: &str) -> Result<[u8; 20], String> {
