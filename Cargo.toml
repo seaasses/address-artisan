@@ -1,10 +1,12 @@
 [package]
 name = "address-artisan"
 version = "0.1.0"
-edition = "2021"
+description = "A tool for generating vanity P2PKH Bitcoin addresses."
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
 readme = "README.md"
-description = "A tool for generating vanity P2PKH Bitcoin addresses."
+license = "MIT"
+repository = "https://github.com/seaasses/address-artisan"
+edition = "2021"
 
 
 [dependencies]
