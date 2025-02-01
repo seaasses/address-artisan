@@ -1,13 +1,13 @@
 use crate::bitcoin_address_helper::BitcoinAddressHelper;
 use crate::prefix_validator::PrefixValidator;
 use crate::stats_logger::StatsLogger;
-use crate::xpub::XpubWrapper;
+use crate::xpub::ExtendedPublicKeyDeriver;
 use std::sync::Arc;
 
 pub struct VanityAddressFinder {
     prefix_validator: PrefixValidator,
     bitcoin_address_helper: BitcoinAddressHelper,
-    xpub: XpubWrapper,
+    xpub: ExtendedPublicKeyDeriver,
     stats_logger: Arc<StatsLogger>,
     max_depth: u32,
     start_path: Vec<u32>,
@@ -28,7 +28,7 @@ impl VanityAddressFinder {
         VanityAddressFinder {
             prefix_validator: PrefixValidator::new(prefix),
             bitcoin_address_helper: BitcoinAddressHelper::new(),
-            xpub: XpubWrapper::new(&xpub),
+            xpub: ExtendedPublicKeyDeriver::new(&xpub),
             stats_logger,
             max_depth,
             start_path: start_path_extended,

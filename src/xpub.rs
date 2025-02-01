@@ -11,7 +11,7 @@ pub struct ExtendedPubKey {
     pub depth: u8,
 }
 
-pub struct XpubWrapper {
+pub struct ExtendedPublicKeyDeriver {
     xpub: String,
     pub non_hardening_max_index: u32,
     derivation_cache: HashMap<Vec<u32>, ExtendedPubKey>,
@@ -103,7 +103,7 @@ impl ExtendedPubKey {
     }
 }
 
-impl XpubWrapper {
+impl ExtendedPublicKeyDeriver {
     pub fn new(xpub: &str) -> Self {
         Self {
             xpub: xpub.to_string(),
