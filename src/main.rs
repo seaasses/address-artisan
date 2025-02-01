@@ -35,12 +35,10 @@ fn main() {
         let tx = tx.clone();
 
         let handle = thread::spawn(move || {
-            // Create a path starting with a random number and the thread's offset
             let start_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
             let mut finder =
                 VanityAddressFinder::new(prefix, xpub, cli.max_depth, stats_logger, start_path);
 
-            // Search with a step size equal to the number of threads
             if let Some(result) = finder.find_address() {
                 let _ = tx.send(result);
             }
