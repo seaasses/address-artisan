@@ -1,13 +1,14 @@
-use std::sync::{Arc, Mutex};
+use std::io::{self, Write};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct StatsLogger {
     start_time: Instant,
-    addresses_generated: Arc<Mutex<u64>>,
-    addresses_found: Arc<Mutex<u64>>,
-    is_running: Arc<Mutex<bool>>,
+    addresses_generated: Arc<AtomicU64>,
+    addresses_found: Arc<AtomicU64>,
+    is_running: Arc<AtomicBool>,
     should_stop: Arc<AtomicBool>,
 }
 
@@ -15,9 +16,9 @@ impl StatsLogger {
     pub fn new() -> Self {
         let logger = StatsLogger {
             start_time: Instant::now(),
-            addresses_generated: Arc::new(Mutex::new(0)),
-            addresses_found: Arc::new(Mutex::new(0)),
-            is_running: Arc::new(Mutex::new(true)),
+            addresses_generated: Arc::new(AtomicU64::new(0)),
+            addresses_found: Arc::new(AtomicU64::new(0)),
+            is_running: Arc::new(AtomicBool::new(true)),
             should_stop: Arc::new(AtomicBool::new(false)),
         };
 
@@ -28,45 +29,47 @@ impl StatsLogger {
         let start = logger.start_time;
 
         thread::spawn(move || {
-            while *is_running.lock().unwrap() {
-                let generated_count = *generated.lock().unwrap();
-                let found_count = *found.lock().unwrap();
+            let mut stdout = io::stdout();
+            while is_running.load(Ordering::Relaxed) {
+                let generated_count = generated.load(Ordering::Relaxed);
+                let found_count = found.load(Ordering::Relaxed);
                 let elapsed = start.elapsed();
                 let rate = generated_count as f64 / elapsed.as_secs_f64();
 
-                println!(
-                    "Stats: Generated {} addresses, Found {}, Rate: {:.2} addr/s",
+                // Use write! instead of println! for buffered output
+                let _ = write!(
+                    stdout,
+                    "\rStats: Generated {} addresses, Found {}, Rate: {:.2} addr/s",
                     generated_count, found_count, rate
                 );
+                let _ = stdout.flush();
 
-                thread::sleep(std::time::Duration::from_secs(1));
+                thread::sleep(std::time::Duration::from_secs(5));
             }
+            println!(); // Print newline when done
         });
 
         logger
     }
 
     pub fn increment_generated(&self) {
-        let mut count = self.addresses_generated.lock().unwrap();
-        *count += 1;
+        self.addresses_generated.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn increment_found(&self) {
-        let mut count = self.addresses_found.lock().unwrap();
-        *count += 1;
+        self.addresses_found.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn get_stats(&self) -> (u64, u64, f64) {
-        let generated = *self.addresses_generated.lock().unwrap();
-        let found = *self.addresses_found.lock().unwrap();
+        let generated = self.addresses_generated.load(Ordering::Relaxed);
+        let found = self.addresses_found.load(Ordering::Relaxed);
         let elapsed = self.start_time.elapsed();
         let rate = generated as f64 / elapsed.as_secs_f64();
         (generated, found, rate)
     }
 
     pub fn stop(&self) {
-        let mut is_running = self.is_running.lock().unwrap();
-        *is_running = false;
+        self.is_running.store(false, Ordering::Relaxed);
     }
 
     pub fn should_stop(&self) -> bool {
