@@ -1,4 +1,4 @@
-use bitcoin::hashes::{sha256, Hash};
+use sha2::{Sha256, Digest};
 
 pub struct BitcoinAddressHelper {}
 
@@ -11,10 +11,16 @@ impl BitcoinAddressHelper {
         let mut result = Vec::with_capacity(25);
         result.push(0x00); // network byte
         result.extend_from_slice(&pubkey_hash);
-        let first_hash = sha256::Hash::hash(&result);
-        let second_hash = sha256::Hash::hash(first_hash.as_ref());
-        let checksum = &second_hash[0..4]; // 4 bytes of a double sha256 hash
-        result.extend_from_slice(checksum);
+        
+        let mut hasher = Sha256::new();
+        hasher.update(&result);
+        let first_hash = hasher.finalize();
+        
+        let mut hasher = Sha256::new();
+        hasher.update(&first_hash);
+        let second_hash = hasher.finalize();
+        
+        result.extend_from_slice(&second_hash[0..4]); // 4 bytes of a double sha256 hash
         self.base58_encode(&result)
     }
 
