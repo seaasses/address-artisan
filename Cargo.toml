@@ -3,6 +3,9 @@ name = "address-artisan"
 version = "0.1.0"
 edition = "2021"
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
+readme = "README.md"
+description = "A tool for generating vanity P2PKH Bitcoin addresses."
+
 
 [dependencies]
 bitcoin = "0.32.5"
