@@ -113,7 +113,7 @@ impl ExtendedPublicKeyDeriver {
         }
     }
 
-    pub fn get_pubkey_hash_160(&mut self, path: Vec<u32>) -> Result<[u8; 20], String> {
+    pub fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String> {
         let pubkey = self.get_pubkey(path)?;
         let mut hasher = Sha256::new();
         hasher.update(&pubkey);
@@ -128,7 +128,7 @@ impl ExtendedPublicKeyDeriver {
         Ok(result)
     }
 
-    pub fn get_pubkey(&mut self, path: Vec<u32>) -> Result<[u8; 33], String> {
+    pub fn get_pubkey(&mut self, path: &[u32]) -> Result<[u8; 33], String> {
         let derived_xpub = self.get_derived_xpub(path)?;
         Ok(derived_xpub.public_key.serialize())
     }
@@ -156,12 +156,12 @@ impl ExtendedPublicKeyDeriver {
         parent.derive_child(&self.secp, index)
     }
 
-    fn get_derived_xpub(&mut self, path: Vec<u32>) -> Result<ExtendedPubKey, String> {
+    fn get_derived_xpub(&mut self, path: &[u32]) -> Result<ExtendedPubKey, String> {
         if path.is_empty() {
             return self.get_base_xpub();
         }
 
-        if let Some(cached) = self.get_from_cache(&path) {
+        if let Some(cached) = self.get_from_cache(path) {
             return Ok(cached.clone());
         }
 

@@ -39,7 +39,7 @@ impl VanityAddressFinder {
         let mut current_path = self.start_path.clone();
 
         while !self.stats_logger.should_stop() {
-            if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.clone()) {
+            if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.as_slice()) {
                 self.stats_logger.increment_generated();
 
                 if self.prefix_validator.is_valid(pubkey_hash) {
