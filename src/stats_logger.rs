@@ -44,7 +44,7 @@ impl StatsLogger {
                 );
                 let _ = stdout.flush();
 
-                thread::sleep(std::time::Duration::from_secs(5));
+                thread::sleep(std::time::Duration::from_secs(2));
             }
             println!(); // Print newline when done
         });
