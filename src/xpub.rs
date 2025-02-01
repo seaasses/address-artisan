@@ -19,6 +19,8 @@ pub struct ExtendedPublicKeyDeriver {
     base_xpub: Option<ExtendedPubKey>,
 }
 
+const MAX_CACHE_SIZE: usize = 10_000;
+
 impl ExtendedPubKey {
     pub fn from_str(xpub: &str) -> Result<Self, String> {
         if !xpub.starts_with("xpub") {
@@ -110,7 +112,7 @@ impl ExtendedPublicKeyDeriver {
         Self {
             xpub: xpub.to_string(),
             non_hardening_max_index: 0x7FFFFFFF,
-            derivation_cache: HashMap::with_capacity(1000),
+            derivation_cache: HashMap::with_capacity(10000),
             secp: Secp256k1::new(),
             base_xpub: base,
         }
@@ -141,6 +143,9 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn store_in_cache(&mut self, path: Vec<u32>, xpub: ExtendedPubKey) {
+        if self.derivation_cache.len() == MAX_CACHE_SIZE {
+            self.derivation_cache.clear();
+        }
         self.derivation_cache.insert(path, xpub);
     }
 
@@ -187,7 +192,7 @@ impl ExtendedPublicKeyDeriver {
             }
 
             current_xpub = self.derive_single_step(&current_xpub, index)?;
-            
+
             // Cache all intermediate paths
             if i < path.len() - 1 {
                 self.store_in_cache(current_path.clone(), current_xpub.clone());
