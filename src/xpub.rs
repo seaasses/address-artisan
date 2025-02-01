@@ -168,7 +168,7 @@ impl ExtendedPublicKeyDeriver {
         let mut current_path = Vec::new();
         let mut current_xpub = self.get_base_xpub()?;
 
-        for &index in path.iter() {
+        for (i, &index) in path.iter().enumerate() {
             current_path.push(index);
 
             if let Some(cached) = self.get_from_cache(&current_path) {
@@ -177,7 +177,11 @@ impl ExtendedPublicKeyDeriver {
             }
 
             current_xpub = self.derive_single_step(&current_xpub, index)?;
-            self.store_in_cache(current_path.clone(), current_xpub.clone());
+            
+            // Only cache intermediate paths, not the final one
+            if i < path.len() - 1 {
+                self.store_in_cache(current_path.clone(), current_xpub.clone());
+            }
         }
 
         Ok(current_xpub)
