@@ -3,6 +3,7 @@ use crate::prefix_validator::PrefixValidator;
 use crate::stats_logger::StatsLogger;
 use crate::xpub::ExtendedPublicKeyDeriver;
 use std::sync::Arc;
+use std::fmt::Write;
 
 pub struct VanityAddressFinder {
     prefix_validator: PrefixValidator,
@@ -21,7 +22,8 @@ impl VanityAddressFinder {
         stats_logger: Arc<StatsLogger>,
         start_path: Vec<u32>,
     ) -> Self {
-        let mut start_path_extended = start_path;
+        let mut start_path_extended = Vec::with_capacity(start_path.len() + 2);
+        start_path_extended.extend_from_slice(&start_path);
         start_path_extended.push(0);
         start_path_extended.push(0);
 
@@ -37,6 +39,7 @@ impl VanityAddressFinder {
 
     pub fn find_address(&mut self) -> Option<(String, String)> {
         let mut current_path = self.start_path.clone();
+        let mut path_string = String::with_capacity(32); // Pre-allocate string buffer
 
         while !self.stats_logger.should_stop() {
             if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.as_slice()) {
@@ -47,13 +50,17 @@ impl VanityAddressFinder {
                     let address = self
                         .bitcoin_address_helper
                         .get_address_from_pubkey_hash(pubkey_hash);
-                    let path = current_path
-                        .iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<String>>()
-                        .join("/");
+                    
+                    // Build path string more efficiently
+                    path_string.clear();
+                    for (i, num) in current_path.iter().enumerate() {
+                        if i > 0 {
+                            path_string.push('/');
+                        }
+                        write!(path_string, "{}", num).unwrap();
+                    }
 
-                    return Some((address, path));
+                    return Some((address, path_string));
                 }
                 self.increment_path(&mut current_path);
             }
@@ -62,20 +69,21 @@ impl VanityAddressFinder {
     }
 
     fn increment_path(&self, current_path: &mut Vec<u32>) {
-        let mut last_index = current_path.len() - 1;
+        let last_index = current_path.len() - 1;
         if current_path[last_index] < self.max_depth {
             current_path[last_index] += 1;
+            return;
+        }
+        
+        current_path.truncate(current_path.len() - 2);
+        let last_index = current_path.len() - 1;
+        
+        if current_path[last_index] < self.xpub.non_hardening_max_index {
+            current_path[last_index] += 1;
         } else {
-            current_path.pop();
-            current_path.pop();
-            last_index -= 2;
-            if current_path[last_index] < self.xpub.non_hardening_max_index {
-                current_path[last_index] += 1;
-            } else {
-                current_path.push(0);
-            }
-            current_path.push(0);
             current_path.push(0);
         }
+        current_path.push(0);
+        current_path.push(0);
     }
 }

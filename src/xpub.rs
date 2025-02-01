@@ -16,6 +16,7 @@ pub struct ExtendedPublicKeyDeriver {
     pub non_hardening_max_index: u32,
     derivation_cache: HashMap<Vec<u32>, ExtendedPubKey>,
     secp: Secp256k1<secp256k1::All>,
+    base_xpub: Option<ExtendedPubKey>,
 }
 
 impl ExtendedPubKey {
@@ -105,11 +106,13 @@ impl ExtendedPubKey {
 
 impl ExtendedPublicKeyDeriver {
     pub fn new(xpub: &str) -> Self {
+        let base = ExtendedPubKey::from_str(xpub).ok();
         Self {
             xpub: xpub.to_string(),
             non_hardening_max_index: 0x7FFFFFFF,
-            derivation_cache: HashMap::new(),
+            derivation_cache: HashMap::with_capacity(1000),
             secp: Secp256k1::new(),
+            base_xpub: base,
         }
     }
 
@@ -142,6 +145,9 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn get_base_xpub(&self) -> Result<ExtendedPubKey, String> {
+        if let Some(ref base) = self.base_xpub {
+            return Ok(base.clone());
+        }
         ExtendedPubKey::from_str(&self.xpub)
     }
 
@@ -161,24 +167,28 @@ impl ExtendedPublicKeyDeriver {
             return self.get_base_xpub();
         }
 
+        // Try to get from cache using the full path
         if let Some(cached) = self.get_from_cache(path) {
             return Ok(cached.clone());
         }
 
-        let mut current_path = Vec::new();
+        let mut current_path = Vec::with_capacity(path.len());
         let mut current_xpub = self.get_base_xpub()?;
 
         for (i, &index) in path.iter().enumerate() {
             current_path.push(index);
 
-            if let Some(cached) = self.get_from_cache(&current_path) {
-                current_xpub = cached.clone();
-                continue;
+            // Only check cache for non-final paths to avoid unnecessary lookups
+            if i < path.len() - 1 {
+                if let Some(cached) = self.get_from_cache(&current_path) {
+                    current_xpub = cached.clone();
+                    continue;
+                }
             }
 
             current_xpub = self.derive_single_step(&current_xpub, index)?;
             
-            // Only cache intermediate paths, not the final one
+            // Cache all intermediate paths
             if i < path.len() - 1 {
                 self.store_in_cache(current_path.clone(), current_xpub.clone());
             }
