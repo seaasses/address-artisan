@@ -3,7 +3,7 @@ use clap::Parser;
 #[derive(Parser)]
 #[command(
     version,
-    about = "Vanity P2PKH Bitcoin Address Generator",
+    about,
     long_about = "A tool for generating vanity P2PKH Bitcoin addresses."
 )]
 
