@@ -1,12 +1,14 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct StatsLogger {
     start_time: Instant,
     addresses_generated: Arc<Mutex<u64>>,
     addresses_found: Arc<Mutex<u64>>,
     is_running: Arc<Mutex<bool>>,
+    should_stop: Arc<AtomicBool>,
 }
 
 impl StatsLogger {
@@ -16,6 +18,7 @@ impl StatsLogger {
             addresses_generated: Arc::new(Mutex::new(0)),
             addresses_found: Arc::new(Mutex::new(0)),
             is_running: Arc::new(Mutex::new(true)),
+            should_stop: Arc::new(AtomicBool::new(false)),
         };
 
         // Start background logging thread
@@ -64,5 +67,13 @@ impl StatsLogger {
     pub fn stop(&self) {
         let mut is_running = self.is_running.lock().unwrap();
         *is_running = false;
+    }
+
+    pub fn should_stop(&self) -> bool {
+        self.should_stop.load(Ordering::Relaxed)
+    }
+
+    pub fn signal_stop(&self) {
+        self.should_stop.store(true, Ordering::Relaxed);
     }
 }

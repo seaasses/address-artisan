@@ -9,7 +9,6 @@ use cli::Cli;
 use rand;
 use stats_logger::StatsLogger;
 use std::sync::{mpsc, Arc};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use vanity_address_finder::VanityAddressFinder;
 
@@ -27,7 +26,6 @@ fn main() {
     let stats_logger = Arc::new(StatsLogger::new());
     let (tx, rx) = mpsc::channel();
     let mut handles = vec![];
-    let should_stop = Arc::new(AtomicBool::new(false));
 
     // Spawn threads
     for _ in 0..num_threads {
@@ -35,7 +33,6 @@ fn main() {
         let xpub = cli.xpub.clone();
         let stats_logger = Arc::clone(&stats_logger);
         let tx = tx.clone();
-        let should_stop = Arc::clone(&should_stop);
 
         let handle = thread::spawn(move || {
             // Create a path starting with a random number and the thread's offset
@@ -44,7 +41,7 @@ fn main() {
                 VanityAddressFinder::new(prefix, xpub, cli.max_depth, stats_logger, start_path);
 
             // Search with a step size equal to the number of threads
-            if let Some(result) = finder.find_address_with_stop(should_stop) {
+            if let Some(result) = finder.find_address() {
                 let _ = tx.send(result);
             }
         });
@@ -56,7 +53,7 @@ fn main() {
 
     // As soon as we get a result, signal all threads to stop
     let result = rx.recv().ok();
-    should_stop.store(true, Ordering::Relaxed);
+    stats_logger.signal_stop();
 
     for handle in handles {
         let _ = handle.join();
