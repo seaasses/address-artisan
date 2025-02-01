@@ -5,12 +5,14 @@ use std::str::FromStr;
 
 pub struct XpubWrapper {
     xpub: String,
+    pub non_hardening_max_index: u32,
 }
 
 impl XpubWrapper {
     pub fn new(xpub: &str) -> Self {
         Self {
             xpub: xpub.to_string(),
+            non_hardening_max_index: 0x7FFFFFFF,
         }
     }
 
@@ -25,7 +27,7 @@ impl XpubWrapper {
         let child_numbers: Vec<ChildNumber> = path
             .into_iter()
             .map(|i| {
-                if i >= 0x80000000 {
+                if i > self.non_hardening_max_index {
                     return Err(format!("{} is reserved for hardened derivation", i));
                 }
                 Ok(ChildNumber::from_normal_idx(i).unwrap())
