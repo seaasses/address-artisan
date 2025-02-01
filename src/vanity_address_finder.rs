@@ -3,6 +3,7 @@ use crate::prefix_validator::PrefixValidator;
 use crate::stats_logger::StatsLogger;
 use crate::xpub::XpubWrapper;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct VanityAddressFinder {
     prefix_validator: PrefixValidator,
@@ -58,6 +59,32 @@ impl VanityAddressFinder {
                 self.increment_path(&mut current_path);
             }
         }
+    }
+
+    pub fn find_address_with_stop(&mut self, should_stop: Arc<AtomicBool>) -> Option<(String, String)> {
+        let mut current_path = self.start_path.clone();
+
+        while !should_stop.load(Ordering::Relaxed) {
+            if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.clone()) {
+                self.stats_logger.increment_generated();
+
+                if self.prefix_validator.is_valid(pubkey_hash) {
+                    self.stats_logger.increment_found();
+                    let address = self
+                        .bitcoin_address_helper
+                        .get_address_from_pubkey_hash(pubkey_hash);
+                    let path = current_path
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<String>>()
+                        .join("/");
+
+                    return Some((address, path));
+                }
+                self.increment_path(&mut current_path);
+            }
+        }
+        None
     }
 
     fn increment_path(&self, current_path: &mut Vec<u32>) {
