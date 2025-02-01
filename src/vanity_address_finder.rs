@@ -7,20 +7,24 @@ pub struct VanityAddressFinder {
     bitcoin_address_helper: BitcoinAddressHelper,
     xpub: XpubWrapper,
     initial_path: Vec<u32>,
+    max_depth: u32,
 }
 
 impl VanityAddressFinder {
-    pub fn new(prefix: String, xpub: String, initial_path: Vec<u32>) -> Self {
+    pub fn new(prefix: String, xpub: String, initial_path: Vec<u32>, max_depth: u32) -> Self {
         VanityAddressFinder {
             prefix_validator: PrefixValidator::new(prefix),
             bitcoin_address_helper: BitcoinAddressHelper::new(),
             xpub: XpubWrapper::new(&xpub),
             initial_path,
+            max_depth,
         }
     }
 
     pub fn find_address(&self) -> Result<(String, String), String> {
         let mut current_path = self.initial_path.clone();
+        current_path.push(0);
+        current_path.push(0);
         current_path.push(0);
         loop {
             let pubkey_hash = self.xpub.get_pubkey_hash_160(current_path.clone())?;
@@ -35,8 +39,24 @@ impl VanityAddressFinder {
                     .join("/");
                 return Ok((address, path));
             }
-            let last_index = current_path.len() - 1;
+            self.increment_path(&mut current_path);
+        }
+    }
+    fn increment_path(&self, current_path: &mut Vec<u32>) {
+        let mut last_index = current_path.len() - 1;
+        if current_path[last_index] < self.max_depth {
             current_path[last_index] += 1;
+        } else {
+            current_path.pop();
+            current_path.pop();
+            last_index -= 2;
+            if current_path[last_index] < self.xpub.non_hardening_max_index {
+                current_path[last_index] += 1;
+            } else {
+                current_path.push(0);
+            }
+            current_path.push(0);
+            current_path.push(0);
         }
     }
 }
