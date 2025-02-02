@@ -1,4 +1,3 @@
-use crate::bitcoin_address_helper::BitcoinAddressHelper;
 use crate::stats_logger::StatsLogger;
 use crate::vanity_address_builder::VanityAddressBuilder;
 use crate::xpub::ExtendedPublicKeyDeriver;
@@ -7,7 +6,6 @@ use std::sync::Arc;
 
 pub struct VanityAddressFinder {
     vanity_address_builder: VanityAddressBuilder,
-    bitcoin_address_helper: BitcoinAddressHelper,
     xpub: ExtendedPublicKeyDeriver,
     stats_logger: Arc<StatsLogger>,
     max_index: u32,
@@ -29,7 +27,6 @@ impl VanityAddressFinder {
 
         VanityAddressFinder {
             vanity_address_builder: VanityAddressBuilder::new(prefix),
-            bitcoin_address_helper: BitcoinAddressHelper::new(),
             xpub: ExtendedPublicKeyDeriver::new(&xpub),
             stats_logger,
             max_index: max_depth - 1,
@@ -45,11 +42,11 @@ impl VanityAddressFinder {
             if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.as_slice()) {
                 self.stats_logger.increment_generated();
 
-                if self.vanity_address_builder.is_valid(pubkey_hash) {
+                if let Some(address) =
+                    self.vanity_address_builder.get_from_pubkey_hash(pubkey_hash)
+                {
                     self.stats_logger.increment_found();
-                    let address = self
-                        .bitcoin_address_helper
-                        .get_address_from_pubkey_hash(pubkey_hash);
+
 
                     // Build path string more efficiently
                     path_string.clear();

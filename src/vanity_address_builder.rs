@@ -17,9 +17,12 @@ impl VanityAddressBuilder {
         }
     }
 
-    pub fn is_valid(&self, pubkey_hash: [u8; 20]) -> bool {
+    pub fn get_from_pubkey_hash(&self, pubkey_hash: [u8; 20]) -> Option<String> {
         if self.prefix == "1" {
-            return true; // skip prefix recognition. All addresses are valid.
+            return Some(
+                self.bitcoin_address_helper
+                    .get_address_from_pubkey_hash(pubkey_hash),
+            );
         }
 
         let address_with_fake_checksum = self
@@ -27,8 +30,8 @@ impl VanityAddressBuilder {
             .get_address_with_fake_checksum(pubkey_hash);
 
         if address_with_fake_checksum.starts_with(&self.prefix) {
-            return true;
+            return Some(address_with_fake_checksum);
         }
-        false
+        None
     }
 }
