@@ -1,6 +1,6 @@
 mod bitcoin_address_helper;
 mod cli;
-mod prefix_validator;
+mod vanity_address_builder;
 mod stats_logger;
 mod vanity_address_finder;
 mod xpub;

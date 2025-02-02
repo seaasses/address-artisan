@@ -1,16 +1,16 @@
 use crate::bitcoin_address_helper::BitcoinAddressHelper;
-use crate::prefix_validator::PrefixValidator;
 use crate::stats_logger::StatsLogger;
+use crate::vanity_address_builder::VanityAddressBuilder;
 use crate::xpub::ExtendedPublicKeyDeriver;
-use std::sync::Arc;
 use std::fmt::Write;
+use std::sync::Arc;
 
 pub struct VanityAddressFinder {
-    prefix_validator: PrefixValidator,
+    vanity_address_builder: VanityAddressBuilder,
     bitcoin_address_helper: BitcoinAddressHelper,
     xpub: ExtendedPublicKeyDeriver,
     stats_logger: Arc<StatsLogger>,
-    max_depth: u32,
+    max_index: u32,
     start_path: Vec<u32>,
 }
 
@@ -28,11 +28,11 @@ impl VanityAddressFinder {
         start_path_extended.push(0);
 
         VanityAddressFinder {
-            prefix_validator: PrefixValidator::new(prefix),
+            vanity_address_builder: VanityAddressBuilder::new(prefix),
             bitcoin_address_helper: BitcoinAddressHelper::new(),
             xpub: ExtendedPublicKeyDeriver::new(&xpub),
             stats_logger,
-            max_depth,
+            max_index: max_depth - 1,
             start_path: start_path_extended,
         }
     }
@@ -45,12 +45,12 @@ impl VanityAddressFinder {
             if let Ok(pubkey_hash) = self.xpub.get_pubkey_hash_160(current_path.as_slice()) {
                 self.stats_logger.increment_generated();
 
-                if self.prefix_validator.is_valid(pubkey_hash) {
+                if self.vanity_address_builder.is_valid(pubkey_hash) {
                     self.stats_logger.increment_found();
                     let address = self
                         .bitcoin_address_helper
                         .get_address_from_pubkey_hash(pubkey_hash);
-                    
+
                     // Build path string more efficiently
                     path_string.clear();
                     for (i, num) in current_path.iter().enumerate() {
@@ -70,14 +70,14 @@ impl VanityAddressFinder {
 
     fn increment_path(&self, current_path: &mut Vec<u32>) {
         let last_index = current_path.len() - 1;
-        if current_path[last_index] < self.max_depth {
+        if current_path[last_index] < self.max_index {
             current_path[last_index] += 1;
             return;
         }
-        
+
         current_path.truncate(current_path.len() - 2);
         let last_index = current_path.len() - 1;
-        
+
         if current_path[last_index] < self.xpub.non_hardening_max_index {
             current_path[last_index] += 1;
         } else {

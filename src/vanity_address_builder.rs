@@ -1,17 +1,17 @@
 use crate::bitcoin_address_helper::BitcoinAddressHelper;
 
-pub struct PrefixValidator {
+pub struct VanityAddressBuilder {
     prefix: String,
     bitcoin_address_helper: BitcoinAddressHelper,
 }
 
-impl PrefixValidator {
+impl VanityAddressBuilder {
     pub fn new(prefix: String) -> Self {
         if !prefix.starts_with("1") {
             panic!("Prefix must start with 1");
         }
 
-        PrefixValidator {
+        VanityAddressBuilder {
             prefix: prefix,
             bitcoin_address_helper: BitcoinAddressHelper::new(),
         }
