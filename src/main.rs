@@ -1,16 +1,170 @@
 mod bitcoin_address_helper;
 mod cli;
-mod prefix_validator;
-mod stats_logger;
-mod vanity_address_finder;
-mod xpub;
+mod extended_public_key_deriver;
+mod extended_public_key_path_walker;
+mod state_handler;
+mod vanity_address;
 
 use cli::Cli;
+use extended_public_key_deriver::ExtendedPublicKeyDeriver;
+use extended_public_key_path_walker::ExtendedPUblicKeyPathWalker;
 use rand;
-use stats_logger::StatsLogger;
-use std::sync::{mpsc, Arc};
+use state_handler::StateHandler;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::Arc;
 use std::thread;
-use vanity_address_finder::VanityAddressFinder;
+use std::time::Duration;
+use vanity_address::VanityAddress;
+
+const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
+const THREADS_BATCH_SIZE: usize = 1000;
+const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 5;
+
+fn setup_worker_thread(
+    xpub: String,
+    prefix: String,
+    max_depth: u32,
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
+    running: Arc<AtomicBool>,
+) {
+    let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
+    let xpub_path_walker = ExtendedPUblicKeyPathWalker::new(initial_path, max_depth);
+    let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+    let vanity_address = VanityAddress::new(&prefix);
+    let mut state_handler = StateHandler::new(
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
+        running,
+        THREADS_BATCH_SIZE,
+    );
+
+    for xpub_path in xpub_path_walker {
+        if !state_handler.is_running() {
+            return;
+        }
+        state_handler.new_generated();
+        let pubkey_hash = xpub_deriver.get_pubkey_hash_160(&xpub_path).unwrap();
+        match vanity_address.get_vanity_address(pubkey_hash) {
+            Some(address) => {
+                let xpath_path_string = xpub_path
+                    .iter()
+                    .take(xpub_path.len().saturating_sub(2))
+                    .map(|p| p.to_string())
+                    .collect::<Vec<String>>()
+                    .join("/");
+                let receive_address = xpub_path[xpub_path.len() - 1];
+                println!(
+                    "Found address: {} at xpub/{}, receive address {}",
+                    address, xpath_path_string, receive_address
+                );
+                state_handler.new_found();
+                return;
+            }
+            None => {}
+        }
+    }
+
+    state_handler.new_generated();
+}
+
+fn setup_logger_thread(
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
+    running: Arc<AtomicBool>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let state_handler = StateHandler::new(
+            Arc::clone(&global_generated_counter),
+            Arc::clone(&global_found_counter),
+            running,
+            THREADS_BATCH_SIZE,
+        );
+
+        for _ in 0..WAIT_TIME_FOR_INITIAL_HASHRATE {
+            thread::sleep(Duration::from_secs(1));
+            if !state_handler.is_running() {
+                return;
+            }
+        }
+        let hashrate = state_handler.get_hashrate();
+        println!("INITIAL HASHRATE");
+        println!("{:.2} addresses/s", hashrate);
+
+        while state_handler.is_running() {
+            let (generated, found, run_time, hashrate) = state_handler.get_statistics();
+            println!(
+                "{} addresses generated, {} addresses found, {:.0} seconds, {:.2} addresses/s",
+                generated, found, run_time, hashrate
+            );
+            thread::sleep(STATUS_UPDATE_INTERVAL);
+        }
+    })
+}
+
+fn setup_worker_threads(
+    xpub: String,
+    prefix: String,
+    max_depth: u32,
+    num_threads: usize,
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
+    running: Arc<AtomicBool>,
+) -> Vec<thread::JoinHandle<()>> {
+    let mut handles: Vec<thread::JoinHandle<()>> = Vec::with_capacity(num_threads);
+    for _ in 0..num_threads {
+        let thread_xpub = xpub.clone();
+        let thread_prefix = prefix.clone();
+        let thread_max_depth = max_depth;
+        let thread_global_generated_counter = Arc::clone(&global_generated_counter);
+        let thread_global_found_counter = Arc::clone(&global_found_counter);
+        let thread_running = Arc::clone(&running);
+
+        let handle = thread::spawn(move || {
+            setup_worker_thread(
+                thread_xpub,
+                thread_prefix,
+                thread_max_depth,
+                thread_global_generated_counter,
+                thread_global_found_counter,
+                thread_running,
+            );
+        });
+        handles.push(handle);
+    }
+    handles
+}
+
+fn setup_threads(
+    xpub: String,
+    prefix: String,
+    max_depth: u32,
+    num_threads: usize,
+) -> (thread::JoinHandle<()>, Vec<thread::JoinHandle<()>>) {
+    let global_generated_counter = Arc::new(AtomicUsize::new(0));
+    let global_found_counter = Arc::new(AtomicUsize::new(0));
+    let running = Arc::new(AtomicBool::new(true));
+
+    // Spawn status update thread
+    let status_handle = setup_logger_thread(
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
+        Arc::clone(&running),
+    );
+
+    // Spawn worker threads
+    let worker_handles = setup_worker_threads(
+        xpub,
+        prefix,
+        max_depth,
+        num_threads,
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
+        Arc::clone(&running),
+    );
+
+    (status_handle, worker_handles)
+}
 
 fn main() {
     let cli = Cli::parse_args();
@@ -22,56 +176,12 @@ fn main() {
         num_threads
     );
 
-    // Create shared stats logger and channel for result
-    let stats_logger = Arc::new(StatsLogger::new());
-    let (tx, rx) = mpsc::channel();
-    let mut handles = vec![];
+    let (logger_handle, worker_handles) =
+        setup_threads(cli.xpub, cli.prefix, cli.max_depth, num_threads);
 
-    // Spawn threads
-    for _ in 0..num_threads {
-        let prefix = cli.prefix.clone();
-        let xpub = cli.xpub.clone();
-        let stats_logger = Arc::clone(&stats_logger);
-        let tx = tx.clone();
-
-        let handle = thread::spawn(move || {
-            let start_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
-            let mut finder =
-                VanityAddressFinder::new(prefix, xpub, cli.max_depth, stats_logger, start_path);
-
-            if let Some(result) = finder.find_address() {
-                let _ = tx.send(result);
-            }
-        });
-
-        handles.push(handle);
+    for handle in worker_handles {
+        handle.join().unwrap();
     }
 
-    drop(tx);
-
-    // As soon as we get a result, signal all threads to stop
-    let result = rx.recv().ok();
-    stats_logger.signal_stop();
-
-    for handle in handles {
-        let _ = handle.join();
-    }
-
-    let (total_generated, total_found, final_rate) = stats_logger.get_stats();
-    stats_logger.stop();
-
-    match result {
-        Some((address, path)) => {
-            println!("\nSuccess! Final statistics:");
-            println!("Total addresses generated: {}", total_generated);
-            println!("Total matching addresses found: {}", total_found);
-            println!("Final generation rate: {:.2} addr/s", final_rate);
-            println!("\nFound address: {}. Path: xpub/{}", address, path);
-        }
-        None => {
-            println!("\nNo matching address found. Final statistics:");
-            println!("Total addresses generated: {}", total_generated);
-            println!("Final generation rate: {:.2} addr/s", final_rate);
-        }
-    }
+    logger_handle.join().unwrap();
 }
