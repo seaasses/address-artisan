@@ -1,4 +1,5 @@
 use bs58;
+use hmac;
 use ripemd::Ripemd160;
 use secp256k1::{PublicKey, Secp256k1};
 use sha2::{Digest, Sha256};
@@ -75,20 +76,23 @@ impl ExtendedPubKey {
         secp: &Secp256k1<secp256k1::All>,
         index: u32,
     ) -> Result<Self, String> {
-        // Generate HMAC-SHA512
-        let mut hasher = Sha256::new();
-        hasher.update(&self.public_key.serialize());
-        hasher.update(&index.to_be_bytes());
-        let il = hasher.finalize();
+        use hmac::{Hmac, Mac};
+        type HmacSha512 = Hmac<sha2::Sha512>;
 
-        // Generate chain code using a different hash
-        let mut hasher = Sha256::new();
-        hasher.update(&il);
-        hasher.update(&self.chain_code);
-        let ir = hasher.finalize();
+        let mut data = Vec::with_capacity(37);
+        data.extend_from_slice(&self.public_key.serialize());
+        data.extend_from_slice(&index.to_be_bytes());
+
+        let mut hmac = HmacSha512::new_from_slice(&self.chain_code)
+            .map_err(|e| format!("HMAC error: {}", e))?;
+        hmac.update(&data);
+        let result = hmac.finalize().into_bytes();
+
+        let il = &result[0..32];
+        let ir = &result[32..];
 
         let tweak =
-            secp256k1::SecretKey::from_slice(&il).map_err(|e| format!("Invalid tweak: {}", e))?;
+            secp256k1::SecretKey::from_slice(il).map_err(|e| format!("Invalid tweak: {}", e))?;
 
         let child_pubkey = self
             .public_key
@@ -96,7 +100,7 @@ impl ExtendedPubKey {
             .map_err(|e| format!("Failed to derive child key: {}", e))?;
 
         let mut chain_code = [0u8; 32];
-        chain_code.copy_from_slice(&ir);
+        chain_code.copy_from_slice(ir);
 
         Ok(ExtendedPubKey {
             public_key: child_pubkey,
