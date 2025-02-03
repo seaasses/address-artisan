@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 pub struct StateHandler {
     generated_local: usize,
@@ -7,6 +8,7 @@ pub struct StateHandler {
     global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
     local_batch_size: usize,
+    start_time: Instant,
 }
 
 impl StateHandler {
@@ -22,6 +24,7 @@ impl StateHandler {
             global_found_counter,
             running,
             local_batch_size,
+            start_time: Instant::now(),
         }
     }
 
@@ -46,5 +49,22 @@ impl StateHandler {
 
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::Relaxed)
+    }
+
+    pub fn get_generated(&self) -> usize {
+        self.global_generated_counter.load(Ordering::Relaxed)
+    }
+
+    pub fn get_run_time(&self) -> Duration {
+        let start_time = self.start_time;
+        let current_time = Instant::now();
+        current_time.duration_since(start_time)
+    }
+
+    pub fn get_hashrate(&self) -> f64 {
+        let total_generated = self.get_generated();
+        let run_time = self.get_run_time();
+        let total_rate = total_generated as f64 / run_time.as_secs_f64();
+        total_rate
     }
 }

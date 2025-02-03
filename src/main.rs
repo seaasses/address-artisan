@@ -10,10 +10,10 @@ use extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use extended_public_key_path_walker::ExtendedPUblicKeyPathWalker;
 use rand;
 use state_handler::StateHandler;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use vanity_address::VanityAddress;
 
 const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
@@ -23,7 +23,8 @@ fn setup_worker_thread(
     xpub: String,
     prefix: String,
     max_depth: u32,
-    counter: Arc<AtomicUsize>,
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
 ) {
     let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
@@ -31,8 +32,8 @@ fn setup_worker_thread(
     let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
     let vanity_address = VanityAddress::new(&prefix);
     let mut state_handler = StateHandler::new(
-        Arc::clone(&counter),
-        Arc::clone(&counter),
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
         running,
         THREADS_BATCH_SIZE,
     );
@@ -67,26 +68,25 @@ fn setup_worker_thread(
 }
 
 fn setup_logger_thread(
-    counter: Arc<AtomicUsize>,
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
-    start_time: Instant,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        while running.load(Ordering::Relaxed) {
+        let state_handler = StateHandler::new(
+            Arc::clone(&global_generated_counter),
+            Arc::clone(&global_found_counter),
+            running,
+            THREADS_BATCH_SIZE,
+        );
+        thread::sleep(Duration::from_secs(5));
+        let hashrate = state_handler.get_hashrate();
+        println!("INITIAL HASHRATE");
+        println!("{:.0} addresses/s", hashrate);
+
+        while state_handler.is_running() {
             thread::sleep(STATUS_UPDATE_INTERVAL);
-            if !running.load(Ordering::Relaxed) {
-                break;
-            }
-            let current_count = counter.load(Ordering::Relaxed);
-            let current_time = Instant::now();
-
-            let total_rate =
-                current_count as f64 / current_time.duration_since(start_time).as_secs_f64();
-
-            println!(
-                "Checked {} addresses ({:.2} addresses/s)",
-                current_count, total_rate
-            );
+            println!("{} addresses/s", state_handler.get_hashrate());
         }
     })
 }
@@ -96,7 +96,8 @@ fn setup_worker_threads(
     prefix: String,
     max_depth: u32,
     num_threads: usize,
-    counter: Arc<AtomicUsize>,
+    global_generated_counter: Arc<AtomicUsize>,
+    global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
 ) -> Vec<thread::JoinHandle<()>> {
     let mut handles: Vec<thread::JoinHandle<()>> = Vec::with_capacity(num_threads);
@@ -104,7 +105,8 @@ fn setup_worker_threads(
         let thread_xpub = xpub.clone();
         let thread_prefix = prefix.clone();
         let thread_max_depth = max_depth;
-        let thread_counter = Arc::clone(&counter);
+        let thread_global_generated_counter = Arc::clone(&global_generated_counter);
+        let thread_global_found_counter = Arc::clone(&global_found_counter);
         let thread_running = Arc::clone(&running);
 
         let handle = thread::spawn(move || {
@@ -112,7 +114,8 @@ fn setup_worker_threads(
                 thread_xpub,
                 thread_prefix,
                 thread_max_depth,
-                thread_counter,
+                thread_global_generated_counter,
+                thread_global_found_counter,
                 thread_running,
             );
         });
@@ -127,12 +130,16 @@ fn setup_threads(
     max_depth: u32,
     num_threads: usize,
 ) -> (thread::JoinHandle<()>, Vec<thread::JoinHandle<()>>) {
-    let counter = Arc::new(AtomicUsize::new(0));
+    let global_generated_counter = Arc::new(AtomicUsize::new(0));
+    let global_found_counter = Arc::new(AtomicUsize::new(0));
     let running = Arc::new(AtomicBool::new(true));
-    let start_time = Instant::now();
 
     // Spawn status update thread
-    let status_handle = setup_logger_thread(Arc::clone(&counter), Arc::clone(&running), start_time);
+    let status_handle = setup_logger_thread(
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
+        Arc::clone(&running),
+    );
 
     // Spawn worker threads
     let worker_handles = setup_worker_threads(
@@ -140,7 +147,8 @@ fn setup_threads(
         prefix,
         max_depth,
         num_threads,
-        Arc::clone(&counter),
+        Arc::clone(&global_generated_counter),
+        Arc::clone(&global_found_counter),
         Arc::clone(&running),
     );
 
