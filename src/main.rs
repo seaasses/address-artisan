@@ -2,7 +2,7 @@ mod bitcoin_address_helper;
 mod cli;
 mod extended_public_key_deriver;
 mod vanity_address;
-mod xpub_path_walker;
+mod extended_public_key_path_walker;
 
 use cli::Cli;
 use extended_public_key_deriver::ExtendedPublicKeyDeriver;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 use vanity_address::VanityAddress;
-use xpub_path_walker::XpubPathWalker;
+use extended_public_key_path_walker::ExtendedPUblicKeyPathWalker;
 
 const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const THREADS_BATCH_SIZE: usize = 10000;
@@ -62,7 +62,7 @@ fn main() {
 
         let handle = thread::spawn(move || {
             let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
-            let xpub_path_walker = XpubPathWalker::new(initial_path, max_depth);
+            let xpub_path_walker = ExtendedPUblicKeyPathWalker::new(initial_path, max_depth);
             let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
             let vanity_address = VanityAddress::new(&prefix);
 

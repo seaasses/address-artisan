@@ -1,11 +1,11 @@
-pub struct XpubPathWalker {
+pub struct ExtendedPUblicKeyPathWalker {
     xpub_path: Vec<u32>,
     max_depth: u32,
     first_call: bool,
     max_non_hardening_index: u32,
 }
 
-impl Iterator for XpubPathWalker {
+impl Iterator for ExtendedPUblicKeyPathWalker {
     type Item = Vec<u32>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -14,7 +14,7 @@ impl Iterator for XpubPathWalker {
     }
 }
 
-impl XpubPathWalker {
+impl ExtendedPUblicKeyPathWalker {
     pub fn new(initial_path: Vec<u32>, max_depth: u32) -> Self {
         for derivation in initial_path.clone() {
             if derivation > 0x7FFFFFFF {
