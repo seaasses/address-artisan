@@ -41,6 +41,7 @@ impl StateHandler {
     pub fn new_found(&mut self) {
         self.flush_generated();
         self.global_found_counter.fetch_add(1, Ordering::Relaxed);
+        self.running.store(false, Ordering::Relaxed);
     }
 
     pub fn is_running(&self) -> bool {
