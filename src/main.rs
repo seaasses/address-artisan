@@ -66,32 +66,18 @@ fn setup_worker_thread(
     state_handler.new_generated();
 }
 
-fn setup_threads(
-    xpub: String,
-    prefix: String,
-    max_depth: u32,
-    num_threads: usize,
-) -> (
-    Vec<thread::JoinHandle<()>>,
-    Arc<AtomicUsize>,
-    Arc<AtomicBool>,
-    Instant,
-    thread::JoinHandle<()>,
-) {
-    let counter = Arc::new(AtomicUsize::new(0));
-    let running = Arc::new(AtomicBool::new(true));
-    let start_time = Instant::now();
-
-    // Spawn status update thread
-    let status_counter = Arc::clone(&counter);
-    let status_running = Arc::clone(&running);
-    let status_handle = thread::spawn(move || {
-        while status_running.load(Ordering::Relaxed) {
+fn setup_status_thread(
+    counter: Arc<AtomicUsize>,
+    running: Arc<AtomicBool>,
+    start_time: Instant,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        while running.load(Ordering::Relaxed) {
             thread::sleep(STATUS_UPDATE_INTERVAL);
-            if !status_running.load(Ordering::Relaxed) {
+            if !running.load(Ordering::Relaxed) {
                 break;
             }
-            let current_count = status_counter.load(Ordering::Relaxed);
+            let current_count = counter.load(Ordering::Relaxed);
             let current_time = Instant::now();
 
             let total_rate =
@@ -102,9 +88,17 @@ fn setup_threads(
                 current_count, total_rate
             );
         }
-    });
+    })
+}
 
-    // Spawn worker threads
+fn setup_worker_threads(
+    xpub: String,
+    prefix: String,
+    max_depth: u32,
+    num_threads: usize,
+    counter: Arc<AtomicUsize>,
+    running: Arc<AtomicBool>,
+) -> Vec<thread::JoinHandle<()>> {
     let mut handles: Vec<thread::JoinHandle<()>> = Vec::with_capacity(num_threads);
     for _ in 0..num_threads {
         let thread_xpub = xpub.clone();
@@ -124,8 +118,33 @@ fn setup_threads(
         });
         handles.push(handle);
     }
+    handles
+}
 
-    (handles, counter, running, start_time, status_handle)
+fn setup_threads(
+    xpub: String,
+    prefix: String,
+    max_depth: u32,
+    num_threads: usize,
+) -> (thread::JoinHandle<()>, Vec<thread::JoinHandle<()>>) {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let running = Arc::new(AtomicBool::new(true));
+    let start_time = Instant::now();
+
+    // Spawn status update thread
+    let status_handle = setup_status_thread(Arc::clone(&counter), Arc::clone(&running), start_time);
+
+    // Spawn worker threads
+    let worker_handles = setup_worker_threads(
+        xpub,
+        prefix,
+        max_depth,
+        num_threads,
+        Arc::clone(&counter),
+        Arc::clone(&running),
+    );
+
+    (status_handle, worker_handles)
 }
 
 fn main() {
@@ -138,10 +157,10 @@ fn main() {
         num_threads
     );
 
-    let (handles, _counter, _running, _start_time, status_handle) =
+    let (status_handle, worker_handles) =
         setup_threads(cli.xpub, cli.prefix, cli.max_depth, num_threads);
 
-    for handle in handles {
+    for handle in worker_handles {
         handle.join().unwrap();
     }
 
