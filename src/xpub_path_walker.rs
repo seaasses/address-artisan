@@ -17,8 +17,13 @@ impl Iterator for XpubPubkeyHashWalker {
 
 impl XpubPubkeyHashWalker {
     pub fn new(xpub: String, initial_path: Vec<u32>, max_depth: u32) -> Self {
-        let xpub_path = [initial_path, vec![0, 0, 0]].concat();
         let xpub_public_key_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        for derivation in initial_path.clone() {
+            if derivation > xpub_public_key_deriver.non_hardening_max_index {
+                panic!("Derivation index is greater than the max index");
+            }
+        }
+        let xpub_path = [initial_path, vec![0, 0, 0]].concat();
         Self {
             xpub_path,
             max_depth,
