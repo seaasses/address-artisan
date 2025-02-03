@@ -47,16 +47,16 @@ impl XpubPubkeyHashWalker {
         let mut last_index = self.xpub_path.len() - 1;
         if self.xpub_path[last_index] < self.max_depth {
             self.xpub_path[last_index] += 1;
-        }
-
-        self.xpub_path.truncate(last_index - 1);
-        last_index = self.xpub_path.len() - 1;
-
-        if self.xpub_path[last_index] < self.xpub_public_key_deriver.non_hardening_max_index {
-            self.xpub_path[last_index] += 1;
-            self.xpub_path.extend_from_slice(&[0, 0]);
         } else {
-            self.xpub_path.extend_from_slice(&[0, 0, 0]);
+            self.xpub_path.truncate(last_index - 1);
+            last_index = self.xpub_path.len() - 1;
+
+            if self.xpub_path[last_index] < self.xpub_public_key_deriver.non_hardening_max_index {
+                self.xpub_path[last_index] += 1;
+                self.xpub_path.extend_from_slice(&[0, 0]);
+            } else {
+                self.xpub_path.extend_from_slice(&[0, 0, 0]);
+            }
         }
     }
 }
