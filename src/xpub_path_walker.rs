@@ -1,25 +1,23 @@
-use crate::xpub::ExtendedPublicKeyDeriver;
-
-pub struct XpubPubkeyHashWalker {
+pub struct XpubPathWalker {
     xpub_path: Vec<u32>,
     max_depth: u32,
     first_call: bool,
-    xpub_public_key_deriver: ExtendedPublicKeyDeriver,
+    max_non_hardening_index: u32,
 }
 
-impl Iterator for XpubPubkeyHashWalker {
-    type Item = [u8; 20];
+impl Iterator for XpubPathWalker {
+    type Item = Vec<u32>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next_pubkey_hash()
+        self.next_path();
+        return Some(self.xpub_path.clone());
     }
 }
 
-impl XpubPubkeyHashWalker {
-    pub fn new(xpub: String, initial_path: Vec<u32>, max_depth: u32) -> Self {
-        let xpub_public_key_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+impl XpubPathWalker {
+    pub fn new(initial_path: Vec<u32>, max_depth: u32) -> Self {
         for derivation in initial_path.clone() {
-            if derivation > xpub_public_key_deriver.non_hardening_max_index {
+            if derivation > 0x7FFFFFFF {
                 panic!("Derivation index is greater than the max index");
             }
         }
@@ -28,19 +26,8 @@ impl XpubPubkeyHashWalker {
             xpub_path,
             max_depth,
             first_call: true,
-            xpub_public_key_deriver,
+            max_non_hardening_index: 0x7FFFFFFF,
         }
-    }
-
-    fn next_pubkey_hash(&mut self) -> Option<[u8; 20]> {
-        self.next_path();
-        let pubkey_hash = self
-            .xpub_public_key_deriver
-            .get_pubkey_hash_160(&self.xpub_path);
-        if pubkey_hash.is_err() {
-            return None;
-        }
-        Some(pubkey_hash.unwrap())
     }
 
     fn next_path(&mut self) {
@@ -56,7 +43,7 @@ impl XpubPubkeyHashWalker {
             self.xpub_path.truncate(last_index - 1);
             last_index = self.xpub_path.len() - 1;
 
-            if self.xpub_path[last_index] < self.xpub_public_key_deriver.non_hardening_max_index {
+            if self.xpub_path[last_index] < self.max_non_hardening_index {
                 self.xpub_path[last_index] += 1;
                 self.xpub_path.extend_from_slice(&[0, 0]);
             } else {
