@@ -1,21 +1,23 @@
 mod bitcoin_address_helper;
 mod cli;
 mod extended_public_key_deriver;
-mod vanity_address;
 mod extended_public_key_path_walker;
+mod state_handler;
+mod vanity_address;
 
 use cli::Cli;
 use extended_public_key_deriver::ExtendedPublicKeyDeriver;
+use extended_public_key_path_walker::ExtendedPUblicKeyPathWalker;
 use rand;
+use state_handler::StateHandler;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 use vanity_address::VanityAddress;
-use extended_public_key_path_walker::ExtendedPUblicKeyPathWalker;
 
-const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(5);
-const THREADS_BATCH_SIZE: usize = 10000;
+const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
+const THREADS_BATCH_SIZE: usize = 1000;
 
 fn main() {
     let cli = Cli::parse_args();
@@ -57,45 +59,46 @@ fn main() {
     for _ in 0..num_threads {
         let xpub = cli.xpub.clone();
         let prefix = prefix.clone();
-        let counter = Arc::clone(&counter);
-        let running = Arc::clone(&running);
+        let global_generated_counter = Arc::clone(&counter);
+        let global_found_counter = Arc::clone(&counter);
+        let is_running = Arc::clone(&running);
 
         let handle = thread::spawn(move || {
             let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
             let xpub_path_walker = ExtendedPUblicKeyPathWalker::new(initial_path, max_depth);
             let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
             let vanity_address = VanityAddress::new(&prefix);
-
-            let mut local_counter = 0;
+            let mut state_handler = StateHandler::new(
+                global_generated_counter,
+                global_found_counter,
+                is_running,
+                THREADS_BATCH_SIZE,
+            );
 
             for xpub_path in xpub_path_walker {
-                if !running.load(Ordering::Relaxed) {
+                if !state_handler.is_running() {
                     return;
                 }
 
+                state_handler.new_generated();
                 let pubkey_hash = xpub_deriver.get_pubkey_hash_160(&xpub_path).unwrap();
-
-                if let Some(address) = vanity_address.get_vanity_address(pubkey_hash) {
-                    let xpath_path_string = xpub_path
-                        .iter()
-                        .take(xpub_path.len().saturating_sub(2))
-                        .map(|p| p.to_string())
-                        .collect::<Vec<String>>()
-                        .join("/");
-                    let receive_address = xpub_path[xpub_path.len() - 1];
-                    println!(
-                        "Found address: {} at xpub/{}, receive address {}",
-                        address, xpath_path_string, receive_address
-                    );
-                    running.store(false, Ordering::Relaxed);
-                    counter.fetch_add(local_counter, Ordering::Relaxed);
-                    return;
-                }
-
-                local_counter += 1;
-                if local_counter >= THREADS_BATCH_SIZE {
-                    counter.fetch_add(local_counter, Ordering::Relaxed);
-                    local_counter = 0;
+                match vanity_address.get_vanity_address(pubkey_hash) {
+                    Some(address) => {
+                        let xpath_path_string = xpub_path
+                            .iter()
+                            .take(xpub_path.len().saturating_sub(2))
+                            .map(|p| p.to_string())
+                            .collect::<Vec<String>>()
+                            .join("/");
+                        let receive_address = xpub_path[xpub_path.len() - 1];
+                        println!(
+                            "Found address: {} at xpub/{}, receive address {}",
+                            address, xpath_path_string, receive_address
+                        );
+                        state_handler.new_found();
+                        return;
+                    }
+                    None => {}
                 }
             }
         });
@@ -111,7 +114,6 @@ fn main() {
     running.store(false, Ordering::Relaxed);
     status_handle.join().unwrap();
 
-    // Print final statistics
     let total_checked = counter.load(Ordering::Relaxed);
     let total_time = start_time.elapsed().as_secs_f64();
     let final_rate = total_checked as f64 / total_time;
