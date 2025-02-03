@@ -73,7 +73,7 @@ fn main() {
         let handle = thread::spawn(move || {
             let mut rng = thread_rng();
             let vanity_address = VanityAddress::new(&prefix);
-            let initial_path = vec![rng.gen_range(0..=u32::MAX), rng.gen_range(0..=u32::MAX)];
+            let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
             let walker = XpubPubkeyHashWalker::new((*xpub).clone(), initial_path, max_depth);
 
             let mut local_counter = 0;
