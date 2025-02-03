@@ -66,7 +66,7 @@ fn setup_worker_thread(
     state_handler.new_generated();
 }
 
-fn setup_status_thread(
+fn setup_logger_thread(
     counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
     start_time: Instant,
@@ -132,7 +132,7 @@ fn setup_threads(
     let start_time = Instant::now();
 
     // Spawn status update thread
-    let status_handle = setup_status_thread(Arc::clone(&counter), Arc::clone(&running), start_time);
+    let status_handle = setup_logger_thread(Arc::clone(&counter), Arc::clone(&running), start_time);
 
     // Spawn worker threads
     let worker_handles = setup_worker_threads(
@@ -157,12 +157,12 @@ fn main() {
         num_threads
     );
 
-    let (status_handle, worker_handles) =
+    let (logger_handle, worker_handles) =
         setup_threads(cli.xpub, cli.prefix, cli.max_depth, num_threads);
 
     for handle in worker_handles {
         handle.join().unwrap();
     }
 
-    status_handle.join().unwrap();
+    logger_handle.join().unwrap();
 }
