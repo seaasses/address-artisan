@@ -18,6 +18,7 @@ use vanity_address::VanityAddress;
 
 const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
 const THREADS_BATCH_SIZE: usize = 1000;
+const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 5;
 
 fn setup_worker_thread(
     xpub: String,
@@ -79,14 +80,24 @@ fn setup_logger_thread(
             running,
             THREADS_BATCH_SIZE,
         );
-        thread::sleep(Duration::from_secs(5));
+
+        for _ in 0..WAIT_TIME_FOR_INITIAL_HASHRATE {
+            thread::sleep(Duration::from_secs(1));
+            if !state_handler.is_running() {
+                return;
+            }
+        }
         let hashrate = state_handler.get_hashrate();
         println!("INITIAL HASHRATE");
-        println!("{:.0} addresses/s", hashrate);
+        println!("{:.2} addresses/s", hashrate);
 
         while state_handler.is_running() {
+            let (generated, found, run_time, hashrate) = state_handler.get_statistics();
+            println!(
+                "{} addresses generated, {} addresses found, {:.0} seconds, {:.2} addresses/s",
+                generated, found, run_time, hashrate
+            );
             thread::sleep(STATUS_UPDATE_INTERVAL);
-            println!("{} addresses/s", state_handler.get_hashrate());
         }
     })
 }

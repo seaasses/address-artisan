@@ -55,6 +55,10 @@ impl StateHandler {
         self.global_generated_counter.load(Ordering::Relaxed)
     }
 
+    pub fn get_found(&self) -> usize {
+        self.global_found_counter.load(Ordering::Relaxed)
+    }
+
     pub fn get_run_time(&self) -> Duration {
         let start_time = self.start_time;
         let current_time = Instant::now();
@@ -66,5 +70,13 @@ impl StateHandler {
         let run_time = self.get_run_time();
         let total_rate = total_generated as f64 / run_time.as_secs_f64();
         total_rate
+    }
+
+    pub fn get_statistics(&self) -> (usize, usize, f64, f64) {
+        let total_generated = self.get_generated();
+        let total_found = self.get_found();
+        let run_time = self.get_run_time().as_secs_f64();
+        let hashrate = total_generated as f64 / run_time;
+        (total_generated, total_found, run_time, hashrate)
     }
 }
