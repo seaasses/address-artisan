@@ -1,17 +1,18 @@
 mod bitcoin_address_helper;
 mod cli;
+mod extended_public_key_deriver;
 mod vanity_address;
-mod xpub;
 mod xpub_path_walker;
 
 use cli::Cli;
+use extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use rand;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 use vanity_address::VanityAddress;
-use xpub_path_walker::XpubPubkeyHashWalker;
+use xpub_path_walker::XpubPathWalker;
 
 const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const THREADS_BATCH_SIZE: usize = 10000;
@@ -60,19 +61,32 @@ fn main() {
         let running = Arc::clone(&running);
 
         let handle = thread::spawn(move || {
-            let vanity_address = VanityAddress::new(&prefix);
             let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
-            let walker = XpubPubkeyHashWalker::new(xpub, initial_path, max_depth);
+            let xpub_path_walker = XpubPathWalker::new(initial_path, max_depth);
+            let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+            let vanity_address = VanityAddress::new(&prefix);
 
             let mut local_counter = 0;
 
-            for pubkey_hash in walker {
+            for xpub_path in xpub_path_walker {
                 if !running.load(Ordering::Relaxed) {
                     return;
                 }
 
+                let pubkey_hash = xpub_deriver.get_pubkey_hash_160(&xpub_path).unwrap();
+
                 if let Some(address) = vanity_address.get_vanity_address(pubkey_hash) {
-                    println!("Found address: {}", address);
+                    let xpath_path_string = xpub_path
+                        .iter()
+                        .take(xpub_path.len().saturating_sub(2))
+                        .map(|p| p.to_string())
+                        .collect::<Vec<String>>()
+                        .join("/");
+                    let receive_address = xpub_path[xpub_path.len() - 1];
+                    println!(
+                        "Found address: {} at xpub/{}, receive address {}",
+                        address, xpath_path_string, receive_address
+                    );
                     running.store(false, Ordering::Relaxed);
                     counter.fetch_add(local_counter, Ordering::Relaxed);
                     return;
