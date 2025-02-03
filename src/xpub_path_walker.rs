@@ -6,6 +6,14 @@ pub struct XpubPathWalker {
 
 const NON_HARDENING_MAX_INDEX: u32 = 0x7FFFFFFF;
 
+impl Iterator for XpubPathWalker {
+    type Item = Vec<u32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.next_path())
+    }
+}
+
 impl XpubPathWalker {
     pub fn new(initial_path: Vec<u32>, max_depth: u32) -> Self {
         let xpub_path = [initial_path, vec![0, 0, 0]].concat();
@@ -16,7 +24,7 @@ impl XpubPathWalker {
         }
     }
 
-    pub fn next(&mut self) -> Vec<u32> {
+    fn next_path(&mut self) -> Vec<u32> {
         if self.first_call {
             self.first_call = false;
             return self.xpub_path.clone();
