@@ -135,8 +135,6 @@ impl VanityAddress {
                 break;
             }
         }
-        println!("final_pattern: {:?}", final_pattern);
-
         final_pattern
     }
 
