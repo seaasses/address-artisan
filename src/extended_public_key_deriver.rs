@@ -3,7 +3,9 @@ use hmac;
 use ripemd::Ripemd160;
 use secp256k1::{PublicKey, Secp256k1};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::{mpsc, Arc, RwLock};
+use threadpool::ThreadPool;
 
 #[derive(Clone, Debug)]
 pub struct ExtendedPubKey {
@@ -15,12 +17,13 @@ pub struct ExtendedPubKey {
 pub struct ExtendedPublicKeyDeriver {
     xpub: String,
     pub non_hardening_max_index: u32,
-    derivation_cache: HashMap<Vec<u32>, ExtendedPubKey>,
+    derivation_cache: Arc<RwLock<HashMap<Vec<u32>, ExtendedPubKey>>>,
     secp: Secp256k1<secp256k1::All>,
     base_xpub: Option<ExtendedPubKey>,
+    thread_pool: ThreadPool,
 }
 
-const MAX_CACHE_SIZE: usize = 10_000;
+const MAX_CACHE_SIZE: usize = 100_00000;
 
 impl ExtendedPubKey {
     pub fn from_str(xpub: &str) -> Result<Self, String> {
@@ -113,13 +116,101 @@ impl ExtendedPubKey {
 impl ExtendedPublicKeyDeriver {
     pub fn new(xpub: &str) -> Self {
         let base = ExtendedPubKey::from_str(xpub).ok();
+
+        let num_threads = std::thread::available_parallelism()
+            .map(|p| p.get())
+            .unwrap_or(4);
+
         Self {
             xpub: xpub.to_string(),
             non_hardening_max_index: 0x7FFFFFFF,
-            derivation_cache: HashMap::with_capacity(10000),
+            derivation_cache: Arc::new(RwLock::new(HashMap::new())),
             secp: Secp256k1::new(),
             base_xpub: base,
+            thread_pool: ThreadPool::new(num_threads),
         }
+    }
+
+    pub fn get_pubkeys_hash_160(&self, paths: &[Vec<u32>]) -> Result<Vec<[u8; 20]>, String> {
+        let mut paths_to_cache: HashSet<Vec<u32>> = HashSet::new();
+        {
+            let cache_read = self.derivation_cache.read().map_err(|e| e.to_string())?;
+            for path in paths {
+                if path.len() > 1 {
+                    for i in 1..path.len() {
+                        let ancestor = path[0..i].to_vec();
+                        if !cache_read.contains_key(&ancestor) {
+                            paths_to_cache.insert(ancestor);
+                        }
+                    }
+                }
+            }
+            if cache_read.len() + paths_to_cache.len() >= MAX_CACHE_SIZE {
+                drop(cache_read);
+                self.derivation_cache
+                    .write()
+                    .map_err(|e| e.to_string())?
+                    .clear();
+            }
+        }
+
+        if paths_to_cache.len() > MAX_CACHE_SIZE / 10 {
+            println!("need to cache {} paths", paths_to_cache.len());
+            panic!("Cache size exceeded");
+        }
+
+        let mut ordered_paths: Vec<_> = paths_to_cache.into_iter().collect();
+        ordered_paths.sort_by_key(|p| p.len());
+        for path_to_cache in ordered_paths {
+            let derived = self.get_derived_xpub(&path_to_cache)?;
+            self.derivation_cache
+                .write()
+                .map_err(|e| e.to_string())?
+                .insert(path_to_cache, derived);
+        }
+
+        let chunk_size =
+            (paths.len() + self.thread_pool.max_count() - 1) / self.thread_pool.max_count();
+        let (tx, rx) = mpsc::channel();
+
+        for chunk in paths.chunks(chunk_size) {
+            let chunk_paths = chunk.to_vec();
+            let xpub = self.xpub.clone();
+            let base_xpub = self.base_xpub.clone();
+            let tx = tx.clone();
+            let non_hardening_max_index = self.non_hardening_max_index;
+
+            self.thread_pool.execute(move || {
+                let mut results = Vec::with_capacity(chunk_paths.len());
+                let mut deriver = ExtendedPublicKeyDeriver {
+                    xpub,
+                    non_hardening_max_index,
+                    derivation_cache: Arc::new(RwLock::new(HashMap::new())), // Thread-local cache
+                    secp: Secp256k1::new(),
+                    base_xpub,
+                    thread_pool: ThreadPool::new(1), // Dummy pool for thread-local instance
+                };
+
+                for path in chunk_paths {
+                    match deriver.get_pubkey_hash_160(&path) {
+                        Ok(hash) => results.push(Ok(hash)),
+                        Err(e) => results.push(Err(e)),
+                    }
+                }
+                tx.send(results).unwrap();
+            });
+        }
+
+        drop(tx);
+
+        let mut all_results = Vec::with_capacity(paths.len());
+        while let Ok(chunk_results) = rx.recv() {
+            for result in chunk_results {
+                all_results.push(result?);
+            }
+        }
+
+        Ok(all_results)
     }
 
     pub fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String> {
@@ -142,15 +233,17 @@ impl ExtendedPublicKeyDeriver {
         Ok(derived_xpub.public_key.serialize())
     }
 
-    fn get_from_cache(&self, path: &[u32]) -> Option<&ExtendedPubKey> {
-        self.derivation_cache.get(path)
+    fn get_from_cache(&self, path: &[u32]) -> Option<ExtendedPubKey> {
+        self.derivation_cache.read().ok()?.get(path).cloned()
     }
 
-    fn store_in_cache(&mut self, path: Vec<u32>, xpub: ExtendedPubKey) {
-        if self.derivation_cache.len() == MAX_CACHE_SIZE {
-            self.derivation_cache.clear();
+    fn store_in_cache(&self, path: Vec<u32>, xpub: ExtendedPubKey) {
+        if let Ok(mut cache) = self.derivation_cache.write() {
+            if cache.len() >= MAX_CACHE_SIZE {
+                cache.clear();
+            }
+            cache.insert(path, xpub);
         }
-        self.derivation_cache.insert(path, xpub);
     }
 
     fn get_base_xpub(&self) -> Result<ExtendedPubKey, String> {
@@ -171,7 +264,7 @@ impl ExtendedPublicKeyDeriver {
         parent.derive_child(&self.secp, index)
     }
 
-    fn get_derived_xpub(&mut self, path: &[u32]) -> Result<ExtendedPubKey, String> {
+    fn get_derived_xpub(&self, path: &[u32]) -> Result<ExtendedPubKey, String> {
         if path.is_empty() {
             return self.get_base_xpub();
         }
