@@ -32,14 +32,15 @@ impl ExtendedPublicKeyPathWalker {
             if self.xpub_path[last_index] < self.max_depth {
                 self.xpub_path[last_index] += 1;
             } else {
-                self.xpub_path.truncate(last_index - 1);
-                last_index = self.xpub_path.len() - 1;
-
-                if self.xpub_path[last_index] < self.max_non_hardening_index {
-                    self.xpub_path[last_index] += 1;
-                    self.xpub_path.extend_from_slice(&[0, 0]);
+                if self.xpub_path[last_index - 2] < self.max_non_hardening_index {
+                    // [x, y, non_max_hardening, 0, max_index] -> [x, y, non_max_hardening+1, 0, 0]
+                    self.xpub_path[last_index - 2] += 1;
+                    self.xpub_path[last_index] = 0;
                 } else {
-                    self.xpub_path.extend_from_slice(&[0, 0, 0]);
+                    last_index += 1;
+                    // [x, y, max_hardening, 0, max_index] -> [x, y, max_hardening, 0, 0, 0 (new)]
+                    self.xpub_path.push(0);
+                    self.xpub_path[last_index - 1] = 0;
                 }
             }
             paths.push(self.xpub_path.clone());
