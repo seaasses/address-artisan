@@ -30,7 +30,7 @@ impl StateHandler {
 
     pub fn new_generated(&mut self) {
         self.generated_local += 1;
-        if self.generated_local == self.local_batch_size {
+        if self.generated_local >= self.local_batch_size {
             self.flush_generated();
         }
     }
