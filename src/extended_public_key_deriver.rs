@@ -23,6 +23,14 @@ pub struct ExtendedPublicKeyDeriver {
     thread_pool: ThreadPool,
 }
 
+impl Drop for ExtendedPublicKeyDeriver {
+    fn drop(&mut self) {
+        if let Ok(mut cache) = self.derivation_cache.write() {
+            cache.clear();
+        }
+    }
+}
+
 const MAX_CACHE_SIZE: usize = 100_00000;
 
 impl ExtendedPubKey {
