@@ -22,9 +22,8 @@ impl ExtendedPublicKeyPathWalker {
     }
     pub fn get_n_next_paths(&mut self, n: usize) -> Vec<Vec<u32>> {
         let mut paths = Vec::new();
-        let initial_path: Vec<u32> = self.xpub_path.clone();
         if self.first_call {
-            paths.push(initial_path);
+            paths.push(self.xpub_path.clone());
             self.first_call = false;
         }
         for _ in 0..(n - paths.len()) {
