@@ -32,6 +32,20 @@ impl BitcoinAddressHelper {
         self.base58_encode(&result)
     }
 
+    pub fn get_pubkey_hash_from_address(&self, address: String) -> Option<[u8; 20]> {
+        let address_bytes = bs58::decode(address).into_vec().unwrap();
+        if address_bytes.len() != 25 {
+            return None;
+        }
+        let pubkey_hash = address_bytes
+            .iter()
+            .skip(1)
+            .take(20)
+            .cloned()
+            .collect::<Vec<u8>>();
+        Some(pubkey_hash.try_into().unwrap())
+    }
+
     fn base58_encode(&self, data: &[u8]) -> String {
         bs58::encode(data).into_string()
     }
