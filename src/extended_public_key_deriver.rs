@@ -216,6 +216,7 @@ pub struct ExtendedPublicKeyDeriver {
     derivation_cache: Arc<RwLock<HashMap<Vec<u32>, ExtendedPubKey>>>,
     thread_pool: ThreadPool,
     base_xpub: ExtendedPubKey,
+    job_count: usize,
 }
 
 impl ExtendedPublicKeyDeriver {
@@ -229,6 +230,7 @@ impl ExtendedPublicKeyDeriver {
             derivation_cache: Arc::new(RwLock::new(HashMap::new())),
             thread_pool: ThreadPool::new(num_threads),
             base_xpub,
+            job_count: 100 * num_threads,
         })
     }
 
@@ -285,8 +287,7 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn process_paths_in_parallel(&self, paths: &[Vec<u32>]) -> Result<Vec<[u8; 20]>, String> {
-        let chunk_size =
-            (paths.len() + self.thread_pool.max_count() - 1) / self.thread_pool.max_count();
+        let chunk_size = (paths.len() + self.job_count - 1) / self.job_count;
         let (tx, rx) = mpsc::channel();
 
         self.spawn_worker_threads(paths, chunk_size, tx);
@@ -297,23 +298,22 @@ impl ExtendedPublicKeyDeriver {
         &self,
         paths: &[Vec<u32>],
         chunk_size: usize,
-        tx: mpsc::Sender<Vec<Result<[u8; 20], String>>>,
+        tx: mpsc::Sender<Vec<(usize, Result<[u8; 20], String>)>>,
     ) {
-        for chunk in paths.chunks(chunk_size) {
+        for (chunk_start, chunk) in paths.chunks(chunk_size).enumerate() {
             let chunk_paths = chunk.to_vec();
             let cache = self.derivation_cache.clone();
             let base_xpub = self.base_xpub.clone();
             let tx = tx.clone();
+            let base_index = chunk_start * chunk_size;
 
             self.thread_pool.execute(move || {
                 let core = ExtendedPubKeyCore::new(base_xpub, cache);
                 let mut results = Vec::with_capacity(chunk_paths.len());
 
-                for path in chunk_paths {
-                    match core.get_pubkey_hash_160(&path) {
-                        Ok(hash) => results.push(Ok(hash)),
-                        Err(e) => results.push(Err(e)),
-                    }
+                for (i, path) in chunk_paths.iter().enumerate() {
+                    let result = core.get_pubkey_hash_160(path);
+                    results.push((base_index + i, result));
                 }
                 tx.send(results).unwrap();
             });
@@ -323,17 +323,25 @@ impl ExtendedPublicKeyDeriver {
     fn collect_results(
         &self,
         total_paths: usize,
-        rx: mpsc::Receiver<Vec<Result<[u8; 20], String>>>,
+        rx: mpsc::Receiver<Vec<(usize, Result<[u8; 20], String>)>>,
     ) -> Result<Vec<[u8; 20]>, String> {
-        let mut all_results = Vec::with_capacity(total_paths);
+        let mut all_results = vec![None; total_paths];
+        let mut received = 0;
 
         while let Ok(chunk_results) = rx.recv() {
-            for result in chunk_results {
-                all_results.push(result?);
+            for (idx, result) in chunk_results {
+                all_results[idx] = Some(result);
+                received += 1;
+            }
+            if received >= total_paths {
+                break;
             }
         }
 
-        Ok(all_results)
+        all_results
+            .into_iter()
+            .map(|r| r.unwrap())
+            .collect::<Result<Vec<_>, _>>()
     }
 }
 

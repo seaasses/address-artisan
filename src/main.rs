@@ -30,25 +30,39 @@ fn main() -> Result<(), String> {
     let xpub = cli.xpub;
     let prefix = cli.prefix;
 
-    let xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+    let xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub)?;
 
     let init = Instant::now();
-    let n = 40000;
+    let n = 400000;
     let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
     let vanity_address = VanityAddress::new(&prefix);
 
     let mut xpub_path_walker = ExtendedPublicKeyPathWalker::new(initial_path, max_depth);
     for _ in 0..10 {
+        let init = Instant::now();
         let xpaths = xpub_path_walker.get_n_next_paths(n);
+        let fdjinal = Instant::now();
+        println!(
+            "Time taken to get {} paths: {:?}",
+            n,
+            fdjinal.duration_since(init)
+        );
         let pubkey_hashes = xpub_deriver.get_pubkeys_hash_160(&xpaths)?;
-        for pubkey_hash in pubkey_hashes {
-            match vanity_address.get_vanity_address(pubkey_hash) {
+        let init_with_pubkeys = Instant::now();
+        for (i, pubkey_hash) in pubkey_hashes.iter().enumerate() {
+            match vanity_address.get_vanity_address(*pubkey_hash) {
                 Some(address) => {
-                    println!("Found vanity address: {:?}", address);
+                    println!("Found vanity address {} at path {:?}", address, xpaths[i]);
                 }
                 None => {}
             }
         }
+        let finished_with_pubkeys = Instant::now();
+        println!(
+            "Time taken to test {} pubkeys: {:?}",
+            n,
+            finished_with_pubkeys.duration_since(init_with_pubkeys)
+        );
     }
 
     let finished = Instant::now();
