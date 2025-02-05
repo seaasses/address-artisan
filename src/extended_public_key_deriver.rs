@@ -7,8 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, RwLock};
 use threadpool::ThreadPool;
 
-const MAX_CACHE_SIZE: usize = 100_00000;
-const MAX_CACHE_PATHS_RATIO: usize = 10;
+const MAX_CACHE_SIZE: usize = 1_000_000;
 
 #[derive(Clone, Debug)]
 pub struct ExtendedPubKey {
@@ -26,7 +25,7 @@ impl ExtendedPubKey {
         let data = Self::decode_base58(xpub)?;
         let (payload, checksum) = data.split_at(78);
         Self::verify_checksum(payload, checksum)?;
-        
+
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&payload[13..45]);
 
@@ -110,8 +109,8 @@ impl ExtendedPubKey {
         secp: &Secp256k1<secp256k1::All>,
         il: &[u8],
     ) -> Result<PublicKey, String> {
-        let tweak = secp256k1::SecretKey::from_slice(il)
-            .map_err(|e| format!("Invalid tweak: {}", e))?;
+        let tweak =
+            secp256k1::SecretKey::from_slice(il).map_err(|e| format!("Invalid tweak: {}", e))?;
 
         self.public_key
             .combine(&PublicKey::from_secret_key(secp, &tweak))
@@ -128,7 +127,10 @@ pub struct ExtendedPubKeyCore {
 }
 
 impl ExtendedPubKeyCore {
-    pub fn new(base_xpub: ExtendedPubKey, cache: Arc<RwLock<HashMap<Vec<u32>, ExtendedPubKey>>>) -> Self {
+    pub fn new(
+        base_xpub: ExtendedPubKey,
+        cache: Arc<RwLock<HashMap<Vec<u32>, ExtendedPubKey>>>,
+    ) -> Self {
         Self {
             base_xpub,
             derivation_cache: cache,
@@ -259,7 +261,7 @@ impl ExtendedPublicKeyDeriver {
                 .clear();
         }
 
-        if paths_to_cache.len() > MAX_CACHE_SIZE / MAX_CACHE_PATHS_RATIO {
+        if paths_to_cache.len() > MAX_CACHE_SIZE {
             println!("need to cache {} paths", paths_to_cache.len());
             panic!("Cache size exceeded");
         }
@@ -283,14 +285,20 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn process_paths_in_parallel(&self, paths: &[Vec<u32>]) -> Result<Vec<[u8; 20]>, String> {
-        let chunk_size = (paths.len() + self.thread_pool.max_count() - 1) / self.thread_pool.max_count();
+        let chunk_size =
+            (paths.len() + self.thread_pool.max_count() - 1) / self.thread_pool.max_count();
         let (tx, rx) = mpsc::channel();
 
         self.spawn_worker_threads(paths, chunk_size, tx);
         self.collect_results(paths.len(), rx)
     }
 
-    fn spawn_worker_threads(&self, paths: &[Vec<u32>], chunk_size: usize, tx: mpsc::Sender<Vec<Result<[u8; 20], String>>>) {
+    fn spawn_worker_threads(
+        &self,
+        paths: &[Vec<u32>],
+        chunk_size: usize,
+        tx: mpsc::Sender<Vec<Result<[u8; 20], String>>>,
+    ) {
         for chunk in paths.chunks(chunk_size) {
             let chunk_paths = chunk.to_vec();
             let cache = self.derivation_cache.clone();
@@ -336,4 +344,3 @@ impl Drop for ExtendedPublicKeyDeriver {
         }
     }
 }
-
