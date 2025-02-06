@@ -96,12 +96,12 @@ impl Logger {
 
         if self.serious_mode {
             println!(
-                "Found address: {} at path xpub'/{}, receive address {}",
+                "Found address: {} at xpub'/{}, receive address {}",
                 address, path_str, address_index
             );
         } else {
             println!(
-                "👨‍🎨: Eureka! {} at path xpub'/{}, receive address {}",
+                "👨‍🎨: A MASTERPIECE! {} at xpub'/{}, receive address {}. Simply a masterpiece!",
                 address, path_str, address_index
             );
         }
