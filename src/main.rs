@@ -72,9 +72,10 @@ fn setup_logger_thread(
     running: Arc<AtomicBool>,
     prefix: String,
     found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>,
+    serious_mode: bool,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        let mut logger = Logger::new(false);
+        let mut logger = Logger::new(serious_mode);
 
         let state_handler = StateHandler::new(
             Arc::clone(&global_generated_counter),
@@ -136,6 +137,7 @@ fn main() {
     let global_found_counter = Arc::new(AtomicUsize::new(0));
     let running = Arc::new(AtomicBool::new(true));
     let found_addresses = Arc::new(Mutex::new(Vec::new()));
+    let serious_mode = !cli.i_am_boring;
 
     // Spawn logger thread
     let logger_handle = setup_logger_thread(
@@ -144,6 +146,7 @@ fn main() {
         Arc::clone(&running),
         cli.prefix.clone(),
         Arc::clone(&found_addresses),
+        serious_mode,
     );
 
     // Spawn single worker thread
