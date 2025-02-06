@@ -2,22 +2,24 @@ mod bitcoin_address_helper;
 mod cli;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
+mod logger;
 mod state_handler;
 mod vanity_address;
 
 use cli::Cli;
 use extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use extended_public_key_path_walker::ExtendedPublicKeyPathWalker;
+use logger::Logger;
 use rand;
 use state_handler::StateHandler;
 use std::io::{self, Write};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use vanity_address::VanityAddress;
 
-const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
+const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(3);
 const THREADS_BATCH_SIZE: usize = 400000;
 const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 30;
 
@@ -28,6 +30,7 @@ fn setup_worker_thread(
     global_generated_counter: Arc<AtomicUsize>,
     global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
+    found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>,
 ) -> Result<(), String> {
     let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
     let mut xpub_path_walker = ExtendedPublicKeyPathWalker::new(initial_path, max_depth);
@@ -38,6 +41,7 @@ fn setup_worker_thread(
         Arc::clone(&global_found_counter),
         running,
         THREADS_BATCH_SIZE,
+        Arc::clone(&found_addresses),
     );
 
     while state_handler.is_running() {
@@ -52,18 +56,8 @@ fn setup_worker_thread(
 
             match vanity_address.get_vanity_address(*pubkey_hash) {
                 Some(address) => {
-                    let xpath_path_string = xpaths[i]
-                        .iter()
-                        .take(xpaths[i].len().saturating_sub(2))
-                        .map(|p| p.to_string())
-                        .collect::<Vec<String>>()
-                        .join("/");
-                    let receive_address = xpaths[i][xpaths[i].len() - 1];
-                    println!(
-                        "Found address: {} at xpub/{}, receive address {}",
-                        address, xpath_path_string, receive_address
-                    );
-                    state_handler.new_found();
+                    let xpath_path = xpaths[i].clone();
+                    state_handler.add_found_address(address, xpath_path);
                 }
                 None => {}
             }
@@ -77,76 +71,61 @@ fn setup_logger_thread(
     global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
     prefix: String,
+    found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        let mut logger = Logger::new(false);
+
         let state_handler = StateHandler::new(
             Arc::clone(&global_generated_counter),
             Arc::clone(&global_found_counter),
             running,
             THREADS_BATCH_SIZE,
+            Arc::clone(&found_addresses),
         );
 
-        let mut wait_time = WAIT_TIME_FOR_INITIAL_HASHRATE;
-        let time_first_message = Duration::from_secs(2);
-        let time_second_message = Duration::from_secs(2);
-        let time_third_message = Duration::from_secs(1);
-        let time_fourth_message = Duration::from_secs(1);
-
-        // First message
         if !state_handler.is_running() {
             return;
         }
-        println!("👨‍🎨: Hmmm, \"{}\" you say?", prefix);
-        thread::sleep(time_first_message);
-        wait_time -= time_first_message.as_secs() as u8;
+        logger.start(prefix);
 
         if !state_handler.is_running() {
+            let found_addresses = state_handler.get_found_addresses();
+            for (address, xpath_path) in found_addresses {
+                logger.log_found_address(&address, &xpath_path);
+            }
             return;
         }
-        // Second message
-        println!("👨‍🎨: What an interesting prefix!");
-        thread::sleep(time_second_message);
-        wait_time -= time_second_message.as_secs() as u8;
-        if !state_handler.is_running() {
-            return;
-        }
+        logger.wait_for_hashrate(WAIT_TIME_FOR_INITIAL_HASHRATE);
 
-        // third message
-        println!("👨‍🎨: Ok, lets do it!");
-        thread::sleep(time_third_message);
-        wait_time -= time_third_message.as_secs() as u8;
-
-        if !state_handler.is_running() {
-            return;
-        }
-
-        // fourth message
-        print!(
-            "👨‍🎨: Just wait here for {} seconds, I will prepare the studio",
-            wait_time
-        );
-        thread::sleep(time_fourth_message);
-
-        for _ in 0..wait_time {
+        thread::sleep(Duration::from_secs(2));
+        for _ in 0..WAIT_TIME_FOR_INITIAL_HASHRATE {
             thread::sleep(Duration::from_secs(1));
             if !state_handler.is_running() {
-                return;
+                break;
             }
             print!(".");
             io::stdout().flush().unwrap();
         }
         println!();
-        let hashrate = state_handler.get_hashrate();
-        println!("INITIAL HASHRATE");
-        println!("{:.2} addresses/s", hashrate);
+
+        if state_handler.is_running() {
+            let hashrate = state_handler.get_hashrate();
+            logger.print_statistics(hashrate);
+        }
 
         while state_handler.is_running() {
             let (generated, found, run_time, hashrate) = state_handler.get_statistics();
-            println!(
-                "{} addresses generated, {} addresses found, {:.0} seconds, {:.2} addresses/s",
-                generated, found, run_time, hashrate
-            );
+            logger.log_status(generated, found, run_time, hashrate);
+
             thread::sleep(STATUS_UPDATE_INTERVAL);
+        }
+
+        if state_handler.get_found() > 0 {
+            let found_addresses = state_handler.get_found_addresses();
+            for (address, xpath_path) in found_addresses {
+                logger.log_found_address(&address, &xpath_path);
+            }
         }
     })
 }
@@ -156,6 +135,7 @@ fn main() {
     let global_generated_counter = Arc::new(AtomicUsize::new(0));
     let global_found_counter = Arc::new(AtomicUsize::new(0));
     let running = Arc::new(AtomicBool::new(true));
+    let found_addresses = Arc::new(Mutex::new(Vec::new()));
 
     // Spawn logger thread
     let logger_handle = setup_logger_thread(
@@ -163,6 +143,7 @@ fn main() {
         Arc::clone(&global_found_counter),
         Arc::clone(&running),
         cli.prefix.clone(),
+        Arc::clone(&found_addresses),
     );
 
     // Spawn single worker thread
@@ -176,6 +157,7 @@ fn main() {
                 global_generated_counter,
                 global_found_counter,
                 thread_running,
+                found_addresses,
             ) {
                 eprintln!("Worker thread error: {}", e);
             }

@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub struct StateHandler {
@@ -9,6 +9,7 @@ pub struct StateHandler {
     running: Arc<AtomicBool>,
     local_batch_size: usize,
     start_time: Instant,
+    found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>, // (address, xpath_path)
 }
 
 impl StateHandler {
@@ -17,6 +18,7 @@ impl StateHandler {
         global_found_counter: Arc<AtomicUsize>,
         running: Arc<AtomicBool>,
         local_batch_size: usize,
+        found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>,
     ) -> Self {
         Self {
             generated_local: 0,
@@ -25,6 +27,7 @@ impl StateHandler {
             running,
             local_batch_size,
             start_time: Instant::now(),
+            found_addresses,
         }
     }
 
@@ -39,12 +42,6 @@ impl StateHandler {
         self.global_generated_counter
             .fetch_add(self.generated_local, Ordering::Relaxed);
         self.generated_local = 0;
-    }
-
-    pub fn new_found(&mut self) {
-        self.flush_generated();
-        self.global_found_counter.fetch_add(1, Ordering::Relaxed);
-        self.running.store(false, Ordering::Relaxed);
     }
 
     pub fn is_running(&self) -> bool {
@@ -78,5 +75,30 @@ impl StateHandler {
         let run_time = self.get_run_time().as_secs_f64();
         let hashrate = total_generated as f64 / run_time;
         (total_generated, total_found, run_time, hashrate)
+    }
+
+    pub fn add_found_address(&mut self, address: String, xpath_path: Vec<u32>) {
+        if let Ok(mut addresses) = self.found_addresses.lock() {
+            addresses.push((address, xpath_path));
+        }
+        self.new_found();
+        self.stop();
+    }
+
+    pub fn get_found_addresses(&self) -> Vec<(String, Vec<u32>)> {
+        if let Ok(addresses) = self.found_addresses.lock() {
+            addresses.clone()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn stop(&mut self) {
+        self.running.store(false, Ordering::Relaxed);
+    }
+
+    fn new_found(&mut self) {
+        self.flush_generated();
+        self.global_found_counter.fetch_add(1, Ordering::Relaxed);
     }
 }
