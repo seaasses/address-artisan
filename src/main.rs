@@ -2,12 +2,14 @@ mod bitcoin_address_helper;
 mod cli;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
+mod logger;
 mod state_handler;
 mod vanity_address;
 
 use cli::Cli;
 use extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use extended_public_key_path_walker::ExtendedPublicKeyPathWalker;
+use logger::Logger;
 use rand;
 use state_handler::StateHandler;
 use std::io::{self, Write};
@@ -17,7 +19,7 @@ use std::thread;
 use std::time::Duration;
 use vanity_address::VanityAddress;
 
-const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(2);
+const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(3);
 const THREADS_BATCH_SIZE: usize = 400000;
 const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 30;
 
@@ -79,6 +81,8 @@ fn setup_logger_thread(
     prefix: String,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        let mut logger = Logger::new(false);
+
         let state_handler = StateHandler::new(
             Arc::clone(&global_generated_counter),
             Arc::clone(&global_found_counter),
@@ -86,48 +90,18 @@ fn setup_logger_thread(
             THREADS_BATCH_SIZE,
         );
 
-        let mut wait_time = WAIT_TIME_FOR_INITIAL_HASHRATE;
-        let time_first_message = Duration::from_secs(2);
-        let time_second_message = Duration::from_secs(2);
-        let time_third_message = Duration::from_secs(1);
-        let time_fourth_message = Duration::from_secs(1);
-
-        // First message
         if !state_handler.is_running() {
             return;
         }
-        println!("👨‍🎨: Hmmm, \"{}\" you say?", prefix);
-        thread::sleep(time_first_message);
-        wait_time -= time_first_message.as_secs() as u8;
+        logger.start(prefix);
 
         if !state_handler.is_running() {
             return;
         }
-        // Second message
-        println!("👨‍🎨: What an interesting prefix!");
-        thread::sleep(time_second_message);
-        wait_time -= time_second_message.as_secs() as u8;
-        if !state_handler.is_running() {
-            return;
-        }
+        logger.wait_for_hashrate(WAIT_TIME_FOR_INITIAL_HASHRATE);
 
-        // third message
-        println!("👨‍🎨: Ok, lets do it!");
-        thread::sleep(time_third_message);
-        wait_time -= time_third_message.as_secs() as u8;
-
-        if !state_handler.is_running() {
-            return;
-        }
-
-        // fourth message
-        print!(
-            "👨‍🎨: Just wait here for {} seconds, I will prepare the studio",
-            wait_time
-        );
-        thread::sleep(time_fourth_message);
-
-        for _ in 0..wait_time {
+        thread::sleep(Duration::from_secs(2));
+        for _ in 0..WAIT_TIME_FOR_INITIAL_HASHRATE {
             thread::sleep(Duration::from_secs(1));
             if !state_handler.is_running() {
                 return;
@@ -137,15 +111,12 @@ fn setup_logger_thread(
         }
         println!();
         let hashrate = state_handler.get_hashrate();
-        println!("INITIAL HASHRATE");
-        println!("{:.2} addresses/s", hashrate);
+
+        logger.print_statistics(hashrate);
 
         while state_handler.is_running() {
             let (generated, found, run_time, hashrate) = state_handler.get_statistics();
-            println!(
-                "{} addresses generated, {} addresses found, {:.0} seconds, {:.2} addresses/s",
-                generated, found, run_time, hashrate
-            );
+            logger.log_status(generated, found, run_time, hashrate);
             thread::sleep(STATUS_UPDATE_INTERVAL);
         }
     })
