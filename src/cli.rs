@@ -92,3 +92,44 @@ impl Cli {
         Ok(xpub.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // prefix tests
+    #[test]
+    fn test_validate_prefix_starts_with_1() {
+        let prefix = "123456789ABCDE";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_prefix_starts_with_1_failed() {
+        let prefix = "23456789ABCDE";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_prefix_empty() {
+        let prefix = "";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_prefix_invalid_character() {
+        let prefix = "123456789ABCDE!";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_prefix_invalid_base58() {
+        let prefix = "123456789ABClE";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_err());
+    }
+}
