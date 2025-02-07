@@ -5,7 +5,7 @@ Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](htt
 This software is inspired by [Senzu](https://github.com/kaiwolfram/senzu) and aims to be:
 
 - 🔒 **Secure**: Generate vanity addresses even for hardware wallets! 🤯
-- ⚡ **Fast**: Built in Rust with fast public key derivation and prefix matching.
+- ⚡ **Fast**: Built in Rust with fast public key derivation and prefix matching. 🚀
 - 😎 **Cool**: "1There1sNoSpoon" is much cooler than "bc1qtheresn0sp00n". P2PKH wins! 🎉
 
 ## Get the Tool
