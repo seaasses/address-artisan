@@ -26,7 +26,7 @@ cargo build --release
 
 This tool can be called with 2 required arguments (`xpub` and `prefix`), 1 optional argument (`max-depth`), and 1 optional flag (`i-am-boring`).
 
-- `xpub`: extended public key. Can be obtained from almost any Bitcoin wallet. Example in # TODO
+- `xpub`: extended public key. Can be obtained from almost any Bitcoin wallet. Example in [Get the xpub](#get-the-xpub) section.
 - `prefix`: prefix of the address to be generated. Must start with "1".
 - `max-depth`: maximum depth of the last derivation path. A larger max-depth means better use of the key space and cache. However, an address may get buried in a large gap, and since [account discovery](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#user-content-Account_discovery) is designed to be sequential, it may take a while for the wallet to find it after the gap limit is increased. After some testing, 100,000 seems to be a good value, the wallet freezes for 3 seconds, and then it’s all set.
 - `i-am-boring`: if you are not a cool person and don't have friends, this flag can be used to make the tool's logs more serious (but the Artisan will be mad).
