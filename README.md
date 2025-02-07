@@ -24,7 +24,7 @@ cargo build --release
 
 ## Usage
 
-The tool requires 2 mandatory arguments (`xpub` and `prefix`), 1 optional argument (`max-depth`), and 1 optional flag (`i-am-boring`):
+The tool requires 2 mandatory arguments (`xpub` and `prefix`) and can take 1 optional argument (`max-depth`), and 1 optional flag (`i-am-boring`):
 
 - `xpub`: Extended public key (obtainable from almost any Bitcoin wallet)
 - `prefix`: Desired address prefix (must start with "1")
