@@ -128,6 +128,6 @@ impl ExtendedPublicKeyDeriver {
             start_index += 1;
         }
 
-        Ok(current_xpub.clone())
+        Ok(current_xpub)
     }
 }
