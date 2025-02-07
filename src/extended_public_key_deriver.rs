@@ -143,12 +143,7 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn get_from_cache(&self, path: &[u32]) -> Option<&ExtendedPubKey> {
-        if let Some(a) = self.derivation_cache.get(path) {
-            return Some(a);
-        } else {
-            println!("Tem no cache não {:?}", path);
-        }
-        None
+        self.derivation_cache.get(path)
     }
 
     fn store_in_cache(&mut self, path: Vec<u32>, xpub: ExtendedPubKey) {
@@ -181,24 +176,27 @@ impl ExtendedPublicKeyDeriver {
             return self.get_base_xpub();
         }
 
-        let mut current_path = Vec::with_capacity(path.len());
+        let mut start_index = 0;
         let mut current_xpub = self.get_base_xpub()?;
 
-        for (i, &index) in path.iter().enumerate() {
-            current_path.push(index);
-
-            // Only check cache for non-final paths to avoid unnecessary lookups
-            if i < path.len() - 1 {
-                if let Some(cached) = self.get_from_cache(&current_path) {
-                    current_xpub = cached.clone();
-                    continue;
-                }
+        for i in (0..path.len() - 1).rev() {
+            let subpath = &path[0..=i];
+            if let Some(cached) = self.get_from_cache(subpath) {
+                current_xpub = cached.clone();
+                start_index = i + 1;
+                break;
             }
+        }
 
+        // Derive remaining steps
+        let mut current_path = Vec::from(&path[0..start_index]);
+
+        for &index in path[start_index..].iter() {
+            current_path.push(index);
             current_xpub = self.derive_single_step(&current_xpub, index)?;
 
-            // Cache all intermediate paths
-            if i < path.len() - 1 {
+            // Cache intermediate paths
+            if current_path.len() < path.len() {
                 self.store_in_cache(current_path.clone(), current_xpub.clone());
             }
         }
