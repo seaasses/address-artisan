@@ -1,8 +1,8 @@
 use crate::extended_public_key::ExtendedPubKey;
-use hmac;
+use hmac::{Hmac, Mac};
 use ripemd::Ripemd160;
 use secp256k1::{PublicKey, Secp256k1};
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 use std::collections::HashMap;
 
 pub struct ExtendedPublicKeyDeriver {
@@ -25,14 +25,11 @@ impl ExtendedPublicKeyDeriver {
     }
 
     fn derive_child(&self, parent: &ExtendedPubKey, index: u32) -> Result<ExtendedPubKey, String> {
-        use hmac::{Hmac, Mac};
-        type HmacSha512 = Hmac<sha2::Sha512>;
-
         let mut data = Vec::with_capacity(37);
         data.extend_from_slice(&parent.public_key.serialize());
         data.extend_from_slice(&index.to_be_bytes());
 
-        let mut hmac = HmacSha512::new_from_slice(&parent.chain_code)
+        let mut hmac = Hmac::<Sha512>::new_from_slice(&parent.chain_code)
             .map_err(|e| format!("HMAC error: {}", e))?;
         hmac.update(&data);
         let result = hmac.finalize().into_bytes();
