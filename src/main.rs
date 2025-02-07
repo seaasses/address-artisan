@@ -20,50 +20,61 @@ use std::time::Duration;
 use vanity_address::VanityAddress;
 
 const STATUS_UPDATE_INTERVAL: Duration = Duration::from_secs(3);
-const THREADS_BATCH_SIZE: usize = 400000;
+const THREADS_BATCH_SIZE: usize = 10000;
 const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 30;
 
 fn setup_worker_thread(
     xpub: String,
     prefix: String,
     max_depth: u32,
+    num_threads: u32,
     global_generated_counter: Arc<AtomicUsize>,
     global_found_counter: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
     found_addresses: Arc<Mutex<Vec<(String, Vec<u32>)>>>,
-) -> Result<(), String> {
-    let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
-    let mut xpub_path_walker = ExtendedPublicKeyPathWalker::new(initial_path, max_depth);
-    let xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub)?;
-    let vanity_address = VanityAddress::new(&prefix);
-    let mut state_handler = StateHandler::new(
-        Arc::clone(&global_generated_counter),
-        Arc::clone(&global_found_counter),
-        running,
-        THREADS_BATCH_SIZE,
-        Arc::clone(&found_addresses),
-    );
+) {
+    let mut handles = vec![];
 
-    while state_handler.is_running() {
-        let xpaths = xpub_path_walker.get_n_next_paths(THREADS_BATCH_SIZE);
-        let pubkey_hashes = xpub_deriver.get_pubkeys_hash_160(&xpaths)?;
+    for _ in 0..num_threads {
+        let xpub = xpub.clone();
+        let prefix = prefix.clone();
+        let max_depth = max_depth;
+        let global_generated_counter = global_generated_counter.clone();
+        let global_found_counter = global_found_counter.clone();
+        let running = running.clone();
+        let found_addresses = found_addresses.clone();
 
-        for (i, pubkey_hash) in pubkey_hashes.iter().enumerate() {
-            if !state_handler.is_running() {
-                return Ok(());
-            }
-            state_handler.new_generated();
+        let handle = thread::spawn(move || {
+            let initial_path = vec![rand::random::<u32>() & 0x7FFFFFFF];
+            let xpub_path_walker = ExtendedPublicKeyPathWalker::new(initial_path, max_depth);
+            let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
+            let vanity_address = VanityAddress::new(&prefix);
+            let mut state_handler = StateHandler::new(
+                Arc::clone(&global_generated_counter),
+                Arc::clone(&global_found_counter),
+                running,
+                THREADS_BATCH_SIZE,
+                Arc::clone(&found_addresses),
+            );
 
-            match vanity_address.get_vanity_address(*pubkey_hash) {
-                Some(address) => {
-                    let xpath_path = xpaths[i].clone();
-                    state_handler.add_found_address(address, xpath_path);
+            for path in xpub_path_walker {
+                if !state_handler.is_running() {
+                    break;
                 }
-                None => {}
+                if let Ok(pubkey_hash) = xpub_deriver.get_pubkey_hash_160(&path) {
+                    if let Some(address) = vanity_address.get_vanity_address(pubkey_hash) {
+                        state_handler.add_found_address(address, path);
+                    }
+                    state_handler.new_generated();
+                }
             }
-        }
+        });
+        handles.push(handle);
     }
-    Ok(())
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
 }
 
 fn setup_logger_thread(
@@ -133,41 +144,35 @@ fn setup_logger_thread(
 
 fn main() {
     let cli = Cli::parse_args();
+
     let global_generated_counter = Arc::new(AtomicUsize::new(0));
     let global_found_counter = Arc::new(AtomicUsize::new(0));
     let running = Arc::new(AtomicBool::new(true));
     let found_addresses = Arc::new(Mutex::new(Vec::new()));
-    let serious_mode = !cli.i_am_boring;
 
-    // Spawn logger thread
+    let num_threads = thread::available_parallelism()
+        .map(|p| p.get() as u32)
+        .unwrap_or(4);
+
     let logger_handle = setup_logger_thread(
         Arc::clone(&global_generated_counter),
         Arc::clone(&global_found_counter),
         Arc::clone(&running),
         cli.prefix.clone(),
         Arc::clone(&found_addresses),
-        serious_mode,
+        !cli.i_am_boring,
     );
 
-    // Spawn single worker thread
-    let worker_handle = {
-        let thread_running = Arc::clone(&running);
-        thread::spawn(move || {
-            if let Err(e) = setup_worker_thread(
-                cli.xpub,
-                cli.prefix,
-                cli.max_depth,
-                global_generated_counter,
-                global_found_counter,
-                thread_running,
-                found_addresses,
-            ) {
-                eprintln!("Worker thread error: {}", e);
-            }
-        })
-    };
+    setup_worker_thread(
+        cli.xpub,
+        cli.prefix,
+        cli.max_depth,
+        num_threads,
+        global_generated_counter,
+        global_found_counter,
+        running,
+        found_addresses,
+    );
 
-    // Wait for worker to finish
-    worker_handle.join().unwrap();
     logger_handle.join().unwrap();
 }
