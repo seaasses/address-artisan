@@ -77,7 +77,7 @@ The example below shows from start to finish how to generate and use a vanity ad
 
 ### Get the xpub
 
-First it is required to get a working wallet for the P2PKH script. It is recommended to do this step even if a P2PKH wallet is already set, as the recommended derivation path is not the default one.
+First it is required to get a working wallet for the P2PKH script. It is recommended to do this step even if a P2PKH wallet is already set, as the recommended derivation path is not the default one. You can do this using a seed phrase or a hardware wallet.
 
 First create a new P2PKH wallet. Make sure to select `P2PKH` on the script type.
 
