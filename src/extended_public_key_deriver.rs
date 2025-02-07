@@ -1,91 +1,30 @@
-use bs58;
+use crate::extended_public_key::ExtendedPubKey;
 use hmac;
 use ripemd::Ripemd160;
 use secp256k1::{PublicKey, Secp256k1};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
-pub struct ExtendedPubKey {
-    pub public_key: PublicKey,
-    pub chain_code: [u8; 32],
-    pub depth: u8,
-}
-
 pub struct ExtendedPublicKeyDeriver {
-    xpub: String,
     pub non_hardening_max_index: u32,
     derivation_cache: HashMap<Box<[u32]>, ExtendedPubKey>,
     secp: Secp256k1<secp256k1::All>,
-    base_xpub: Option<ExtendedPubKey>,
+    base_xpub: ExtendedPubKey,
 }
 
 const MAX_CACHE_SIZE: usize = 100_000;
 
-impl ExtendedPubKey {
-    pub fn from_str(xpub: &str) -> Result<Self, String> {
-        if !xpub.starts_with("xpub") {
-            return Err("Invalid xpub format: must start with 'xpub'".to_string());
-        }
-
-        let data = bs58::decode(xpub)
-            .into_vec()
-            .map_err(|e| format!("Failed to decode base58: {}", e))?;
-
-        if data.len() != 82 {
-            return Err(format!("Invalid xpub length: {}", data.len()));
-        }
-
-        let payload = &data[0..78];
-        let checksum = &data[78..82];
-
-        let mut hasher = Sha256::new();
-        hasher.update(payload);
-        let first_hash = hasher.finalize();
-
-        let mut hasher = Sha256::new();
-        hasher.update(&first_hash);
-        let second_hash = hasher.finalize();
-
-        if checksum != &second_hash[0..4] {
-            return Err(format!(
-                "Invalid checksum: expected {:02x?}, got {:02x?}",
-                checksum,
-                &second_hash[0..4]
-            ));
-        }
-
-        let mut chain_code = [0u8; 32];
-        chain_code.copy_from_slice(&payload[13..45]);
-
-        let public_key = PublicKey::from_slice(&payload[45..78])
-            .map_err(|e| format!("Invalid public key: {}", e))?;
-
-        Ok(ExtendedPubKey {
-            public_key,
-            chain_code,
-            depth: payload[4],
-        })
-    }
-}
-
 impl ExtendedPublicKeyDeriver {
-    pub fn new(xpub: &str) -> Self {
-        let base = ExtendedPubKey::from_str(xpub).ok();
+    pub fn new(base_xpub: &ExtendedPubKey) -> Self {
         Self {
-            xpub: xpub.to_string(),
             non_hardening_max_index: 0x7FFFFFFF,
             derivation_cache: HashMap::with_capacity(MAX_CACHE_SIZE),
             secp: Secp256k1::new(),
-            base_xpub: base,
+            base_xpub: base_xpub.clone(),
         }
     }
 
-    fn derive_child(
-        &self,
-        parent: &ExtendedPubKey,
-        index: u32,
-    ) -> Result<ExtendedPubKey, String> {
+    fn derive_child(&self, parent: &ExtendedPubKey, index: u32) -> Result<ExtendedPubKey, String> {
         use hmac::{Hmac, Mac};
         type HmacSha512 = Hmac<sha2::Sha512>;
 
@@ -150,13 +89,6 @@ impl ExtendedPublicKeyDeriver {
         self.derivation_cache.insert(path.into(), xpub);
     }
 
-    fn get_base_xpub(&self) -> Result<ExtendedPubKey, String> {
-        if let Some(ref base) = self.base_xpub {
-            return Ok(base.clone());
-        }
-        ExtendedPubKey::from_str(&self.xpub)
-    }
-
     fn derive_single_step(
         &self,
         parent: &ExtendedPubKey,
@@ -170,11 +102,11 @@ impl ExtendedPublicKeyDeriver {
 
     fn get_derived_xpub(&mut self, path: &[u32]) -> Result<ExtendedPubKey, String> {
         if path.is_empty() {
-            return self.get_base_xpub();
+            return Ok(self.base_xpub.clone());
         }
 
         let mut start_index = 0;
-        let mut current_xpub = self.get_base_xpub()?;
+        let mut current_xpub = self.base_xpub.clone();
 
         for i in (0..path.len() - 1).rev() {
             let subpath = &path[0..=i];
@@ -196,6 +128,6 @@ impl ExtendedPublicKeyDeriver {
             start_index += 1;
         }
 
-        Ok(current_xpub)
+        Ok(current_xpub.clone())
     }
 }
