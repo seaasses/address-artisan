@@ -61,51 +61,10 @@ impl ExtendedPubKey {
         let public_key = PublicKey::from_slice(&payload[45..78])
             .map_err(|e| format!("Invalid public key: {}", e))?;
 
-        let mut parent_fingerprint = [0u8; 4];
-        parent_fingerprint.copy_from_slice(&payload[5..9]);
-
         Ok(ExtendedPubKey {
             public_key,
             chain_code,
             depth: payload[4],
-        })
-    }
-
-    pub fn derive_child(
-        &self,
-        secp: &Secp256k1<secp256k1::All>,
-        index: u32,
-    ) -> Result<Self, String> {
-        use hmac::{Hmac, Mac};
-        type HmacSha512 = Hmac<sha2::Sha512>;
-
-        let mut data = Vec::with_capacity(37);
-        data.extend_from_slice(&self.public_key.serialize());
-        data.extend_from_slice(&index.to_be_bytes());
-
-        let mut hmac = HmacSha512::new_from_slice(&self.chain_code)
-            .map_err(|e| format!("HMAC error: {}", e))?;
-        hmac.update(&data);
-        let result = hmac.finalize().into_bytes();
-
-        let il = &result[0..32];
-        let ir = &result[32..];
-
-        let tweak =
-            secp256k1::SecretKey::from_slice(il).map_err(|e| format!("Invalid tweak: {}", e))?;
-
-        let child_pubkey = self
-            .public_key
-            .combine(&PublicKey::from_secret_key(secp, &tweak))
-            .map_err(|e| format!("Failed to derive child key: {}", e))?;
-
-        let mut chain_code = [0u8; 32];
-        chain_code.copy_from_slice(ir);
-
-        Ok(ExtendedPubKey {
-            public_key: child_pubkey,
-            chain_code,
-            depth: self.depth + 1,
         })
     }
 }
@@ -120,6 +79,44 @@ impl ExtendedPublicKeyDeriver {
             secp: Secp256k1::new(),
             base_xpub: base,
         }
+    }
+
+    fn derive_child(
+        &self,
+        parent: &ExtendedPubKey,
+        index: u32,
+    ) -> Result<ExtendedPubKey, String> {
+        use hmac::{Hmac, Mac};
+        type HmacSha512 = Hmac<sha2::Sha512>;
+
+        let mut data = Vec::with_capacity(37);
+        data.extend_from_slice(&parent.public_key.serialize());
+        data.extend_from_slice(&index.to_be_bytes());
+
+        let mut hmac = HmacSha512::new_from_slice(&parent.chain_code)
+            .map_err(|e| format!("HMAC error: {}", e))?;
+        hmac.update(&data);
+        let result = hmac.finalize().into_bytes();
+
+        let il = &result[0..32];
+        let ir = &result[32..];
+
+        let tweak =
+            secp256k1::SecretKey::from_slice(il).map_err(|e| format!("Invalid tweak: {}", e))?;
+
+        let child_pubkey = parent
+            .public_key
+            .combine(&PublicKey::from_secret_key(&self.secp, &tweak))
+            .map_err(|e| format!("Failed to derive child key: {}", e))?;
+
+        let mut chain_code = [0u8; 32];
+        chain_code.copy_from_slice(ir);
+
+        Ok(ExtendedPubKey {
+            public_key: child_pubkey,
+            chain_code,
+            depth: parent.depth + 1,
+        })
     }
 
     pub fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String> {
@@ -168,7 +165,7 @@ impl ExtendedPublicKeyDeriver {
         if index > self.non_hardening_max_index {
             return Err(format!("{} is reserved for hardened derivation", index));
         }
-        parent.derive_child(&self.secp, index)
+        self.derive_child(parent, index)
     }
 
     fn get_derived_xpub(&mut self, path: &[u32]) -> Result<ExtendedPubKey, String> {
