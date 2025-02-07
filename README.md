@@ -53,7 +53,7 @@ Where:
 - `m`: Master key
 - `purpose'`: Constant 44' (0x8000002C) - following [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki)
 - `coin_type'`: Coin identifier, following [SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md). 0' (0x80000000) for Bitcoin
-- `account'`: Account number for fund organization (greater than 0' (0x80000000))
+- `account'`: Account number for fund organization - greater than 0' (0x80000000)
 - `change`: Boolean flag - 0 (0x00) for receive addresses, 1 (0x01) for change addresses
 - `address_index`: Address index
 
