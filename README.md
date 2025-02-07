@@ -37,7 +37,7 @@ You can always call the help flag to get more information:
 address-artisan --help
 ```
 
-For a complete walkthrough, showing all steps and details, check the [Example](link-to-the-example-session) section.
+For a complete walkthrough, showing all steps and details, check the [Example](#example) section.
 
 ## BIP44
 
