@@ -39,9 +39,9 @@ address-artisan --help
 
 For a complete walkthrough, showing all steps and details, check the [Example](#example) section.
 
-## BIP44
+## BIP44 compliance
 
-This tool is not (and cannot be) compliant with [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki). But can be used on wallets that are BIP 44 compliant. Here is how it works:
+This tool is **not** (and cannot be) compliant with [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki). But can be used on wallets that are BIP 44 compliant. Here is how it works:
 
 BIP 44 standardizes 5 levels of derivation:
 
@@ -49,12 +49,12 @@ BIP 44 standardizes 5 levels of derivation:
 m / purpose' / coin_type' / account' / change / address_index
 ```
 where:
-- `m` is the master key
-- `purpose'` is the constant 44' (0x8000002C) - respecting [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki)
-- `coin_type'` is 0' (0x80000000) for Bitcoin
-- `account'` is the account number so user can organize the funds like in a bank account. Greater than 0' (0x80000000)
-- `change` 0 (0x00) for receive addresses, 1 (0x01) for change addresses
-- `address_index` is the index of the address in the account 
+- `m`: the master key
+- `purpose'`: the constant 44' (0x8000002C) - respecting [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki)
+- `coin_type'`: the coin, usually respecting [SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md). 0' (0x80000000) for Bitcoin
+- `account'`: the account number so user can organize the funds like in a bank account. Greater than 0' (0x80000000)
+- `change`: like a boolean, 0 (0x00) for not change addresses (receive addresses), 1 (0x01) for change addresses
+- `address_index`: index of the address
 
 This tool brute-forces a path of the form:
 
@@ -63,13 +63,13 @@ xpub_path' / random_number / <n derivation paths> / 0 / address_index
 ```
 
 where:
-- `xpub_path'` is the derivation path provided by the user (that should be hardened)
-- `random_number` is a number randomly generated to get a different key space for each run. Less than 0' (0x80000000)
-- `<n derivation paths>` 1 or more derivation paths that will expand when exausting the key space. Each less than 0' (0x80000000)
-- `0` is the constant 0 (0x00)
-- `address_index` is the index of the address in the account, less or equal to `max_depth` cli argument
+- `xpub_path'`: the derivation path provided by the user (that should be hardened)
+- `random_number`: a number randomly generated to get a different key space for each run. Less than 0' (0x80000000)
+- `<n derivation paths>`: 1 or more derivation paths that will expand when exausting the key space. Each less than 0' (0x80000000)
+- `0`: the constant 0 (0x00), helps to get the address on a BIP44 compliant wallet
+- `address_index`: the index of the address in the account, less than `max_depth` cli argument
 
-By leaving the second last derivation path as 0, BIP44 compliant wallets will correctly recognize the vanity address as the `address_index`th receive address if the inputed path in the wallet is `xpub_path / radom_number / <n derivation paths>`
+By leaving the second last derivation path as 0, BIP44 compliant wallets will correctly recognize the vanity address as the `address_index`th receive address if the inputed path in the wallet is `xpub_path / radom_number / <n derivation paths>`. See [BIP44 compliance](#bip44-compliance) for more details.
 
 ## Example
 
@@ -79,7 +79,7 @@ The example below shows from start to finish how to generate and use a vanity ad
 
 First it is required to get a working wallet for the P2PKH script. It is recommended to do this step even if a P2PKH wallet is already set, as the recommended derivation path is not the default one. You can do this using a seed phrase or a hardware wallet.
 
-First create a new P2PKH wallet. Make sure to select `P2PKH` on the script type.
+First create a new P2PKH wallet. Make sure to select *P2PKH* on the script type.
 
 ![New wallet](./assets/new_p2pkh_wallet.png)
 
@@ -90,7 +90,7 @@ m/1034543799'/0'/0'
 ```
 
 - purpose 1034543799' (0xBDA9E2B7) for vanity 
-- coin type 0' (0x80000000) for Bitcoin
+- coin type 0' (0x80000000) for Bitcoin ([SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md))
 - account 0' (0x80000000)
 
 Make sure to use the ' after each number to make the derivation hardened.
