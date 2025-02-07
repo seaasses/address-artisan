@@ -1,5 +1,6 @@
 mod bitcoin_address_helper;
 mod cli;
+mod extended_public_key;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
 mod logger;
@@ -7,6 +8,7 @@ mod state_handler;
 mod vanity_address;
 
 use cli::Cli;
+use extended_public_key::ExtendedPubKey;
 use extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use extended_public_key_path_walker::ExtendedPublicKeyPathWalker;
 use logger::Logger;
@@ -24,7 +26,7 @@ const THREADS_BATCH_SIZE: usize = 10000;
 const WAIT_TIME_FOR_INITIAL_HASHRATE: u8 = 30;
 
 fn setup_worker_thread(
-    xpub: String,
+    xpub: ExtendedPubKey,
     prefix: String,
     max_depth: u32,
     num_threads: u32,
@@ -163,8 +165,10 @@ fn main() {
         !cli.i_am_boring,
     );
 
+    let xpub_class = ExtendedPubKey::from_str(&cli.xpub).unwrap();
+
     setup_worker_thread(
-        cli.xpub,
+        xpub_class,
         cli.prefix,
         cli.max_depth,
         num_threads,
