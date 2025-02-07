@@ -15,7 +15,7 @@ pub struct ExtendedPubKey {
 pub struct ExtendedPublicKeyDeriver {
     xpub: String,
     pub non_hardening_max_index: u32,
-    derivation_cache: HashMap<Vec<u32>, ExtendedPubKey>,
+    derivation_cache: HashMap<Box<[u32]>, ExtendedPubKey>,
     secp: Secp256k1<secp256k1::All>,
     base_xpub: Option<ExtendedPubKey>,
 }
@@ -143,11 +143,11 @@ impl ExtendedPublicKeyDeriver {
         self.derivation_cache.get(path)
     }
 
-    fn store_in_cache(&mut self, path: Vec<u32>, xpub: ExtendedPubKey) {
+    fn store_in_cache(&mut self, path: &[u32], xpub: ExtendedPubKey) {
         if self.derivation_cache.len() == MAX_CACHE_SIZE {
             self.derivation_cache.clear();
         }
-        self.derivation_cache.insert(path, xpub);
+        self.derivation_cache.insert(path.into(), xpub);
     }
 
     fn get_base_xpub(&self) -> Result<ExtendedPubKey, String> {
@@ -186,16 +186,14 @@ impl ExtendedPublicKeyDeriver {
         }
 
         // Derive remaining steps
-        let mut current_path = Vec::from(&path[0..start_index]);
-
         for &index in path[start_index..].iter() {
-            current_path.push(index);
             current_xpub = self.derive_single_step(&current_xpub, index)?;
 
             // Cache intermediate paths
-            if current_path.len() < path.len() {
-                self.store_in_cache(current_path.clone(), current_xpub.clone());
+            if start_index < path.len() - 1 {
+                self.store_in_cache(&path[0..=start_index], current_xpub.clone());
             }
+            start_index += 1;
         }
 
         Ok(current_xpub)
