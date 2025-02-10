@@ -39,6 +39,13 @@ address-artisan --help
 
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 
+## ⚠️ **WARNING**
+Yes, it's completely safe to use this tool. But be aware of the following:
+- Don't send funds to the vanity address without first confirming it appears in your addresses list.
+- Store the derivation path and address index so you can always recover your funds. It's even possible to save them on the [Bitcoin Blockchain](https://en.bitcoin.it/wiki/OP_RETURN).
+
+Again, see the [Example](#example) section for a complete and safe walkthrough.
+
 ## BIP44 Compliance
 
 While this tool is **not** (and cannot be) compliant with [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki), it can be used with BIP44-compliant wallets. Here's how it works:
@@ -141,18 +148,13 @@ In this example, use: `m/1034543799'/0'/0'/335682406/36995`
 
 ### Verify the Address
 
-1. In the Addresses tab, scroll down to your receive address index and verify that you see your vanity address. **Important**: Never send funds to the address without first confirming it appears in your addresses list.
+1. In the Addresses tab, scroll down to your receive address index and verify that you see your vanity address.
 
 ![Confirm the address](./assets/vanity_wallet_confirm_the_address.png)
 
 2. Once confirmed, the address is ready to receive funds securely. Double-click the address to open the default Receive screen.
 
 ![Receive screen](./assets/vanity_wallet_receive.png)
-
-
-
-
-
 
 
 
