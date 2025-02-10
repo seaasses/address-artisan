@@ -81,11 +81,14 @@ By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets 
 
 ## Example
 
-The following example demonstrates the complete process of generating and using a vanity address with this tool. We'll use [Sparrow](https://github.com/sparrowwallet/sparrow) wallet and the *satoshi legend* seed phrase for this demonstration.
+The following example demonstrates the complete process of generating and using a vanity address with this tool. The [Sparrow](https://github.com/sparrowwallet/sparrow) wallet will be used for this demonstration. 
+
 
 ### Get the xpub
 
-First, you'll need to set up a working wallet for the P2PKH script. Even if you already have a P2PKH wallet, it's recommended to create a new one with the suggested derivation path. You can do this using either a seed phrase or a hardware wallet.
+First, you'll need to set up a working wallet that supports the P2PKH script type.
+
+If you already have a P2PKH wallet (which is unlikely since most modern wallets default to SegWit), it's recommended to create a new one with a custom derivation path. You won't need to generate a new seed phrase or reset your hardware wallet - using a different derivation path allows you to keep your existing wallet funds completely separate.
 
 1. Create a new P2PKH wallet by selecting *P2PKH* as the script type.
 
