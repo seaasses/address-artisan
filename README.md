@@ -135,7 +135,7 @@ The complete derivation path for this address is `m/1034543799'/0'/0'/335682406/
 
 In this example, use: `m/1034543799'/0'/0'/335682406/36995`
 
-2. Since wallet software typically uses a default gap of 20 addresses, you'll need to adjust this in the Advanced settings. Set the gap limit to a value higher than your address index.
+2. Since software wallets uses a default gap of 20 addresses, you'll need to adjust this in the Advanced settings. Set the gap limit to a value higher than your address index.
 
 ![Change gap limit](./assets/vanity_wallet_gap_limit.png)
 
