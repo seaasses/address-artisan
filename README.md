@@ -70,7 +70,7 @@ Where:
 - `0`: Constant 0 (0x00) for BIP44-compliant wallet compatibility
 - `address_index`: Address index within the account - less than *max_depth* CLI argument
 
-By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets will recognize the vanity address as the *address_index*th receive address when using `xpub_path / random_number / <n derivation paths>` as the wallet's input path.
+By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets will recognize the vanity address as the *address_index*th receive address when using `xpub_path' / random_number / <n derivation paths>` as the wallet's input path.
 
 ## Example
 
