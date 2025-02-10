@@ -131,7 +131,7 @@ The complete derivation path for this address is `m/1034543799'/0'/0'/335682406/
 
 1. Create a new P2PKH wallet using the same seed phrase or hardware wallet, but this time use the derivation path returned by the tool.
 
-![New wallet derivation path](./assets/new_wallet_derivation_path.png)
+![Vanity wallet derivation path](./assets/vanity_wallet_derivation_path.png)
 
 In this example, use: `m/1034543799'/0'/0'/335682406/36995`
 
