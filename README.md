@@ -39,6 +39,13 @@ address-artisan --help
 
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 
+## ⚠️ **WARNING**
+Yes, it's completely safe to use this tool. But be aware of the following:
+- Don't send funds to the vanity address without first confirming it appears in your addresses list.
+- Store the derivation path and address index so you can always recover your funds. It's even possible to save them on the [Bitcoin Blockchain](https://en.bitcoin.it/wiki/OP_RETURN).
+
+Again, see the [Example](#example) section for a complete and safe walkthrough.
+
 ## BIP44 Compliance
 
 While this tool is **not** (and cannot be) compliant with [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki), it can be used with BIP44-compliant wallets. Here's how it works:
@@ -70,15 +77,18 @@ Where:
 - `0`: Constant 0 (0x00) for BIP44-compliant wallet compatibility
 - `address_index`: Address index within the account - less than *max_depth* CLI argument
 
-By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets will recognize the vanity address as the *address_index*th receive address when using `xpub_path / random_number / <n derivation paths>` as the wallet's input path.
+By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets will recognize the vanity address as the *address_index*th receive address when using `xpub_path' / random_number / <n derivation paths>` as the wallet's input path.
 
 ## Example
 
-The following example demonstrates the complete process of generating and using a vanity address with this tool. We'll use [Sparrow](https://github.com/sparrowwallet/sparrow) wallet and the *satoshi legend* seed phrase for this demonstration.
+The following example demonstrates the complete process of generating and using a vanity address with this tool. The [Sparrow](https://github.com/sparrowwallet/sparrow) wallet will be used for this demonstration. 
+
 
 ### Get the xpub
 
-First, you'll need to set up a working wallet for the P2PKH script. Even if you already have a P2PKH wallet, it's recommended to create a new one with the suggested derivation path. You can do this using either a seed phrase or a hardware wallet.
+First, you'll need to set up a working wallet that supports the P2PKH script type.
+
+If you already have a P2PKH wallet (which is unlikely since most modern wallets default to SegWit), it's recommended to create a new one with a custom derivation path. You won't need to generate a new seed phrase or reset your hardware wallet - using a different derivation path allows you to keep your existing wallet funds completely separate.
 
 1. Create a new P2PKH wallet by selecting *P2PKH* as the script type.
 
@@ -131,28 +141,23 @@ The complete derivation path for this address is `m/1034543799'/0'/0'/335682406/
 
 1. Create a new P2PKH wallet using the same seed phrase or hardware wallet, but this time use the derivation path returned by the tool.
 
-![New wallet derivation path](./assets/new_wallet_derivation_path.png)
+![Vanity wallet derivation path](./assets/vanity_wallet_derivation_path.png)
 
 In this example, use: `m/1034543799'/0'/0'/335682406/36995`
 
-2. Since wallet software typically uses a default gap of 20 addresses, you'll need to adjust this in the Advanced settings. Set the gap limit to a value higher than your address index.
+2. Since software wallets uses a default gap of 20 addresses, you'll need to adjust this in the Advanced settings. Set the gap limit to a value higher than your address index.
 
 ![Change gap limit](./assets/vanity_wallet_gap_limit.png)
 
 ### Verify the Address
 
-1. In the Addresses tab, scroll down to your receive address index and verify that you see your vanity address. **Important**: Never send funds to the address without first confirming it appears in your addresses list.
+1. In the Addresses tab, scroll down to your receive address index and verify that you see your vanity address.
 
 ![Confirm the address](./assets/vanity_wallet_confirm_the_address.png)
 
 2. Once confirmed, the address is ready to receive funds securely. Double-click the address to open the default Receive screen.
 
 ![Receive screen](./assets/vanity_wallet_receive.png)
-
-
-
-
-
 
 
 
