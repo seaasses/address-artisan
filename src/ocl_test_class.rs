@@ -1,4 +1,5 @@
-use ocl::{core, Buffer, Context, Device, Kernel, Platform, Program, Queue, SpatialDims};
+use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue, SpatialDims};
+
 pub struct OclTestClass {
     output_size: u32,
     count_kernel: Kernel,
@@ -28,7 +29,8 @@ impl OclTestClass {
 
         let queue = Queue::new(&context, device, None)?;
 
-        let src = include_str!("opencl/kernels/count.cl");
+        // Use the combined kernel source from build script
+        let src = include_str!(concat!(env!("OUT_DIR"), "/combined_kernels.cl"));
 
         let program = match Program::builder().src(src).devices(device).build(&context) {
             Ok(program) => program,
@@ -100,7 +102,6 @@ impl OclTestClass {
             Ok(result) => result,
             Err(e) => return Err(format!("Error setting kernel arg: {:?}", e)),
         };
-
 
         unsafe {
             match self.count_kernel.enq() {
