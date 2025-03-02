@@ -2,7 +2,7 @@ use ocl::{core, Buffer, Context, Device, Kernel, Platform, Program, Queue, Spati
 pub struct OclTestClass {
     output_size: u32,
     count_kernel: Kernel,
-    output: Buffer<u64>,
+    output: Buffer<u8>,
 }
 
 impl OclTestClass {
@@ -28,36 +28,23 @@ impl OclTestClass {
 
         let queue = Queue::new(&context, device, None)?;
 
-        let src = r#"
-        __kernel void add(uint quant, __global ulong* output) {
-        
-            uint work_item_id = get_global_id(0);
-
-            if (work_item_id >= quant) {
-                return;
-            } 
-
-            output[work_item_id] = 1;
-        }
-        "#;
+        let src = include_str!("opencl/kernels/count.cl");
 
         let program = match Program::builder().src(src).devices(device).build(&context) {
             Ok(program) => program,
             Err(e) => return Err("Error building OpenCL program: ".to_string() + &e.to_string()),
         };
 
-        let output = match Buffer::<u64>::builder().queue(queue.clone()).len(1).build() {
+        let output = match Buffer::<u8>::builder().queue(queue.clone()).len(1).build() {
             Ok(output) => output,
             Err(e) => {
                 return Err("Error creating OpenCL output buffer: ".to_string() + &e.to_string())
             }
         };
 
-        let max_work_item_sizes = core::get_device_info(device, core::DeviceInfo::MaxWorkItemSizes);
-
         let count_kernel = match Kernel::builder()
             .program(&program)
-            .name("add")
+            .name("count")
             .queue(queue.clone())
             .arg(0u32) // will be replaced
             .arg(&output)
@@ -87,10 +74,10 @@ impl OclTestClass {
             None => panic!("No queue found"),
         };
 
-        let new_output = match Buffer::<u64>::builder()
+        let new_output = match Buffer::<u8>::builder()
             .queue(queue)
-            .len(new_size as usize)
-            .fill_val(0u64)
+            .len(new_size)
+            .fill_val(0u8)
             .build()
         {
             Ok(buffer) => buffer,
@@ -103,23 +90,32 @@ impl OclTestClass {
         self.output = new_output;
     }
 
-    pub fn run(&mut self, quant: u32) {
+    pub fn run(&mut self, quant: u32) -> Result<Vec<u8>, String> {
         // run the kernel with the given quant
         self.resize_output(quant);
         let work_size = SpatialDims::One(quant as usize);
 
         self.count_kernel.set_default_global_work_size(work_size);
-        let _ = self.count_kernel.set_arg(0, quant);
+        match self.count_kernel.set_arg(0, quant) {
+            Ok(result) => result,
+            Err(e) => return Err(format!("Error setting kernel arg: {:?}", e)),
+        };
+
 
         unsafe {
             match self.count_kernel.enq() {
                 Ok(result) => result,
-                Err(e) => println!("Error executing kernel: {:?}", e),
+                Err(e) => return Err(format!("Error executing kernel: {:?}", e)),
             }
         }
 
         let mut output = vec![0; self.output_size as usize];
-        let a = self.output.read(&mut output).enq().unwrap();
-        println!("{:?}", output);
+
+        match self.output.read(&mut output).enq() {
+            Ok(result) => result,
+            Err(e) => return Err(format!("Error reading output: {:?}", e)),
+        };
+
+        Ok(output)
     }
 }
