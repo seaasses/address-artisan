@@ -1,3 +1,5 @@
+uint return6();
+
 __kernel void count(uint work_items, __global uchar *output) {
 
   const uint work_item_id = get_global_id(0);
@@ -6,5 +8,5 @@ __kernel void count(uint work_items, __global uchar *output) {
     return;
   }
 
-  output[work_item_id] = 1;
+  output[work_item_id] = return6();
 }

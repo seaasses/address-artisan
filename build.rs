@@ -4,7 +4,8 @@ use std::io::Write;
 use std::path::Path;
 
 fn main() {
-    let kernel_dir = Path::new("src/opencl");
+    let functions_dir = Path::new("src/opencl/functions");
+    let kernel_dir = Path::new("src/opencl/kernels");
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("combined_kernels.cl");
@@ -13,6 +14,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=src/opencl");
 
+    process_directory(&functions_dir, &mut combined_file);
     process_directory(&kernel_dir, &mut combined_file);
 }
 
@@ -23,9 +25,9 @@ fn process_directory(dir: &Path, combined_file: &mut fs::File) {
                 let path = entry.path();
                 if path.is_dir() {
                     process_directory(&path, combined_file);
-                } else if path.extension().map_or(false, |ext| ext == "cl") {
+                } else {
                     if let Ok(content) = fs::read_to_string(&path) {
-                        writeln!(combined_file, "// Kernel from file: {:?}", path).unwrap();
+                        writeln!(combined_file, "// from file: {:?}", path).unwrap();
                         writeln!(combined_file, "{}", content).unwrap();
                     }
                 }

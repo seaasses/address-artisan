@@ -1,0 +1,1 @@
+uint times2(uint a) { return a * 2; }
