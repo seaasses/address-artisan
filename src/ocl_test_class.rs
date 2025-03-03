@@ -5,6 +5,7 @@ pub struct OclTestClass {
     offset: u64,
     count_kernel: Kernel,
     output: Buffer<u8>,
+    output_id: Buffer<u64>,
     found_flag: Buffer<u32>,
 }
 
@@ -57,6 +58,13 @@ impl OclTestClass {
             }
         };
 
+        let output_id = match Buffer::<u64>::builder().queue(queue.clone()).len(1).build() {
+            Ok(output_id) => output_id,
+            Err(e) => {
+                return Err("Error creating OpenCL output id buffer: ".to_string() + &e.to_string())
+            }
+        };
+
         let count_kernel = match Kernel::builder()
             .program(&program)
             .name("count")
@@ -65,6 +73,7 @@ impl OclTestClass {
             .arg(0u64) // (offset) will be replaced - but start at 0
             .arg(&found_flag)
             .arg(&output)
+            .arg(&output_id)
             .build()
         {
             Ok(kernel) => kernel,
@@ -76,6 +85,7 @@ impl OclTestClass {
             offset: 0u64,
             count_kernel,
             output,
+            output_id,
             found_flag,
         })
     }
@@ -120,10 +130,16 @@ impl OclTestClass {
         if found_flag[0] == 1 {
             // get output
             let mut output = vec![0; 32];
+            let mut output_id = vec![0u64];
 
             match self.output.read(&mut output).enq() {
                 Ok(result) => result,
                 Err(e) => return Err(format!("Error reading output: {:?}", e)),
+            };
+
+            match self.output_id.read(&mut output_id).enq() {
+                Ok(result) => result,
+                Err(e) => return Err(format!("Error reading output id: {:?}", e)),
             };
 
             match self.found_flag.write(&vec![0u32]).enq() {
@@ -132,7 +148,7 @@ impl OclTestClass {
             };
 
             return Ok(Some(FoundResult {
-                id: 3,
+                id: output_id[0],
                 hash: output,
             }));
         } else {

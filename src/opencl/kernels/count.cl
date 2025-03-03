@@ -1,9 +1,9 @@
 __kernel void count(uint workers_count, ulong offset, __global uint *found_flag,
-                    __global uchar *output) {
+                    __global uchar *output, __global ulong *output_id) {
 
   const ulong worker_id = (ulong)get_global_id(0);
 
-  if (worker_id >= workers_count ) {
+  if (worker_id >= workers_count) {
     return;
   }
 
@@ -16,13 +16,12 @@ __kernel void count(uint workers_count, ulong offset, __global uint *found_flag,
 
   sha256(message, 8, hashedMessage);
 
-  if (hashedMessage[0] != 0x00 || hashedMessage[1] != 0x00 ||
-      hashedMessage[2] != 190 || hashedMessage[3] != 185 ||
-      hashedMessage[4] != 173) {
+  if (hashedMessage[0] != 0x00 || hashedMessage[1] != 0x00) {
     return;
   }
 
   if (!atomic_cmpxchg(found_flag, 0, 1)) {
+    *output_id = job_id;
 
 #pragma unroll
     for (uchar i = 0; i < 32; ++i) {
