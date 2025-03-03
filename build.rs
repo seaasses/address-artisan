@@ -4,7 +4,8 @@ use std::io::Write;
 use std::path::Path;
 
 fn main() {
-    let functions_dir = Path::new("src/opencl/functions");
+    let headers_dir = Path::new("src/opencl/headers");
+    let implementations_dir = Path::new("src/opencl/implementations");
     let kernel_dir = Path::new("src/opencl/kernels");
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -14,7 +15,8 @@ fn main() {
 
     println!("cargo:rerun-if-changed=src/opencl");
 
-    process_directory(&functions_dir, &mut combined_file);
+    process_directory(&headers_dir, &mut combined_file);
+    process_directory(&implementations_dir, &mut combined_file);
     process_directory(&kernel_dir, &mut combined_file);
 }
 
