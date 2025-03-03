@@ -1,4 +1,4 @@
-void padMessage(uchar *message, ulong messageLength, uint *paddedMessage) {
+void padMessage(uchar *message, uint messageLength, uint *paddedMessage) {
   // TODO: do directly with the paddedMessage
 
   uchar p[60];
@@ -24,18 +24,11 @@ void padMessage(uchar *message, ulong messageLength, uint *paddedMessage) {
       paddedMessageBytes[i + 2] = p[i + 1];
       paddedMessageBytes[i + 3] = p[i];
     }
-    paddedMessageBytes[60] = messageLengthBytes[0];
-    paddedMessageBytes[61] = messageLengthBytes[1];
-    paddedMessageBytes[62] = messageLengthBytes[2];
-    paddedMessageBytes[63] = messageLengthBytes[3];
   } else {
 #pragma unroll
     for (uchar i = 0; i < 60; ++i) {
       paddedMessageBytes[i] = p[i];
     }
-    paddedMessageBytes[60] = messageLengthBytes[0];
-    paddedMessageBytes[61] = messageLengthBytes[1];
-    paddedMessageBytes[62] = messageLengthBytes[2];
-    paddedMessageBytes[63] = messageLengthBytes[3];
   }
+  paddedMessage[15] = messageLength << 3;
 }
