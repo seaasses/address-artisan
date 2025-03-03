@@ -1,4 +1,5 @@
-void padMessage(uchar *message, uint messageLength, uint *paddedMessage) {
+void padMessageSha256(uchar *message, ulong messageLength,
+                      uint *paddedMessage) {
   // TODO: do directly with the paddedMessage
 
   uchar p[60];
@@ -30,5 +31,7 @@ void padMessage(uchar *message, uint messageLength, uint *paddedMessage) {
       paddedMessageBytes[i] = p[i];
     }
   }
+
+  // 64 bits for the message length
   paddedMessage[15] = messageLength << 3;
 }

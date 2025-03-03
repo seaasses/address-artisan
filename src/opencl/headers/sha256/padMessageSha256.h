@@ -1,0 +1,1 @@
+void padMessageSha256(uchar *message, ulong messageLength, uint *paddedMessage);

@@ -6,11 +6,11 @@
 #define bigSigma0(x) (ROTR32(x, 2) ^ ROTR32(x, 13) ^ ROTR32(x, 22))
 #define bigSigma1(x) (ROTR32(x, 6) ^ ROTR32(x, 11) ^ ROTR32(x, 25))
 
-void sha256(uchar *message, uint messageLength, uchar *hashedMessage) {
+void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
 
   uint ws[64];
 
-  padMessage(message, messageLength, ws);
+  padMessageSha256(message, messageLength, ws);
 
 #pragma unroll
   for (short i = 16; i < 64; ++i) {
