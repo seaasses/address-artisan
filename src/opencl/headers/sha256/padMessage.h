@@ -1,0 +1,1 @@
+void padMessage(uchar *message, ulong messageLength, uint *paddedMessage);

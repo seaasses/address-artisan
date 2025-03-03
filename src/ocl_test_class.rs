@@ -1,9 +1,16 @@
 use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue, SpatialDims};
 
 pub struct OclTestClass {
-    output_size: u32,
+    last_run_size: u32,
+    offset: u64,
     count_kernel: Kernel,
     output: Buffer<u8>,
+    found_flag: Buffer<u32>,
+}
+
+pub struct FoundResult {
+    pub id: u64,
+    pub hash: Vec<u8>,
 }
 
 impl OclTestClass {
@@ -29,7 +36,6 @@ impl OclTestClass {
 
         let queue = Queue::new(&context, device, None)?;
 
-        // Use the combined kernel source from build script
         let src = include_str!(concat!(env!("OUT_DIR"), "/combined_kernels.cl"));
 
         let program = match Program::builder().src(src).devices(device).build(&context) {
@@ -37,7 +43,14 @@ impl OclTestClass {
             Err(e) => return Err("Error building OpenCL program: ".to_string() + &e.to_string()),
         };
 
-        let output = match Buffer::<u8>::builder().queue(queue.clone()).len(1).build() {
+        let found_flag = match Buffer::<u32>::builder().queue(queue.clone()).len(1).build() {
+            Ok(output) => output,
+            Err(e) => {
+                return Err("Error creating OpenCL found flag buffer: ".to_string() + &e.to_string())
+            }
+        };
+
+        let output = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
             Ok(output) => output,
             Err(e) => {
                 return Err("Error creating OpenCL output buffer: ".to_string() + &e.to_string())
@@ -48,7 +61,9 @@ impl OclTestClass {
             .program(&program)
             .name("count")
             .queue(queue.clone())
-            .arg(0u32) // will be replaced
+            .arg(0u32) // (workers_count) will be replaced
+            .arg(0u64) // (offset) will be replaced - but start at 0
+            .arg(&found_flag)
             .arg(&output)
             .build()
         {
@@ -57,49 +72,31 @@ impl OclTestClass {
         };
 
         Ok(OclTestClass {
-            output_size: 0,
+            last_run_size: 0,
+            offset: 0u64,
             count_kernel,
             output,
+            found_flag,
         })
     }
 
-    fn resize_output(&mut self, new_size: u32) {
-        if new_size <= self.output_size {
-            self.output_size = new_size;
-            return;
+    pub fn run(&mut self, quant: u32) -> Result<Option<FoundResult>, String> {
+        if quant != self.last_run_size {
+            self.count_kernel
+                .set_default_global_work_size(SpatialDims::One(quant as usize));
+
+            match self.count_kernel.set_arg(0, quant) {
+                Ok(_) => (),
+                Err(e) => return Err(format!("Error setting kernel arg: {:?}", e)),
+            };
         }
 
-        println!("Resizing output to {}", new_size);
+        // SET ARGS
+        // set workers_count
 
-        let queue = match self.count_kernel.default_queue() {
-            Some(q) => q.clone(),
-            None => panic!("No queue found"),
-        };
-
-        let new_output = match Buffer::<u8>::builder()
-            .queue(queue)
-            .len(new_size)
-            .fill_val(0u8)
-            .build()
-        {
-            Ok(buffer) => buffer,
-            Err(_) => panic!("Error creating new output buffer"),
-        };
-
-        let _ = self.count_kernel.set_arg(1, &new_output);
-        self.output_size = new_size;
-
-        self.output = new_output;
-    }
-
-    pub fn run(&mut self, quant: u32) -> Result<Vec<u8>, String> {
-        // run the kernel with the given quant
-        self.resize_output(quant);
-        let work_size = SpatialDims::One(quant as usize);
-
-        self.count_kernel.set_default_global_work_size(work_size);
-        match self.count_kernel.set_arg(0, quant) {
-            Ok(result) => result,
+        // set offset
+        match self.count_kernel.set_arg(1, self.offset) {
+            Ok(_) => (),
             Err(e) => return Err(format!("Error setting kernel arg: {:?}", e)),
         };
 
@@ -110,13 +107,36 @@ impl OclTestClass {
             }
         }
 
-        let mut output = vec![0; self.output_size as usize];
+        // get found flag
+        let mut found_flag: Vec<u32> = vec![0];
 
-        match self.output.read(&mut output).enq() {
+        match self.found_flag.read(&mut found_flag).enq() {
             Ok(result) => result,
-            Err(e) => return Err(format!("Error reading output: {:?}", e)),
+            Err(e) => return Err(format!("Error reading found flag: {:?}", e)),
         };
 
-        Ok(output)
+        self.offset += quant as u64;
+
+        if found_flag[0] == 1 {
+            // get output
+            let mut output = vec![0; 32];
+
+            match self.output.read(&mut output).enq() {
+                Ok(result) => result,
+                Err(e) => return Err(format!("Error reading output: {:?}", e)),
+            };
+
+            match self.found_flag.write(&vec![0u32]).enq() {
+                Ok(result) => result,
+                Err(e) => return Err(format!("Error writing found flag: {:?}", e)),
+            };
+
+            return Ok(Some(FoundResult {
+                id: 3,
+                hash: output,
+            }));
+        } else {
+            return Ok(None);
+        }
     }
 }

@@ -1,20 +1,32 @@
-__kernel void count(uint work_items, __global uchar *output) {
+__kernel void count(uint workers_count, ulong offset, __global uint *found_flag,
+                    __global uchar *output) {
 
-  const uint work_item_id = get_global_id(0);
+  const ulong worker_id = (ulong)get_global_id(0);
 
-  if (work_item_id >= work_items) {
+  if (worker_id >= workers_count ) {
     return;
   }
 
-  uchar message[4] = {work_item_id >> 24, work_item_id >> 16, work_item_id >> 8,
-                      work_item_id};
+  const ulong job_id = worker_id + offset;
+
+  uchar message[8] = {job_id >> 56, job_id >> 48, job_id >> 40, job_id >> 32,
+                      job_id >> 24, job_id >> 16, job_id >> 8,  job_id};
 
   uchar hashedMessage[32];
 
-  sha256(message, 4, hashedMessage);
-  if (hashedMessage[0] == 0) {
-    output[work_item_id] = 1;
-  } else {
-    output[work_item_id] = 0;
+  sha256(message, 8, hashedMessage);
+
+  if (hashedMessage[0] != 0x00 || hashedMessage[1] != 0x00 ||
+      hashedMessage[2] != 190 || hashedMessage[3] != 185 ||
+      hashedMessage[4] != 173) {
+    return;
+  }
+
+  if (!atomic_cmpxchg(found_flag, 0, 1)) {
+
+#pragma unroll
+    for (uchar i = 0; i < 32; ++i) {
+      output[i] = hashedMessage[i];
+    }
   }
 }
