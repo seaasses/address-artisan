@@ -1,5 +1,6 @@
-__kernel void count(uint workersCount, ulong offset, __global uint *foundFlag,
-                    __global uchar *output, __global ulong *output_id) {
+__kernel void run_sha256(uint workersCount, ulong offset,
+                         __global uint *foundFlag, __global uchar *output,
+                         __global ulong *output_id) {
 
   const ulong workerId = (ulong)get_global_id(0);
 
