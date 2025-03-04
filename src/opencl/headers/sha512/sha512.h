@@ -1,0 +1,1 @@
+void sha512(uchar *message, ulong messageLength, uchar *hashedMessage);
