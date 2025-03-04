@@ -1,10 +1,10 @@
 #define ROTR32(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
 #define maj(x, y, z) (((x) & (y)) | ((x) & (z)) | ((y) & (z)))
 #define ch(x, y, z) (((x) & (y)) | ((~x) & (z)))
-#define smallSigma0(x) (ROTR32(x, 7) ^ ROTR32(x, 18) ^ (x >> 3))
-#define smallSigma1(x) (ROTR32(x, 17) ^ ROTR32(x, 19) ^ (x >> 10))
-#define bigSigma0(x) (ROTR32(x, 2) ^ ROTR32(x, 13) ^ ROTR32(x, 22))
-#define bigSigma1(x) (ROTR32(x, 6) ^ ROTR32(x, 11) ^ ROTR32(x, 25))
+#define sha256SmallSigma0(x) (ROTR32(x, 7) ^ ROTR32(x, 18) ^ (x >> 3))
+#define sha256SmallSigma1(x) (ROTR32(x, 17) ^ ROTR32(x, 19) ^ (x >> 10))
+#define sha256BigSigma0(x) (ROTR32(x, 2) ^ ROTR32(x, 13) ^ ROTR32(x, 22))
+#define sha256BigSigma1(x) (ROTR32(x, 6) ^ ROTR32(x, 11) ^ ROTR32(x, 25))
 
 void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
 
@@ -14,7 +14,7 @@ void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
 
 #pragma unroll
   for (short i = 16; i < 64; ++i) {
-    ws[i] = smallSigma1(ws[i - 2]) + ws[i - 7] + smallSigma0(ws[i - 15]) +
+    ws[i] = sha256SmallSigma1(ws[i - 2]) + ws[i - 7] + sha256SmallSigma0(ws[i - 15]) +
             ws[i - 16];
   }
 
@@ -43,8 +43,8 @@ void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
 
 #pragma unroll
   for (short t = 0; t < 64; ++t) {
-    t1 = h + bigSigma1(e) + ch(e, f, g) + k[t] + ws[t];
-    t2 = bigSigma0(a) + maj(a, b, c);
+    t1 = h + sha256BigSigma1(e) + ch(e, f, g) + k[t] + ws[t];
+    t2 = sha256BigSigma0(a) + maj(a, b, c);
 
     h = g;
     g = f;
