@@ -4,14 +4,15 @@ void padMessageSha512(uchar *message, ulong messageLength,
 
   uchar p[128]; // 1024 bits
 
+#pragma unroll
   for (uint i = 0; i < messageLength; ++i) {
     p[i] = message[i];
   }
 
   p[messageLength] = 0x80;
 
-#pragma unroll
   // complete with 0s until 112 bytes
+#pragma unroll
   for (uchar i = messageLength + 1; i < 112; ++i) {
     p[i] = 0;
   }
