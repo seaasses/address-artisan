@@ -15,23 +15,13 @@ void padMessageSha256(uchar *message, ulong messageLength,
     p[i] = 0;
   }
 
-  uchar *paddedMessageBytes = (uchar *)paddedMessage;
-  uchar *messageLengthBytes = (uchar *)&messageLength;
-  if (isLittleEndian()) {
 #pragma unroll
-    for (uchar i = 0; i < 60; i += 4) {
-      paddedMessageBytes[i] = p[i + 3];
-      paddedMessageBytes[i + 1] = p[i + 2];
-      paddedMessageBytes[i + 2] = p[i + 1];
-      paddedMessageBytes[i + 3] = p[i];
-    }
-  } else {
-#pragma unroll
-    for (uchar i = 0; i < 60; ++i) {
-      paddedMessageBytes[i] = p[i];
-    }
+  for (uchar i = 0; i < 15; i += 1) {
+    paddedMessage[i] = (((uint)p[i << 2]) << 24) |
+                       (((uint)p[(i << 2) + 1]) << 16) |
+                       (((uint)p[(i << 2) + 2]) << 8) | ((uint)p[(i << 2) + 3]);
+    ;
   }
-
   // 64 bits for the message length
   paddedMessage[15] = messageLength << 3;
 }

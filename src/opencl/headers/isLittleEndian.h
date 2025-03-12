@@ -1,1 +1,0 @@
-uchar isLittleEndian();
