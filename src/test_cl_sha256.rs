@@ -46,11 +46,7 @@ mod tests {
             };
 
             // REAL CLASS PART
-            let message = match Buffer::<u8>::builder()
-                .queue(queue.clone())
-                .len(55)
-                .build()
-            {
+            let message = match Buffer::<u8>::builder().queue(queue.clone()).len(55).build() {
                 Ok(output) => output,
                 Err(e) => {
                     return Err(
@@ -191,5 +187,14 @@ mod tests {
                 0xad, 0xfc, 0x1d, 0xed
             ]
         );
+    }
+
+    #[test]
+    fn test_sha256_too_long() {
+        let mut ocl = OpenCLSha256::new().unwrap();
+        // 56 bytes
+        let message = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".as_bytes().to_vec();
+        let result = ocl.sha256(message);
+        assert!(result.is_err());
     }
 }
