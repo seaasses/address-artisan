@@ -20,8 +20,8 @@ void padMessageSha256(uchar *message, ulong messageLength,
     paddedMessage[i] = (((uint)p[i << 2]) << 24) |
                        (((uint)p[(i << 2) + 1]) << 16) |
                        (((uint)p[(i << 2) + 2]) << 8) | ((uint)p[(i << 2) + 3]);
-    ;
   }
+
   // 64 bits for the message length
   paddedMessage[15] = messageLength << 3;
 }

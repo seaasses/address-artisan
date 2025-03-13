@@ -14,8 +14,8 @@ void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
 
 #pragma unroll
   for (short i = 16; i < 64; ++i) {
-    ws[i] = sha256SmallSigma1(ws[i - 2]) + ws[i - 7] + sha256SmallSigma0(ws[i - 15]) +
-            ws[i - 16];
+    ws[i] = sha256SmallSigma1(ws[i - 2]) + ws[i - 7] +
+            sha256SmallSigma0(ws[i - 15]) + ws[i - 16];
   }
 
   uint a = 0x6a09e667;
