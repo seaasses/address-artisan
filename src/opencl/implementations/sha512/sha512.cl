@@ -70,9 +70,8 @@ void sha512(uchar *message, ulong messageLength, uchar *hashedMessage) {
     a = t1 + t2;
   }
 
-
   a += 0x6a09e667f3bcc908;
-  b += 0xbb67ae858dd64aeb;
+  b += 0xbb67ae8584caa73b;
   c += 0x3c6ef372fe94f82b;
   d += 0xa54ff53a5f1d36f1;
   e += 0x510e527fade682d1;
@@ -80,159 +79,75 @@ void sha512(uchar *message, ulong messageLength, uchar *hashedMessage) {
   g += 0x1f83d9abfb41bd6b;
   h += 0x5be0cd19137e2179;
 
-  uchar *aBytes = (uchar *)&a;
-  uchar *bBytes = (uchar *)&b;
-  uchar *cBytes = (uchar *)&c;
-  uchar *dBytes = (uchar *)&d;
-  uchar *eBytes = (uchar *)&e;
-  uchar *fBytes = (uchar *)&f;
-  uchar *gBytes = (uchar *)&g;
-  uchar *hBytes = (uchar *)&h;
+  hashedMessage[0] = a >> 56;
+  hashedMessage[1] = (a >> 48);
+  hashedMessage[2] = (a >> 40);
+  hashedMessage[3] = (a >> 32);
+  hashedMessage[4] = (a >> 24);
+  hashedMessage[5] = (a >> 16);
+  hashedMessage[6] = (a >> 8);
+  hashedMessage[7] = a;
 
-  if (isLittleEndian()) {
-    hashedMessage[0] = aBytes[7];
-    hashedMessage[1] = aBytes[6];
-    hashedMessage[2] = aBytes[5];
-    hashedMessage[3] = aBytes[4];
-    hashedMessage[4] = aBytes[3];
-    hashedMessage[5] = aBytes[2];
-    hashedMessage[6] = aBytes[1];
-    hashedMessage[7] = aBytes[0];
+  hashedMessage[8] = b >> 56;
+  hashedMessage[9] = b >> 48;
+  hashedMessage[10] = b >> 40;
+  hashedMessage[11] = b >> 32;
+  hashedMessage[12] = b >> 24;
+  hashedMessage[13] = b >> 16;
+  hashedMessage[14] = b >> 8;
+  hashedMessage[15] = b;
 
-    hashedMessage[8] = bBytes[7];
-    hashedMessage[9] = bBytes[6];
-    hashedMessage[10] = bBytes[5];
-    hashedMessage[11] = bBytes[4];
-    hashedMessage[12] = bBytes[3];
-    hashedMessage[13] = bBytes[2];
-    hashedMessage[14] = bBytes[1];
-    hashedMessage[15] = bBytes[0];
+  hashedMessage[16] = c >> 56;
+  hashedMessage[17] = c >> 48;
+  hashedMessage[18] = c >> 40;
+  hashedMessage[19] = c >> 32;
+  hashedMessage[20] = c >> 24;
+  hashedMessage[21] = c >> 16;
+  hashedMessage[22] = c >> 8;
+  hashedMessage[23] = c;
 
-    hashedMessage[16] = cBytes[7];
-    hashedMessage[17] = cBytes[6];
-    hashedMessage[18] = cBytes[5];
-    hashedMessage[19] = cBytes[4];
-    hashedMessage[20] = cBytes[3];
-    hashedMessage[21] = cBytes[2];
-    hashedMessage[22] = cBytes[1];
-    hashedMessage[23] = cBytes[0];
+  hashedMessage[24] = d >> 56;
+  hashedMessage[25] = d >> 48;
+  hashedMessage[26] = d >> 40;
+  hashedMessage[27] = d >> 32;
+  hashedMessage[28] = d >> 24;
+  hashedMessage[29] = d >> 16;
+  hashedMessage[30] = d >> 8;
+  hashedMessage[31] = d;
 
-    hashedMessage[24] = dBytes[7];
-    hashedMessage[25] = dBytes[6];
-    hashedMessage[26] = dBytes[5];
-    hashedMessage[27] = dBytes[4];
-    hashedMessage[28] = dBytes[3];
-    hashedMessage[29] = dBytes[2];
-    hashedMessage[30] = dBytes[1];
-    hashedMessage[31] = dBytes[0];
+  hashedMessage[32] = e >> 56;
+  hashedMessage[33] = e >> 48;
+  hashedMessage[34] = e >> 40;
+  hashedMessage[35] = e >> 32;
+  hashedMessage[36] = e >> 24;
+  hashedMessage[37] = e >> 16;
+  hashedMessage[38] = e >> 8;
+  hashedMessage[39] = e;
 
-    hashedMessage[32] = eBytes[7];
-    hashedMessage[33] = eBytes[6];
-    hashedMessage[34] = eBytes[5];
-    hashedMessage[35] = eBytes[4];
-    hashedMessage[36] = eBytes[3];
-    hashedMessage[37] = eBytes[2];
-    hashedMessage[38] = eBytes[1];
-    hashedMessage[39] = eBytes[0];
+  hashedMessage[40] = f >> 56;
+  hashedMessage[41] = f >> 48;
+  hashedMessage[42] = f >> 40;
+  hashedMessage[43] = f >> 32;
+  hashedMessage[44] = f >> 24;
+  hashedMessage[45] = f >> 16;
+  hashedMessage[46] = f >> 8;
+  hashedMessage[47] = f;
 
-    hashedMessage[40] = fBytes[7];
-    hashedMessage[41] = fBytes[6];
-    hashedMessage[42] = fBytes[5];
-    hashedMessage[43] = fBytes[4];
-    hashedMessage[44] = fBytes[3];
-    hashedMessage[45] = fBytes[2];
-    hashedMessage[46] = fBytes[1];
-    hashedMessage[47] = fBytes[0];
+  hashedMessage[48] = g >> 56;
+  hashedMessage[49] = g >> 48;
+  hashedMessage[50] = g >> 40;
+  hashedMessage[51] = g >> 32;
+  hashedMessage[52] = g >> 24;
+  hashedMessage[53] = g >> 16;
+  hashedMessage[54] = g >> 8;
+  hashedMessage[55] = g;
 
-    hashedMessage[48] = gBytes[7];
-    hashedMessage[49] = gBytes[6];
-    hashedMessage[50] = gBytes[5];
-    hashedMessage[51] = gBytes[4];
-    hashedMessage[52] = gBytes[3];
-    hashedMessage[53] = gBytes[2];
-    hashedMessage[54] = gBytes[1];
-    hashedMessage[55] = gBytes[0];
-
-    hashedMessage[56] = hBytes[7];
-    hashedMessage[57] = hBytes[6];
-    hashedMessage[58] = hBytes[5];
-    hashedMessage[59] = hBytes[4];
-    hashedMessage[60] = hBytes[3];
-    hashedMessage[61] = hBytes[2];
-    hashedMessage[62] = hBytes[1];
-    hashedMessage[63] = hBytes[0];
-
-  } else {
-    hashedMessage[0] = aBytes[0];
-    hashedMessage[1] = aBytes[1];
-    hashedMessage[2] = aBytes[2];
-    hashedMessage[3] = aBytes[3];
-    hashedMessage[4] = aBytes[4];
-    hashedMessage[5] = aBytes[5];
-    hashedMessage[6] = aBytes[6];
-    hashedMessage[7] = aBytes[7];
-
-    hashedMessage[8] = bBytes[0];
-    hashedMessage[9] = bBytes[1];
-    hashedMessage[10] = bBytes[2];
-    hashedMessage[11] = bBytes[3];
-    hashedMessage[12] = bBytes[4];
-    hashedMessage[13] = bBytes[5];
-    hashedMessage[14] = bBytes[6];
-    hashedMessage[15] = bBytes[7];
-
-    hashedMessage[16] = cBytes[0];
-    hashedMessage[17] = cBytes[1];
-    hashedMessage[18] = cBytes[2];
-    hashedMessage[19] = cBytes[3];
-    hashedMessage[20] = cBytes[4];
-    hashedMessage[21] = cBytes[5];
-    hashedMessage[22] = cBytes[6];
-    hashedMessage[23] = cBytes[7];
-
-    hashedMessage[24] = dBytes[0];
-    hashedMessage[25] = dBytes[1];
-    hashedMessage[26] = dBytes[2];
-    hashedMessage[27] = dBytes[3];
-    hashedMessage[28] = dBytes[4];
-    hashedMessage[29] = dBytes[5];
-    hashedMessage[30] = dBytes[6];
-    hashedMessage[31] = dBytes[7];
-
-    hashedMessage[32] = eBytes[0];
-    hashedMessage[33] = eBytes[1];
-    hashedMessage[34] = eBytes[2];
-    hashedMessage[35] = eBytes[3];
-    hashedMessage[36] = eBytes[4];
-    hashedMessage[37] = eBytes[5];
-    hashedMessage[38] = eBytes[6];
-    hashedMessage[39] = eBytes[7];
-
-    hashedMessage[40] = fBytes[0];
-    hashedMessage[41] = fBytes[1];
-    hashedMessage[42] = fBytes[2];
-    hashedMessage[43] = fBytes[3];
-    hashedMessage[44] = fBytes[4];
-    hashedMessage[45] = fBytes[5];
-    hashedMessage[46] = fBytes[6];
-    hashedMessage[47] = fBytes[7];
-
-    hashedMessage[48] = gBytes[0];
-    hashedMessage[49] = gBytes[1];
-    hashedMessage[50] = gBytes[2];
-    hashedMessage[51] = gBytes[3];
-    hashedMessage[52] = gBytes[4];
-    hashedMessage[53] = gBytes[5];
-    hashedMessage[54] = gBytes[6];
-    hashedMessage[55] = gBytes[7];
-
-    hashedMessage[56] = hBytes[0];
-    hashedMessage[57] = hBytes[1];
-    hashedMessage[58] = hBytes[2];
-    hashedMessage[59] = hBytes[3];
-    hashedMessage[60] = hBytes[4];
-    hashedMessage[61] = hBytes[5];
-    hashedMessage[62] = hBytes[6];
-    hashedMessage[63] = hBytes[7];
-  }
+  hashedMessage[56] = h >> 56;
+  hashedMessage[57] = h >> 48;
+  hashedMessage[58] = h >> 40;
+  hashedMessage[59] = h >> 32;
+  hashedMessage[60] = h >> 24;
+  hashedMessage[61] = h >> 16;
+  hashedMessage[62] = h >> 8;
+  hashedMessage[63] = h;
 }

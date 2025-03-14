@@ -20,23 +20,16 @@ void padMessageSha512(uchar *message, ulong messageLength,
   uchar *paddedMessageBytes = (uchar *)paddedMessage;
   uchar *messageLengthBytes = (uchar *)&messageLength;
 
-  if (isLittleEndian()) {
 #pragma unroll
-    for (uchar i = 0; i < 112; i += 8) {
-      paddedMessageBytes[i] = p[i + 7];
-      paddedMessageBytes[i + 1] = p[i + 6];
-      paddedMessageBytes[i + 2] = p[i + 5];
-      paddedMessageBytes[i + 3] = p[i + 4];
-      paddedMessageBytes[i + 4] = p[i + 3];
-      paddedMessageBytes[i + 5] = p[i + 2];
-      paddedMessageBytes[i + 6] = p[i + 1];
-      paddedMessageBytes[i + 7] = p[i];
-    }
-  } else {
-#pragma unroll
-    for (uchar i = 0; i < 112; ++i) {
-      paddedMessageBytes[i] = p[i];
-    }
+  for (uchar i = 0; i < 112; i += 8) {
+    paddedMessageBytes[i] = p[i + 7];
+    paddedMessageBytes[i + 1] = p[i + 6];
+    paddedMessageBytes[i + 2] = p[i + 5];
+    paddedMessageBytes[i + 3] = p[i + 4];
+    paddedMessageBytes[i + 4] = p[i + 3];
+    paddedMessageBytes[i + 5] = p[i + 2];
+    paddedMessageBytes[i + 6] = p[i + 1];
+    paddedMessageBytes[i + 7] = p[i];
   }
 
   // 128 bits (2 words) for the message length
