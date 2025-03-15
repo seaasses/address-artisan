@@ -60,6 +60,42 @@ void uint256_t_to_bytes(uint256_t a, uchar *result) {
   result[31] = a.limbs[3];
 }
 
+uint256_t uint256_t_sub(uint256_t a, uint256_t b) {
+  uint256_t result;
+  ulong borrow = 0;
+
+  // Start with least significant limb (limb 3)
+  if (a.limbs[3] < b.limbs[3]) {
+    borrow = 1;
+    result.limbs[3] = (0xFFFFFFFFFFFFFFFFUL - b.limbs[3] + a.limbs[3] + 1);
+  } else {
+    result.limbs[3] = a.limbs[3] - b.limbs[3];
+  }
+
+  // Process limb 2
+  if (a.limbs[2] < b.limbs[2] + borrow) {
+    result.limbs[2] = (0xFFFFFFFFFFFFFFFFUL - b.limbs[2] - borrow + a.limbs[2] + 1);
+    borrow = 1;
+  } else {
+    result.limbs[2] = a.limbs[2] - b.limbs[2] - borrow;
+    borrow = 0;
+  }
+
+  // Process limb 1
+  if (a.limbs[1] < b.limbs[1] + borrow) {
+    result.limbs[1] = (0xFFFFFFFFFFFFFFFFUL - b.limbs[1] - borrow + a.limbs[1] + 1);
+    borrow = 1;
+  } else {
+    result.limbs[1] = a.limbs[1] - b.limbs[1] - borrow;
+    borrow = 0;
+  }
+
+  // Process most significant limb (limb 0)
+  result.limbs[0] = a.limbs[0] - b.limbs[0] - borrow;
+
+  return result;
+}
+
 #pragma inline
 uint256_t uint256_t_add(uint256_t a, uint256_t b) {
   uint256_t result;
@@ -100,6 +136,8 @@ __kernel void uint256_t_operations(__global uchar *input_a,
 
   if (operation == 0) {
     local_class_result = uint256_t_add(a, b);
+  } else if (operation == 1) {
+    local_class_result = uint256_t_sub(a, b);
   }
 
   uint256_t_to_bytes(local_class_result, local_result);
