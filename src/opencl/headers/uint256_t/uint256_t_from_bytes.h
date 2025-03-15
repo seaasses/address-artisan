@@ -1,0 +1,1 @@
+uint256_t uint256_t_from_bytes(uchar *input);
