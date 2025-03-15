@@ -25,6 +25,8 @@ __kernel void uint256_t_operations(__global uchar *input_a,
     local_class_result = uint256_t_sub(a, b);
   } else if (operation == 2) {
     local_class_result = uint256_t_shift_left(a);
+  } else if (operation == 3) {
+    local_class_result = uint256_t_shift_right(a);
   }
 
   uint256_t_to_bytes(local_class_result, local_result);

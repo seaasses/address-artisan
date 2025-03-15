@@ -1,0 +1,1 @@
+uint256_t uint256_t_shift_right(uint256_t x);
