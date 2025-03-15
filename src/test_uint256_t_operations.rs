@@ -63,7 +63,7 @@ mod tests {
             };
 
             // Create kernel
-            let add_kernel = match Kernel::builder()
+            let operations_kernel = match Kernel::builder()
                 .program(&program)
                 .name("uint256_t_operations")
                 .queue(queue.clone())
@@ -82,7 +82,7 @@ mod tests {
                 a_buffer,
                 b_buffer,
                 result_buffer,
-                add_kernel,
+                add_kernel: operations_kernel,
             })
         }
 
