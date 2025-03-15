@@ -78,8 +78,11 @@ uint256_t uint256_t_add(uint256_t a, uint256_t b) {
   return result;
 }
 
-__kernel void uint256_t_operations(__global uchar *input_a, __global uchar *input_b,
-                          uchar operation, __global uchar *result) {
+__kernel void uint256_t_operations(__global uchar *input_a,
+                                   __global uchar *input_b, uchar operation,
+                                   __global uchar *result) {
+
+  // THIS DOES NOT NEED TO BE FAST, IT IS ONLY USED FOR TESTING
 
   uchar local_a[32];
   uchar local_b[32];
