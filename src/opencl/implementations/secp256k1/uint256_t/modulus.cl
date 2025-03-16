@@ -18,7 +18,7 @@ const uint256_t modulus(const uint256_t a) {
   const uint256_t p = getP();
 
   if (is_outside_secp256k1_space(a)) {
-    return uint256_t_sub(a, p);
+    return uint256_t_subtraction(a, p);
   }
 
   return a;
