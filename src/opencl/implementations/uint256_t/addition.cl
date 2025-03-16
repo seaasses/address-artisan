@@ -1,5 +1,5 @@
 #pragma inline
-uint256_t uint256_t_add(uint256_t a, uint256_t b) {
+const uint256_t uint256_t_addition(const uint256_t a, const uint256_t b) {
   uint256_t result;
   ulong carry = 0;
 
