@@ -20,9 +20,9 @@ __kernel void uint256_t_operations(__global uchar *input_a,
   uint256_t local_class_result;
 
   if (operation == 0) {
-    local_class_result = uint256_t_add(a, b);
+    local_class_result = uint256_t_addition(a, b);
   } else if (operation == 1) {
-    local_class_result = uint256_t_sub(a, b);
+    local_class_result = uint256_t_subtraction(a, b);
   } else if (operation == 2) {
     local_class_result = uint256_t_shift_left(a);
   } else if (operation == 3) {
