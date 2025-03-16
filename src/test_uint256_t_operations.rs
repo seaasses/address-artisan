@@ -65,7 +65,7 @@ mod tests {
             // Create kernel
             let operations_kernel = match Kernel::builder()
                 .program(&program)
-                .name("uint256_t_operations")
+                .name("uint256Operations")
                 .queue(queue.clone())
                 .arg(&a_buffer)
                 .arg(&b_buffer)
@@ -1016,16 +1016,7 @@ mod tests {
             0x9A, 0xBC, 0xDE, 0xF5,
         ];
 
-        for i in 0..a.len() {
-            print!("{:08b}", a[i]);
-        }
-
         let result = ocl.shift_left(a).unwrap();
-        println!("\n\nResult:\n\n");
-        for i in 0..result.len() {
-            print!("{:08b}", result[i]);
-        }
-        println!("\n\n");
         assert_eq!(
             result,
             vec![
@@ -1073,7 +1064,7 @@ mod tests {
     }
 
     // SHIFT RIGHT TESTS
-    
+
     #[test]
     fn test_uint256_t_shift_right_1() {
         let mut ocl = Uint256Operations::new().unwrap();

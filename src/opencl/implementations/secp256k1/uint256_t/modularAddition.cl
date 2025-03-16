@@ -1,8 +1,7 @@
 #pragma inline
-const uint256_t uint256_t_modularAddition(const uint256_t a,
-                                          const uint256_t b) {
+const UInt256 modularAddition(const UInt256 a, const UInt256 b) {
 
-  const uint256_t result = uint256_t_addition(a, b);
+  const UInt256 result = uint256Addition(a, b);
 
   return modulus(result);
 }

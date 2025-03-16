@@ -22,13 +22,12 @@ __kernel void secp256k1_operations(__global uchar *x1, __global uchar *y1,
   //////////////////////////////////////
   if (operation == 0) {
     // simple integer modular addition between x1 and y1
-    const uint256_t x1_as_uint256 = uint256_t_from_bytes(local_x1);
-    const uint256_t y1_as_uint256 = uint256_t_from_bytes(local_y1);
+    const UInt256 x1_as_uint256 = uint256FromBytes(local_x1);
+    const UInt256 y1_as_uint256 = uint256FromBytes(local_y1);
 
-    const uint256_t result =
-        uint256_t_modularAddition(x1_as_uint256, y1_as_uint256);
+    const UInt256 result = modularAddition(x1_as_uint256, y1_as_uint256);
 
-    uint256_t_to_bytes(result, local_result_x);
+    uint256ToBytes(result, local_result_x);
   }
 
   // send result to the host

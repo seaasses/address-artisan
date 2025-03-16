@@ -1,4 +1,4 @@
-void uint256_t_to_bytes(uint256_t a, uchar *result) {
+void uint256ToBytes(const UInt256 a, uchar *result) {
   result[0] = a.limbs[0] >> 56;
   result[1] = a.limbs[0] >> 48;
   result[2] = a.limbs[0] >> 40;

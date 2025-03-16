@@ -1,1 +1,1 @@
-const uint256_t modulus(const uint256_t a);
+const UInt256 modulus(const UInt256 a);

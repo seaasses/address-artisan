@@ -1,6 +1,6 @@
 #pragma inline
-const uint256_t uint256_t_subtraction(const uint256_t a, const uint256_t b) {
-  uint256_t result;
+const UInt256 uint256Subtraction(const UInt256 a, const UInt256 b) {
+  UInt256 result;
 
   ulong temp;
 

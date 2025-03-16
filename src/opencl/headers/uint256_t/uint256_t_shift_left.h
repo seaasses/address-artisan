@@ -1,1 +1,1 @@
-uint256_t uint256_t_shift_left(uint256_t x);
+const UInt256 uint256ShiftLeft(const UInt256 x);

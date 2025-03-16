@@ -1,5 +1,5 @@
 #pragma inline
-const uint256_t getP() {
-  return (uint256_t){0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
-                     0xFFFFFFFEFFFFFC2F};
+const UInt256 getP() {
+  return (UInt256){0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+                   0xFFFFFFFEFFFFFC2F};
 }

@@ -1,7 +1,7 @@
 #pragma inline
-uint256_t uint256_t_shift_left(uint256_t x) {
+const UInt256 uint256ShiftLeft(const UInt256 x) {
 
-  uint256_t result;
+  UInt256 result;
   ulong carry = 0;
 
   result.limbs[3] = x.limbs[3] << 1;

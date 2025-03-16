@@ -1,4 +1,4 @@
 typedef struct Point {
-  uint256_t x;
-  uint256_t y;
+  UInt256 x;
+  UInt256 y;
 } Point;

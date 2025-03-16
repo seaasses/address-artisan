@@ -1,6 +1,6 @@
 
-uint256_t uint256_t_from_bytes(uchar *input) {
-  return (uint256_t){(((ulong)(input[0]) << 56) | ((ulong)(input[1]) << 48) |
+const UInt256 uint256FromBytes(const uchar *input) {
+  return (UInt256){(((ulong)(input[0]) << 56) | ((ulong)(input[1]) << 48) |
                       ((ulong)(input[2]) << 40) | ((ulong)(input[3]) << 32) |
                       ((ulong)(input[4]) << 24) | ((ulong)(input[5]) << 16) |
                       ((ulong)(input[6]) << 8) | ((ulong)(input[7]))),

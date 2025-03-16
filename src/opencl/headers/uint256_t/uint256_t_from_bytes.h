@@ -1,1 +1,1 @@
-uint256_t uint256_t_from_bytes(uchar *input);
+const UInt256 uint256FromBytes(const uchar *input);
