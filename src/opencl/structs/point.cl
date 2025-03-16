@@ -1,4 +1,4 @@
-typedef struct point {
+typedef struct Point {
   uint256_t x;
   uint256_t y;
-} point;
+} Point;
