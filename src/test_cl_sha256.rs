@@ -174,11 +174,7 @@ mod tests {
         let message = "bapkjasddflkjaskakjsdfkjhhjsdjasdfddfihasdiasdfdfsdfasd"
             .as_bytes()
             .to_vec();
-        println!("message length: {}", message.len());
         let result = ocl.sha256(message).unwrap();
-        for i in result.iter() {
-            print!("{:02x}", i);
-        }
         assert_eq!(
             result,
             vec![
@@ -193,7 +189,9 @@ mod tests {
     fn test_sha256_too_long() {
         let mut ocl = OpenCLSha256::new().unwrap();
         // 56 bytes
-        let message = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".as_bytes().to_vec();
+        let message = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            .as_bytes()
+            .to_vec();
         let result = ocl.sha256(message);
         assert!(result.is_err());
     }
