@@ -1,3 +1,7 @@
+# THIS BRANCH
+
+This branch is an experimental branch to get the Artisan working on the GPU using OpenCL.
+
 # Address Artisan
 
 Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation.
@@ -40,7 +44,9 @@ address-artisan --help
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 
 ## ⚠️ **WARNING**
+
 Yes, it's completely safe to use this tool. But be aware of the following:
+
 - Don't send funds to the vanity address without first confirming it appears in your addresses list.
 - Store the derivation path and address index so you can always recover your funds. It's even possible to save them on the [Bitcoin Blockchain](https://en.bitcoin.it/wiki/OP_RETURN).
 
@@ -57,6 +63,7 @@ m / purpose' / coin_type' / account' / change / address_index
 ```
 
 Where:
+
 - `m`: Master key
 - `purpose'`: Constant 44' (0x8000002C) - following [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki)
 - `coin_type'`: Coin identifier, following [SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md). 0' (0x80000000) for Bitcoin
@@ -71,18 +78,18 @@ xpub_path' / random_number / <n derivation paths> / 0 / address_index
 ```
 
 Where:
+
 - `xpub_path'`: User-provided hardened derivation path
 - `random_number`: Randomly generated number for unique key space per run - less than 0' (0x80000000)
 - `<n derivation paths>`: One or more derivation paths for key space expansion - each less than 0' (0x80000000)
 - `0`: Constant 0 (0x00) for BIP44-compliant wallet compatibility
-- `address_index`: Address index within the account - less than *max_depth* CLI argument
+- `address_index`: Address index within the account - less than _max_depth_ CLI argument
 
 By maintaining 0 as the second-to-last derivation path, BIP44-compliant wallets will recognize the vanity address as the *address_index*th receive address when using `xpub_path' / random_number / <n derivation paths>` as the wallet's input path.
 
 ## Example
 
-The following example demonstrates the complete process of generating and using a vanity address with this tool. The [Sparrow](https://github.com/sparrowwallet/sparrow) wallet will be used for this demonstration. 
-
+The following example demonstrates the complete process of generating and using a vanity address with this tool. The [Sparrow](https://github.com/sparrowwallet/sparrow) wallet will be used for this demonstration.
 
 ### Get the xpub
 
@@ -90,7 +97,7 @@ First, you'll need to set up a working wallet that supports the P2PKH script typ
 
 If you already have a P2PKH wallet (which is unlikely since most modern wallets default to SegWit), it's recommended to create a new one with a custom derivation path. You won't need to generate a new seed phrase or reset your hardware wallet - using a different derivation path allows you to keep your existing wallet funds completely separate.
 
-1. Create a new P2PKH wallet by selecting *P2PKH* as the script type.
+1. Create a new P2PKH wallet by selecting _P2PKH_ as the script type.
 
 ![New wallet](./assets/new_p2pkh_wallet.png)
 
@@ -101,6 +108,7 @@ m/1034543799'/0'/0'
 ```
 
 This path uses:
+
 - Purpose: 1034543799' (0xBDA9E2B7) for vanity addresses
 - Coin type: 0' (0x80000000) for Bitcoin ([SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md))
 - Account: 0' (0x80000000)
@@ -110,7 +118,7 @@ Note: Make sure to include the ' after each number to ensure hardened derivation
 ![New wallet derivation path](./assets/new_wallet_derivation_path.png)
 
 3. The next screen will display your xpub. In this example, it's:
-`xpub6DK1UMgy8RpXQYaE6PmRfEMf2tkTzz8wBHreDSriH5bXQb2KE4f9MzEnAMMbpoQ4HcaUyMytM7d2cBLXvtEMJXgmofNCaRh8Ah5HzwiRHLD`
+   `xpub6DK1UMgy8RpXQYaE6PmRfEMf2tkTzz8wBHreDSriH5bXQb2KE4f9MzEnAMMbpoQ4HcaUyMytM7d2cBLXvtEMJXgmofNCaRh8Ah5HzwiRHLD`
 
 Copy this value for the next step.
 
@@ -133,6 +141,7 @@ Receive address index: 436
 ```
 
 Where:
+
 - `xpub'` represents your initial derivation path (`m/1034543799'/0'/0'` if you followed the guide above)
 
 The complete derivation path for this address is `m/1034543799'/0'/0'/335682406/36995/0/436`
@@ -158,28 +167,3 @@ In this example, use: `m/1034543799'/0'/0'/335682406/36995`
 2. Once confirmed, the address is ready to receive funds securely. Double-click the address to open the default Receive screen.
 
 ![Receive screen](./assets/vanity_wallet_receive.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
