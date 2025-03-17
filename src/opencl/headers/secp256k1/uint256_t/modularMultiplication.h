@@ -1,0 +1,1 @@
+const UInt256 modularMultiplicationUsingRussianPeasant(UInt256 a, UInt256 b);
