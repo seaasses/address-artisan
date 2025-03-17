@@ -1,6 +1,6 @@
 # THIS BRANCH
 
-This branch is an experimental branch to get the Artisan working on the GPU using OpenCL.
+This branch is an experimental branch to get the Artisan working on the GPU using OpenCL.To get the working CPU version, go to the [main branch](https://github.com/seaasses/address-artisan/tree/main).
 
 # Address Artisan
 
