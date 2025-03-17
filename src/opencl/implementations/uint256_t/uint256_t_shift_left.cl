@@ -2,7 +2,6 @@
 const UInt256 uint256ShiftLeft(const UInt256 x) {
 
   UInt256 result;
-  ulong carry = 0;
 
   result.limbs[3] = x.limbs[3] << 1;
   result.limbs[2] = (x.limbs[2] << 1) | (x.limbs[3] >> 63);
