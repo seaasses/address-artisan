@@ -6,7 +6,7 @@ const UInt256 modularAddition(const UInt256 a, const UInt256 b) {
   uint256AdditionWithOverflowFlag(&a, &b, &result, &overflowFlag);
 
   if (overflowFlag) {
-    return uint256Subtraction(result, getP());
+    return uint256Subtraction(result, SECP256K1_P);
   }
 
   return modulus(result);

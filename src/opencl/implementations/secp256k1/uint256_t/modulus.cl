@@ -1,6 +1,6 @@
 #pragma inline
 const uchar is_outside_secp256k1_space(const UInt256 a) {
-  const UInt256 p = getP();
+  const UInt256 p = SECP256K1_P;
 #pragma unroll
   for (uchar i = 0; i < 4; ++i) {
     if (a.limbs[i] > p.limbs[i]) {
@@ -15,10 +15,8 @@ const uchar is_outside_secp256k1_space(const UInt256 a) {
 
 #pragma inline
 const UInt256 modulus(const UInt256 a) {
-  const UInt256 p = getP();
-
   if (is_outside_secp256k1_space(a)) {
-    return uint256Subtraction(a, p);
+    return uint256Subtraction(a, SECP256K1_P);
   }
 
   return a;
