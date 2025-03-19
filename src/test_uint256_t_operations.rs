@@ -936,6 +936,21 @@ mod tests {
     }
 
     #[test]
+    fn test_uint256_t_shift_left_just_most_significant_bit_set() {
+        let mut ocl = Uint256Operations::new().unwrap();
+
+        // Test shift left with maximum value (all bits set)
+        let a = vec![
+            0b10000000, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+
+        let result = ocl.shift_left(a).unwrap();
+        assert_eq!(result, vec![0; 32]);
+    }
+
+    #[test]
     fn test_uint256_t_shift_left_max_value() {
         let mut ocl = Uint256Operations::new().unwrap();
 
