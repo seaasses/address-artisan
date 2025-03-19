@@ -6,6 +6,7 @@ mod tests {
         a_buffer: Buffer<u8>,
         b_buffer: Buffer<u8>,
         result_buffer: Buffer<u8>,
+        boolean_flag: Buffer<u8>,
         add_kernel: Kernel,
     }
 
@@ -62,6 +63,13 @@ mod tests {
                 Err(e) => return Err("Error creating result buffer: ".to_string() + &e.to_string()),
             };
 
+            let boolean_flag = match Buffer::<u8>::builder().queue(queue.clone()).len(1).build() {
+                Ok(buffer) => buffer,
+                Err(e) => {
+                    return Err("Error creating boolean flag buffer: ".to_string() + &e.to_string())
+                }
+            };
+
             // Create kernel
             let operations_kernel = match Kernel::builder()
                 .program(&program)
@@ -71,6 +79,7 @@ mod tests {
                 .arg(&b_buffer)
                 .arg(0u8)
                 .arg(&result_buffer)
+                .arg(&boolean_flag)
                 .global_work_size(1)
                 .build()
             {
@@ -82,24 +91,26 @@ mod tests {
                 a_buffer,
                 b_buffer,
                 result_buffer,
+                boolean_flag,
                 add_kernel: operations_kernel,
             })
         }
 
-        fn add(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
-            self.run_operation(a, b, 0)
+        fn add(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<(Vec<u8>, bool), String> {
+            let (result, overflow_flag) = self.run_operation(a, b, 0)?;
+            Ok((result, overflow_flag))
         }
 
         fn sub(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
-            self.run_operation(a, b, 1)
+            Ok(self.run_operation(a, b, 1)?.0)
         }
 
         fn shift_left(&mut self, a: Vec<u8>) -> Result<Vec<u8>, String> {
-            self.run_operation(a, vec![0; 32], 2)
+            Ok(self.run_operation(a, vec![0; 32], 2)?.0)
         }
 
         fn shift_right(&mut self, a: Vec<u8>) -> Result<Vec<u8>, String> {
-            self.run_operation(a, vec![0; 32], 3)
+            Ok(self.run_operation(a, vec![0; 32], 3)?.0)
         }
 
         fn run_operation(
@@ -107,7 +118,7 @@ mod tests {
             a: Vec<u8>,
             b: Vec<u8>,
             operation: u8,
-        ) -> Result<Vec<u8>, String> {
+        ) -> Result<(Vec<u8>, bool), String> {
             if a.len() != 32 || b.len() != 32 {
                 return Err(format!(
                     "Input vectors must be 32 bytes long, got a: {} and b: {}",
@@ -146,8 +157,14 @@ mod tests {
                 Ok(_) => (),
                 Err(e) => return Err("Error reading result: ".to_string() + &e.to_string()),
             };
+            let mut boolean_flag_array = vec![0u8; 1];
+            match self.boolean_flag.read(&mut boolean_flag_array[..]).enq() {
+                Ok(_) => (),
+                Err(e) => return Err("Error reading boolean flag: ".to_string() + &e.to_string()),
+            };
+            let boolean_flag = boolean_flag_array[0] != 0;
 
-            Ok(result_array)
+            Ok((result_array, boolean_flag))
         }
     }
 
@@ -167,7 +184,10 @@ mod tests {
             0x00, 0x00, 0x00, 0x01,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+
+        assert_eq!(overflow_flag, false);
+
         assert_eq!(
             result,
             vec![
@@ -193,7 +213,8 @@ mod tests {
             0x00, 0x00, 0x00, 0x07,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -219,7 +240,9 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFF,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -245,7 +268,9 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFF,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -272,7 +297,9 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFF,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -298,7 +325,8 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFF,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, true);
         assert_eq!(
             result,
             vec![
@@ -325,7 +353,8 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xF1,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, true);
         assert_eq!(
             result,
             vec![
@@ -435,7 +464,8 @@ mod tests {
             0x00, 0x00, 0x00, 0x00,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -462,7 +492,8 @@ mod tests {
             0x76, 0x54, 0x32, 0x10,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, true);
         assert_eq!(
             result,
             vec![
@@ -489,7 +520,8 @@ mod tests {
             0x55, 0x55, 0x55, 0x55,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -516,7 +548,8 @@ mod tests {
             0x00, 0x00, 0x00, 0x01,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![
@@ -543,7 +576,8 @@ mod tests {
             0x00, 0x00, 0x00, 0x00,
         ];
 
-        let result = ocl.add(a, b).unwrap();
+        let (result, overflow_flag) = ocl.add(a, b).unwrap();
+        assert_eq!(overflow_flag, false);
         assert_eq!(
             result,
             vec![

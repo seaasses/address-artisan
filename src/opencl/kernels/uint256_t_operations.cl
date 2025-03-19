@@ -1,6 +1,7 @@
 __kernel void uint256Operations(__global uchar *input_a,
                                 __global uchar *input_b, uchar operation,
-                                __global uchar *result) {
+                                __global uchar *result,
+                                __global uchar *booleanFlag) {
 
   // THIS DOES NOT NEED TO BE FAST, IT IS ONLY USED FOR TESTING
 
@@ -17,9 +18,10 @@ __kernel void uint256Operations(__global uchar *input_a,
   const UInt256 b = uint256FromBytes(local_b);
 
   UInt256 local_class_result;
+  bool localBooleanFlag;
 
   if (operation == 0) {
-    local_class_result = uint256Addition(a, b);
+    uint256AdditionWithOverflowFlag(&a, &b, &local_class_result, &localBooleanFlag);
   } else if (operation == 1) {
     local_class_result = uint256Subtraction(a, b);
   } else if (operation == 2) {
@@ -33,4 +35,5 @@ __kernel void uint256Operations(__global uchar *input_a,
   for (uchar i = 0; i < 32; i++) {
     result[i] = local_result[i];
   }
+  *booleanFlag = (localBooleanFlag == true) ? 1 : 0;
 }
