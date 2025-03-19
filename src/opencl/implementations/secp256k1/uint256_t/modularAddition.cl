@@ -1,7 +1,13 @@
 #pragma inline
 const UInt256 modularAddition(const UInt256 a, const UInt256 b) {
+  bool overflowFlag;
+  const UInt256 result;
 
-  const UInt256 result = uint256Addition(a, b);
+  uint256AdditionWithOverflowFlag(&a, &b, &result, &overflowFlag);
+
+  if (overflowFlag) {
+    return uint256Subtraction(result, getP());
+  }
 
   return modulus(result);
 }
