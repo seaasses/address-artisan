@@ -1,24 +1,35 @@
+// TODO: test if this is faster than modularAddition(a,a) - I think it is
 #pragma inline
-const ulong isDifferentFromZero(const UInt256 a) {
-  return a.limbs[0] | a.limbs[1] | a.limbs[2] | a.limbs[3];
+const UInt256 modularShiftLeft(const UInt256 a) {
+  const UInt256 result = uint256ShiftLeft(a);
+
+  if (a.limbs[0] & 0x8000000000000000ull) {
+    return uint256Subtraction(result, SECP256K1_P);
+  }
+  return modulus(result);
 }
 
-// TODO: implement multiplication and then modulus with 512 bits to test
+// TODO: implement multiplication and then modulus with 512 bits to test if this
+// is faster - I really don't know
 #pragma inline
 const UInt256 modularMultiplicationUsingRussianPeasant(UInt256 a, UInt256 b) {
+  // I know that a and b are already < P, no need to modules before starting
   UInt256 result = {0};
+  UInt256 toSum;
+  ulong mask;
 
-  a = modulus(a);
+  // TODO: maybe do 256 is faster than see if b is zero? ors are fast, but this
+  // can cause warp stalls
+  // TODO: maybe see what is smaller and use it to loop? - do not need to do
+  // this if the above is true
+  while (b.limbs[0] | b.limbs[1] | b.limbs[2] | b.limbs[3]) {
+    // for (uint i = 0; i != 256; i++) { // TODO: test this
 
-  // TODO: maybe do 256 is faster than see if b is zero?
-  // TODO: maybe see what is smaller and use it to loop?
-  while (isDifferentFromZero(b)) {
-
-    if (b.limbs[3] & 0x0000000000000001) { // if is odd
+    if (b.limbs[3] & 1) { // if is odd
       result = modularAddition(result, a);
-      return result;
     }
-    a = uint256ShiftLeft(a);
+
+    a = modularShiftLeft(a);
     b = uint256ShiftRight(b);
   }
 
