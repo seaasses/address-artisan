@@ -17,19 +17,16 @@ void padMessageSha512(uchar *message, ulong messageLength,
     p[i] = 0;
   }
 
-  uchar *paddedMessageBytes = (uchar *)paddedMessage;
-  uchar *messageLengthBytes = (uchar *)&messageLength;
-
 #pragma unroll
-  for (uchar i = 0; i < 112; i += 8) {
-    paddedMessageBytes[i] = p[i + 7];
-    paddedMessageBytes[i + 1] = p[i + 6];
-    paddedMessageBytes[i + 2] = p[i + 5];
-    paddedMessageBytes[i + 3] = p[i + 4];
-    paddedMessageBytes[i + 4] = p[i + 3];
-    paddedMessageBytes[i + 5] = p[i + 2];
-    paddedMessageBytes[i + 6] = p[i + 1];
-    paddedMessageBytes[i + 7] = p[i];
+  for (uchar i = 0; i < 14; ++i) {
+    paddedMessage[i] = ((((ulong)p[i << 3]) << 56)) |
+                       ((((ulong)p[(i << 3) + 1]) << 48)) |
+                       ((((ulong)p[(i << 3) + 2]) << 40)) |
+                       ((((ulong)p[(i << 3) + 3]) << 32)) |
+                       ((((ulong)p[(i << 3) + 4]) << 24)) |
+                       ((((ulong)p[(i << 3) + 5]) << 16)) |
+                       ((((ulong)p[(i << 3) + 6]) << 8)) |
+                       (((ulong)p[(i << 3) + 7]));
   }
 
   // 128 bits (2 words) for the message length
