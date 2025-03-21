@@ -1,0 +1,1 @@
+void sha512For165BytesMessage(uchar *message, uchar *hashedMessage);
