@@ -6,7 +6,7 @@
 #define sha512BigSigma0(x) (ROTR64(x, 28) ^ ROTR64(x, 34) ^ ROTR64(x, 39))
 #define sha512BigSigma1(x) (ROTR64(x, 14) ^ ROTR64(x, 18) ^ ROTR64(x, 41))
 
-void sha512For165BytesMessage(uchar *message, uchar *hashedMessage) {
+void sha512For165BytesMessage(uchar *message, UInt256 *IL, UInt256 *IR) {
 
   const ulong k[80] = {
       0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f,
@@ -210,16 +210,13 @@ void sha512For165BytesMessage(uchar *message, uchar *hashedMessage) {
     letters[0] = t1 + t2;
   }
 
-#pragma unroll
-  for (uchar i = 0; i < 8; ++i) {
-    letters[i] += hs[i];
-    hashedMessage[i << 3] = letters[i] >> 56;
-    hashedMessage[(i << 3) + 1] = letters[i] >> 48;
-    hashedMessage[(i << 3) + 2] = letters[i] >> 40;
-    hashedMessage[(i << 3) + 3] = letters[i] >> 32;
-    hashedMessage[(i << 3) + 4] = letters[i] >> 24;
-    hashedMessage[(i << 3) + 5] = letters[i] >> 16;
-    hashedMessage[(i << 3) + 6] = letters[i] >> 8;
-    hashedMessage[(i << 3) + 7] = letters[i];
-  }
+  IL->limbs[0] = letters[0] + hs[0];
+  IL->limbs[1] = letters[1] + hs[1];
+  IL->limbs[2] = letters[2] + hs[2];
+  IL->limbs[3] = letters[3] + hs[3];
+
+  IR->limbs[0] = letters[4] + hs[4];
+  IR->limbs[1] = letters[5] + hs[5];
+  IR->limbs[2] = letters[6] + hs[6];
+  IR->limbs[3] = letters[7] + hs[7];
 }
