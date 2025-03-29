@@ -39,6 +39,14 @@ __kernel void secp256k1_operations(__global uchar *x1, __global uchar *y1,
         modularMultiplicationUsingRussianPeasant(x1_as_uint256, y1_as_uint256);
 
     uint256ToBytes(result, local_result_x);
+  } else if (operation == 2) {
+    // modular exponentiation between x1 (base) and y1 (exponent)
+    const UInt256 x1_as_uint256 = uint256FromBytes(local_x1);
+    const UInt256 y1_as_uint256 = uint256FromBytes(local_y1);
+
+    const UInt256 result = modularExponentiation(x1_as_uint256, y1_as_uint256);
+
+    uint256ToBytes(result, local_result_x);
   }
 
   // send result to the host
