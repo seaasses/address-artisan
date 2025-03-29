@@ -1,6 +1,10 @@
 #pragma inline
 void uint256AdditionWithOverflowFlag(const UInt256 *a, const UInt256 *b,
                                      UInt256 *result, bool *overflowFlag) {
+
+  // TODO: this function uses logical operations instead of bitwise operations.
+  // see if this can be optimized for better warp performance
+
   ulong carry = 0;
 
   result->limbs[3] = a->limbs[3] + b->limbs[3];
