@@ -4,6 +4,8 @@ __kernel void secp256k1Operations(__global uchar *x1, __global uchar *y1,
                                   __global uchar *result_y) {
 
   // THIS DOES NOT NEED TO BE FAST, IT IS ONLY USED FOR TESTING
+  ulong index = get_global_id(0);
+
 
   uchar local_x1[32];
   uchar local_y1[32];
@@ -14,10 +16,10 @@ __kernel void secp256k1Operations(__global uchar *x1, __global uchar *y1,
 
 #pragma unroll
   for (uchar i = 0; i < 32; i++) {
-    local_x1[i] = x1[i];
-    local_y1[i] = y1[i];
-    local_x2[i] = x2[i];
-    local_y2[i] = y2[i];
+    local_x1[i] = x1[index * 32 + i];
+    local_y1[i] = y1[index * 32 + i];
+    local_x2[i] = x2[index * 32 + i];
+    local_y2[i] = y2[index * 32 + i];
   }
 
   Point x = {.x = uint256FromBytes(local_x1), .y = uint256FromBytes(local_y1)};
@@ -34,7 +36,7 @@ __kernel void secp256k1Operations(__global uchar *x1, __global uchar *y1,
 
 #pragma unroll
   for (uchar i = 0; i < 32; i++) {
-    result_x[i] = local_result_x[i];
-    result_y[i] = local_result_y[i];
+    result_x[index * 32 + i] = local_result_x[i];
+    result_y[index * 32 + i] = local_result_y[i];
   }
 }
