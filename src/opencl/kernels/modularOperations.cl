@@ -28,6 +28,9 @@ __kernel void modularOperations(__global uchar *a, __global uchar *b,
   } else if (operation == 2) {
     // modular exponentiation between x1 (base) and y1 (exponent)
     localResultUint256 = modularExponentiation(a_as_uint256, b_as_uint256);
+  } else if (operation == 3) {
+    // modular subtraction between x1 and y1
+    localResultUint256 = modularSubtraction(a_as_uint256, b_as_uint256);
   }
 
   uint256ToBytes(localResultUint256, local_result);
