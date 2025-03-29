@@ -2,7 +2,7 @@
 mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
-    pub struct Secp256k1Operations {
+    pub struct ModularOperations {
         x1_buffer: Buffer<u8>,
         y1_buffer: Buffer<u8>,
         x2_buffer: Buffer<u8>,
@@ -12,7 +12,7 @@ mod tests {
         operations_kernel: Kernel,
     }
 
-    impl Secp256k1Operations {
+    impl ModularOperations {
         pub fn new() -> Result<Self, String> {
             // CREATE OPENCL CONTEXT
             let platform = match Platform::first() {
@@ -85,7 +85,7 @@ mod tests {
             // Create kernel
             let operations_kernel = match Kernel::builder()
                 .program(&program)
-                .name("secp256k1_operations")
+                .name("modularOperations")
                 .queue(queue.clone())
                 .arg(&x1_buffer)
                 .arg(&y1_buffer)
@@ -188,10 +188,6 @@ mod tests {
         }
     }
 
-    // Secp256k1 prime modulus (p)
-    // p = FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F
-
-    // p - 1
     const SECP256K1_P_MINUS_1: [u8; 32] = [
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF,
@@ -205,9 +201,8 @@ mod tests {
     ];
 
     #[test]
-    // SIMPLE INTEGER MODULAR ADDITION - ON SECP256K1 BECAUSE P IS USED
     fn test_uint256_t_1_plus_1() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -235,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_1_p_minus_1_plus_p_minus_1() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -255,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_add_zero() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -273,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_large_numbers_overflowing() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
         // large numbers that do overflow the 256-bit integer
 
         let a = vec![
@@ -300,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_1_p_minus_1_plus_minimun_to_overflow_256_bits() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -324,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_large_numbers() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
         // large numbers that do not overflow the 256-bit integer
 
         let a = vec![
@@ -351,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_p_minus_1_plus_1() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         // (p-1) + 1 should equal 0 (mod p)
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -369,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_consecutive_additions() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         // Start with 1
         let mut accumulator = vec![
@@ -404,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_2_times_3_mod_p() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -429,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_8_bytes_times_8_bytes_not_overflowing() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -455,7 +450,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_16_bytes_times_16_bytes_not_overflowing() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -480,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_modular_multiplication_p_minus_1_times_p_minus_1() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -498,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_modular_multiplication_p_minus_1_times_big_number() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -521,7 +516,7 @@ mod tests {
     // modular exponentiation
     #[test]
     fn test_uint256_t_modular_exponentiation_3_squared() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -547,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_modular_exponentiation_p_minus_1_power_0() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -569,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_modular_exponentiation_p_minus_1_power_3() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
 
@@ -591,7 +586,7 @@ mod tests {
 
     #[test]
     fn test_uint256_t_modular_exponentiation_big_number_power_p_minus_2() {
-        let mut ocl = Secp256k1Operations::new().unwrap();
+        let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
             0xF1, 0x6b, 0x61, 0xd1, 0x99, 0xCD, 0x00, 0xFE, 0x08, 0x00, 0x03, 0x17, 0x00, 0x00,

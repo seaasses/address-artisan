@@ -1,7 +1,7 @@
-__kernel void secp256k1_operations(__global uchar *x1, __global uchar *y1,
-                                   __global uchar *x2, __global uchar *y2,
-                                   uchar operation, __global uchar *result_x,
-                                   __global uchar *result_y) {
+__kernel void modularOperations(__global uchar *x1, __global uchar *y1,
+                                 __global uchar *x2, __global uchar *y2,
+                                 uchar operation, __global uchar *result_x,
+                                 __global uchar *result_y) {
 
   // THIS DOES NOT NEED TO BE FAST, IT IS ONLY USED FOR TESTING
 
