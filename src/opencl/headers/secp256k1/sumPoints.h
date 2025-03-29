@@ -1,0 +1,1 @@
+const Point sumPoints(const Point a, const Point b);
