@@ -1,0 +1,1 @@
+const UInt256 modularShiftLeft(const UInt256 a);
