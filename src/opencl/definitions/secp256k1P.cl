@@ -1,6 +1,9 @@
 #define SECP256K1_P                                                            \
   (UInt256){0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,        \
             0xFFFFFFFEFFFFFC2F}
+#define SECP256K1_P_MINUS_2                                                    \
+  (UInt256){0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,        \
+            0xFFFFFFFEFFFFFC2D}
 #define SECP256K1_P_0 0xFFFFFFFFFFFFFFFF
 #define SECP256K1_P_1 0xFFFFFFFFFFFFFFFF
 #define SECP256K1_P_2 0xFFFFFFFFFFFFFFFF
