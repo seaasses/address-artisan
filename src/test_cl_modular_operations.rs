@@ -3,12 +3,9 @@ mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
     pub struct ModularOperations {
-        x1_buffer: Buffer<u8>,
-        y1_buffer: Buffer<u8>,
-        x2_buffer: Buffer<u8>,
-        y2_buffer: Buffer<u8>,
-        result_buffer_x: Buffer<u8>,
-        result_buffer_y: Buffer<u8>,
+        a_buffer: Buffer<u8>,
+        b_buffer: Buffer<u8>,
+        result_buffer: Buffer<u8>,
         operations_kernel: Kernel,
     }
 
@@ -50,34 +47,17 @@ mod tests {
             };
 
             // Create buffers
-            let x1_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
+            let a_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
                 Ok(buffer) => buffer,
                 Err(e) => return Err("Error creating buffer A: ".to_string() + &e.to_string()),
             };
 
-            let y1_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
+            let b_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
                 Ok(buffer) => buffer,
                 Err(e) => return Err("Error creating buffer A: ".to_string() + &e.to_string()),
             };
 
-            let x2_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
-                Ok(buffer) => buffer,
-                Err(e) => return Err("Error creating buffer A: ".to_string() + &e.to_string()),
-            };
-
-            let y2_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
-                Ok(buffer) => buffer,
-                Err(e) => return Err("Error creating buffer A: ".to_string() + &e.to_string()),
-            };
-
-            let result_buffer_x = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build()
-            {
-                Ok(buffer) => buffer,
-                Err(e) => return Err("Error creating result buffer: ".to_string() + &e.to_string()),
-            };
-
-            let result_buffer_y = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build()
-            {
+            let result_buffer = match Buffer::<u8>::builder().queue(queue.clone()).len(32).build() {
                 Ok(buffer) => buffer,
                 Err(e) => return Err("Error creating result buffer: ".to_string() + &e.to_string()),
             };
@@ -87,13 +67,10 @@ mod tests {
                 .program(&program)
                 .name("modularOperations")
                 .queue(queue.clone())
-                .arg(&x1_buffer)
-                .arg(&y1_buffer)
-                .arg(&x2_buffer)
-                .arg(&y2_buffer)
+                .arg(&a_buffer)
+                .arg(&b_buffer)
                 .arg(0u8)
-                .arg(&result_buffer_x)
-                .arg(&result_buffer_y)
+                .arg(&result_buffer)
                 .global_work_size(1)
                 .build()
             {
@@ -102,63 +79,50 @@ mod tests {
             };
 
             Ok(Self {
-                x1_buffer,
-                y1_buffer,
-                x2_buffer,
-                y2_buffer,
-                result_buffer_x,
-                result_buffer_y,
+                a_buffer,
+                b_buffer,
+                result_buffer,
                 operations_kernel,
             })
         }
 
         fn modular_addition(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
-            let result = self.run_operation((a, b), (vec![0u8; 32], vec![0u8; 32]), 0);
-            Ok(result.unwrap().0)
+            let result = self.run_operation(a, b, 0).unwrap();
+            Ok(result)
         }
 
         fn modular_multiplication(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
-            let result = self.run_operation((a, b), (vec![0u8; 32], vec![0u8; 32]), 1);
-            Ok(result.unwrap().0)
+            let result = self.run_operation(a, b, 1).unwrap();
+            Ok(result)
         }
 
         fn modular_exponentiation(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
-            let result = self.run_operation((a, b), (vec![0u8; 32], vec![0u8; 32]), 2);
-            Ok(result.unwrap().0)
+            let result = self.run_operation(a, b, 2).unwrap();
+            Ok(result)
         }
 
         fn run_operation(
             &mut self,
-            a: (Vec<u8>, Vec<u8>),
-            b: (Vec<u8>, Vec<u8>),
+            a: Vec<u8>,
+            b: Vec<u8>,
             operation: u8,
-        ) -> Result<(Vec<u8>, Vec<u8>), String> {
-            if a.0.len() != 32 || a.1.len() != 32 || b.0.len() != 32 || b.1.len() != 32 {
+        ) -> Result<Vec<u8>, String> {
+            if a.len() != 32 || b.len() != 32 {
                 return Err(format!("Input vectors must be 32 bytes long"));
             }
 
-            match self.operations_kernel.set_arg(4, operation) {
+            match self.operations_kernel.set_arg(2, operation) {
                 Ok(_) => (),
                 Err(e) => return Err("Error setting operation: ".to_string() + &e.to_string()),
             };
 
             // Write data to buffers
-            match self.x1_buffer.write(&a.0[..]).enq() {
+            match self.a_buffer.write(&a[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer A: ".to_string() + &e.to_string()),
             };
 
-            match self.y1_buffer.write(&a.1[..]).enq() {
-                Ok(_) => (),
-                Err(e) => return Err("Error writing to buffer B: ".to_string() + &e.to_string()),
-            };
-
-            match self.x2_buffer.write(&b.0[..]).enq() {
-                Ok(_) => (),
-                Err(e) => return Err("Error writing to buffer B: ".to_string() + &e.to_string()),
-            };
-
-            match self.y2_buffer.write(&b.1[..]).enq() {
+            match self.b_buffer.write(&b[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer B: ".to_string() + &e.to_string()),
             };
@@ -172,19 +136,13 @@ mod tests {
             }
 
             // Read result
-            let mut result_array_x = vec![0u8; 32];
-            let mut result_array_y = vec![0u8; 32];
-            match self.result_buffer_x.read(&mut result_array_x[..]).enq() {
+            let mut result_array = vec![0u8; 32];
+            match self.result_buffer.read(&mut result_array[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error reading result: ".to_string() + &e.to_string()),
             };
 
-            match self.result_buffer_y.read(&mut result_array_y[..]).enq() {
-                Ok(_) => (),
-                Err(e) => return Err("Error reading result: ".to_string() + &e.to_string()),
-            };
-
-            Ok((result_array_x, result_array_y))
+            Ok(result_array)
         }
     }
 
