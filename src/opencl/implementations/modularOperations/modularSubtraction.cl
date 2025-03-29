@@ -1,5 +1,5 @@
 #pragma inline
-UInt256 modularSubtraction(const UInt256 a, const UInt256 b) {
+const UInt256 modularSubtraction(const UInt256 a, const UInt256 b) {
   const UInt256 result;
   bool underflowFlag;
   uint256SubtractionWithUnderflowFlag(&a, &b, &result, &underflowFlag);
