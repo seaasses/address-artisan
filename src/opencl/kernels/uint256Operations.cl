@@ -21,13 +21,17 @@ __kernel void uint256Operations(__global uchar *input_a,
   bool localBooleanFlag;
 
   if (operation == 0) {
-    uint256AdditionWithOverflowFlag(&a, &b, &local_class_result, &localBooleanFlag);
+    uint256AdditionWithOverflowFlag(&a, &b, &local_class_result,
+                                    &localBooleanFlag);
   } else if (operation == 1) {
     local_class_result = uint256Subtraction(a, b);
   } else if (operation == 2) {
     local_class_result = uint256ShiftLeft(a);
   } else if (operation == 3) {
     local_class_result = uint256ShiftRight(a);
+  } else if (operation == 4) {
+    uint256SubtractionWithUnderflowFlag(&a, &b, &local_class_result,
+                                        &localBooleanFlag);
   }
 
   uint256ToBytes(local_class_result, local_result);
