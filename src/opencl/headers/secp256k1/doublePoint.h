@@ -1,0 +1,1 @@
+const Point doublePoint(const Point p);
