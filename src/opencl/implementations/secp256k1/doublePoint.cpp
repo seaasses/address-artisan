@@ -4,7 +4,7 @@
 #include "src/opencl/headers/modularOperations/modularShiftLeft.h"
 #include "src/opencl/headers/modularOperations/modularExponentiation.h"
 #include "src/opencl/headers/modularOperations/modularSubtraction.h"
-#include "src/opencl/definitions/secp256k1P.h"
+#include "src/opencl/definitions/secp256k1.h"
 
 #pragma inline
 const Point doublePoint(const Point p)

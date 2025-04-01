@@ -3,6 +3,7 @@
 #include "src/opencl/headers/uint256/toBytes.h"
 #include "src/opencl/headers/secp256k1/sumPoints.h"
 #include "src/opencl/headers/secp256k1/doublePoint.h"
+#include "src/opencl/headers/secp256k1/gTimesScalar.h"
 
 __kernel void secp256k1Operations(
     __global unsigned char *x1, __global unsigned char *y1,
@@ -47,10 +48,10 @@ __kernel void secp256k1Operations(
   {
     localResultPoint = doublePoint(x);
   }
-  // else if (operation == 1)
-  // {
-  //   localResultPoint = gTimesScalar(localScalar);
-  // }
+  else if (operation == 2)
+  {
+    localResultPoint = gTimesScalar(localScalar);
+  }
 
   uint256ToBytes(localResultPoint.x, localResultX);
   uint256ToBytes(localResultPoint.y, localResultY);

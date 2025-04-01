@@ -1,5 +1,5 @@
 #include "src/opencl/headers/modularOperations/modulus.h"
-#include "src/opencl/definitions/secp256k1P.h"
+#include "src/opencl/definitions/secp256k1.h"
 #include "src/opencl/headers/uint256/subtraction.h"
 
 #pragma inline

@@ -1,6 +1,6 @@
 #include "src/opencl/headers/modularOperations/modularSubtraction.h"
 #include "src/opencl/headers/uint256/addition.h"
-#include "src/opencl/definitions/secp256k1P.h"
+#include "src/opencl/definitions/secp256k1.h"
 #include "src/opencl/headers/uint256/subtractionWithUnderflowFlag.h"
 
 #pragma inline
