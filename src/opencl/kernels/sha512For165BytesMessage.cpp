@@ -1,4 +1,4 @@
-#include "src/opencl/structs/uint256.h"
+#include "src/opencl/structs/structs.h"
 #include "src/opencl/headers/sha512/sha512For165BytesMessage.h"
 
 void ulongToBytes(unsigned long value, __global unsigned char *bytes)
