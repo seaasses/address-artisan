@@ -3,20 +3,20 @@
 #pragma inline
 UInt256 uint256FromBytes(const unsigned char *input)
 {
-  return (UInt256){(((ulong)(input[0]) << 56) | ((ulong)(input[1]) << 48) |
-                    ((ulong)(input[2]) << 40) | ((ulong)(input[3]) << 32) |
-                    ((ulong)(input[4]) << 24) | ((ulong)(input[5]) << 16) |
-                    ((ulong)(input[6]) << 8) | ((ulong)(input[7]))),
-                   (((ulong)(input[8]) << 56) | ((ulong)(input[9]) << 48) |
-                    ((ulong)(input[10]) << 40) | ((ulong)(input[11]) << 32) |
-                    ((ulong)(input[12]) << 24) | ((ulong)(input[13]) << 16) |
-                    ((ulong)(input[14]) << 8) | ((ulong)(input[15]))),
-                   (((ulong)(input[16]) << 56) | ((ulong)(input[17]) << 48) |
-                    ((ulong)(input[18]) << 40) | ((ulong)(input[19]) << 32) |
-                    ((ulong)(input[20]) << 24) | ((ulong)(input[21]) << 16) |
-                    ((ulong)(input[22]) << 8) | ((ulong)(input[23]))),
-                   (((ulong)(input[24]) << 56) | ((ulong)(input[25]) << 48) |
-                    ((ulong)(input[26]) << 40) | ((ulong)(input[27]) << 32) |
-                    ((ulong)(input[28]) << 24) | ((ulong)(input[29]) << 16) |
-                    ((ulong)(input[30]) << 8) | ((ulong)(input[31])))};
+  return (UInt256){(((unsigned long)(input[0]) << 56) | ((unsigned long)(input[1]) << 48) |
+                    ((unsigned long)(input[2]) << 40) | ((unsigned long)(input[3]) << 32) |
+                    ((unsigned long)(input[4]) << 24) | ((unsigned long)(input[5]) << 16) |
+                    ((unsigned long)(input[6]) << 8) | ((unsigned long)(input[7]))),
+                   (((unsigned long)(input[8]) << 56) | ((unsigned long)(input[9]) << 48) |
+                    ((unsigned long)(input[10]) << 40) | ((unsigned long)(input[11]) << 32) |
+                    ((unsigned long)(input[12]) << 24) | ((unsigned long)(input[13]) << 16) |
+                    ((unsigned long)(input[14]) << 8) | ((unsigned long)(input[15]))),
+                   (((unsigned long)(input[16]) << 56) | ((unsigned long)(input[17]) << 48) |
+                    ((unsigned long)(input[18]) << 40) | ((unsigned long)(input[19]) << 32) |
+                    ((unsigned long)(input[20]) << 24) | ((unsigned long)(input[21]) << 16) |
+                    ((unsigned long)(input[22]) << 8) | ((unsigned long)(input[23]))),
+                   (((unsigned long)(input[24]) << 56) | ((unsigned long)(input[25]) << 48) |
+                    ((unsigned long)(input[26]) << 40) | ((unsigned long)(input[27]) << 32) |
+                    ((unsigned long)(input[28]) << 24) | ((unsigned long)(input[29]) << 16) |
+                    ((unsigned long)(input[30]) << 8) | ((unsigned long)(input[31])))};
 };
