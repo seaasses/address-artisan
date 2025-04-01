@@ -1,3 +1,9 @@
+#include "src/opencl/definitions/secp256k1P.h"
+#include "src/opencl/headers/secp256k1/sumPoints.h"
+#include "src/opencl/headers/modularOperations/modularSubtraction.h"
+#include "src/opencl/headers/modularOperations/modularMultiplication.h"
+#include "src/opencl/headers/modularOperations/modularExponentiation.h"
+
 
 #pragma inline
 const Point sumPoints(const Point a, const Point b) {

@@ -42,7 +42,7 @@ mod tests {
 
             let queue = Queue::new(&context, device, None).map_err(|e| e.to_string())?;
 
-            let src = include_str!(concat!(env!("OUT_DIR"), "/combined_kernels.cl"));
+            let src = include_str!(concat!(env!("OUT_DIR"), "/secp256k1Operations"));
 
             let program = match Program::builder().src(src).devices(device).build(&context) {
                 Ok(program) => program,
