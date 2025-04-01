@@ -16,7 +16,11 @@ fn get_files_in_dir(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn get_file_include_paths(dir: PathBuf) -> Vec<PathBuf> {
-    let file_contents = fs::read_to_string(dir.clone()).unwrap();
+    let file_contents = fs::read_to_string(dir.clone());
+    if file_contents.is_err() {
+        panic!("Failed to read file: {}", dir.to_str().unwrap());
+    }
+    let file_contents = file_contents.unwrap();
 
     let includes: Vec<PathBuf> = file_contents
         .lines()
@@ -155,6 +159,9 @@ fn get_compiled_source_code(path: PathBuf) -> String {
         (SourceType::Struct, SourceType::Struct) => std::cmp::Ordering::Equal,
         (SourceType::Struct, _) => std::cmp::Ordering::Less,
         (_, SourceType::Struct) => std::cmp::Ordering::Greater,
+        (SourceType::Definition, SourceType::Definition) => std::cmp::Ordering::Equal,
+        (SourceType::Definition, _) => std::cmp::Ordering::Less,
+        (_, SourceType::Definition) => std::cmp::Ordering::Greater,
         (SourceType::Header, SourceType::Header) => std::cmp::Ordering::Equal,
         (SourceType::Header, _) => std::cmp::Ordering::Less,
         (_, SourceType::Header) => std::cmp::Ordering::Greater,
@@ -162,9 +169,6 @@ fn get_compiled_source_code(path: PathBuf) -> String {
         (SourceType::Implementation, _) => std::cmp::Ordering::Less,
         (_, SourceType::Implementation) => std::cmp::Ordering::Greater,
         (SourceType::Kernel, SourceType::Kernel) => std::cmp::Ordering::Equal,
-        (SourceType::Definition, SourceType::Definition) => std::cmp::Ordering::Equal,
-        (SourceType::Definition, _) => std::cmp::Ordering::Less,
-        (_, SourceType::Definition) => std::cmp::Ordering::Greater,
     });
 
     let mut combined_source_code = ordered_includes
