@@ -28,17 +28,48 @@ fn get_file_include_paths(dir: PathBuf) -> Vec<PathBuf> {
     includes
 }
 
-fn get_recursive_include_paths(dir: &Path) -> Vec<PathBuf> {
-    let file_includes = get_file_include_paths(dir.to_path_buf());
+fn get_recursive_include_paths_recursion(
+    dir: &Path,
+    already_included: &mut HashSet<PathBuf>,
+) -> Vec<PathBuf> {
+    let mut file_includes = get_file_include_paths(dir.to_path_buf());
+    if dir.to_str().unwrap().starts_with("src/opencl/headers") {
+        file_includes.extend(get_file_include_paths(PathBuf::from(
+            dir.to_str()
+                .unwrap()
+                .replace("src/opencl/headers", "src/opencl/implementations")
+                .replace(".h", ".cpp"),
+        )));
+    }
 
-    let mut all_to_include = file_includes.clone();
+    let mut all_to_include: Vec<PathBuf> = file_includes
+        .clone()
+        .into_iter()
+        .filter(|path| !already_included.contains(path))
+        .collect();
+
+    if all_to_include.len() == 0 {
+        return vec![];
+    }
+
+    already_included.extend(all_to_include.clone());
 
     for include_path in file_includes.clone() {
-        all_to_include.extend(get_recursive_include_paths(&include_path));
+        all_to_include.extend(get_recursive_include_paths_recursion(
+            &include_path,
+            already_included,
+        ));
     }
 
     let all_to_include_without_duplicates: HashSet<_> = all_to_include.into_iter().collect();
     all_to_include_without_duplicates.into_iter().collect()
+}
+
+fn get_recursive_include_paths(dir: &Path) -> Vec<PathBuf> {
+    let mut already_included = HashSet::new();
+    let paths_to_include = get_recursive_include_paths_recursion(dir, &mut already_included);
+    let paths_to_include_remove_duplicates: HashSet<_> = paths_to_include.into_iter().collect();
+    paths_to_include_remove_duplicates.into_iter().collect()
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
