@@ -1,1 +1,1 @@
-void sha256(uchar *message, ulong messageLength, uchar *hashedMessage);
+void sha256(unsigned char *message, unsigned long messageLength, unsigned char *hashedMessage);

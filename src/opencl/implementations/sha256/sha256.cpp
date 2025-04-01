@@ -1,3 +1,5 @@
+#include "src/opencl/headers/sha256/padMessageSha256.h"
+
 #define ROTR32(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
 #define maj(x, y, z) (((x) & (y)) | ((x) & (z)) | ((y) & (z)))
 #define ch(x, y, z) (((x) & (y)) | ((~x) & (z)))
@@ -6,29 +8,31 @@
 #define sha256BigSigma0(x) (ROTR32(x, 2) ^ ROTR32(x, 13) ^ ROTR32(x, 22))
 #define sha256BigSigma1(x) (ROTR32(x, 6) ^ ROTR32(x, 11) ^ ROTR32(x, 25))
 
-void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
+void sha256(unsigned char *message, unsigned long messageLength, unsigned char *hashedMessage)
+{
 
-  uint ws[64];
+  unsigned int ws[64];
 
   padMessageSha256(message, messageLength, ws);
 
 #pragma unroll
-  for (short i = 16; i < 64; ++i) {
+  for (short i = 16; i < 64; ++i)
+  {
     ws[i] = sha256SmallSigma1(ws[i - 2]) + ws[i - 7] +
             sha256SmallSigma0(ws[i - 15]) + ws[i - 16];
   }
 
-  uint a = 0x6a09e667;
-  uint b = 0xbb67ae85;
-  uint c = 0x3c6ef372;
-  uint d = 0xa54ff53a;
-  uint e = 0x510e527f;
-  uint f = 0x9b05688c;
-  uint g = 0x1f83d9ab;
-  uint h = 0x5be0cd19;
+  unsigned int a = 0x6a09e667;
+  unsigned int b = 0xbb67ae85;
+  unsigned int c = 0x3c6ef372;
+  unsigned int d = 0xa54ff53a;
+  unsigned int e = 0x510e527f;
+  unsigned int f = 0x9b05688c;
+  unsigned int g = 0x1f83d9ab;
+  unsigned int h = 0x5be0cd19;
 
-  uint t1, t2;
-  const uint k[64] = {
+  unsigned int t1, t2;
+  const unsigned int k[64] = {
       0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
       0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
       0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
@@ -42,7 +46,8 @@ void sha256(uchar *message, ulong messageLength, uchar *hashedMessage) {
       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
 #pragma unroll
-  for (short t = 0; t < 64; ++t) {
+  for (short t = 0; t < 64; ++t)
+  {
     t1 = h + sha256BigSigma1(e) + ch(e, f, g) + k[t] + ws[t];
     t2 = sha256BigSigma0(a) + maj(a, b, c);
 
