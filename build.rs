@@ -30,14 +30,13 @@ fn get_file_include_paths(dir: PathBuf) -> Vec<PathBuf> {
 
 fn get_recursive_include_paths(dir: &Path) -> Vec<PathBuf> {
     let file_includes = get_file_include_paths(dir.to_path_buf());
-    if file_includes.len() == 0 {
-        return file_includes;
-    }
+
     let mut all_to_include = file_includes.clone();
 
     for include_path in file_includes.clone() {
-        all_to_include.extend(get_file_include_paths(include_path));
+        all_to_include.extend(get_recursive_include_paths(&include_path));
     }
+
     let all_to_include_without_duplicates: HashSet<_> = all_to_include.into_iter().collect();
     all_to_include_without_duplicates.into_iter().collect()
 }
