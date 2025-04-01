@@ -1,4 +1,8 @@
-void ulongToBytes(ulong value, __global uchar *bytes) {
+#include "src/opencl/structs/uint256.h"
+#include "src/opencl/headers/sha512/sha512For165BytesMessage.h"
+
+void ulongToBytes(unsigned long value, __global unsigned char *bytes)
+{
   bytes[0] = value >> 56;
   bytes[1] = (value >> 48);
   bytes[2] = (value >> 40);
@@ -9,12 +13,13 @@ void ulongToBytes(ulong value, __global uchar *bytes) {
   bytes[7] = value;
 }
 
-__kernel void sha512For165BytesMessageKernel(__global uchar *message,
-                                       __global uchar *sha512Result) {
+__kernel void sha512For165BytesMessageKernel(__global unsigned char *message,
+                                    __global unsigned char *sha512Result)
+{
 
-  // use the clock as a semi random number
-  uchar localMessage[165];
-  for (uchar i = 0; i < 165; ++i) {
+  unsigned char localMessage[165];
+  for (unsigned char i = 0; i < 165; ++i)
+  {
     localMessage[i] = message[i];
   }
 
