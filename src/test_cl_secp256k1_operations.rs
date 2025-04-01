@@ -115,21 +115,13 @@ mod tests {
             Ok(result[0].clone())
         }
 
-        fn g_times_scalar(&mut self, scalar: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), String> {
-            let scalars = vec![scalar];
-            let points_a = vec![(vec![0u8; 32], vec![0u8; 32])];
-            let points_b = vec![(vec![0u8; 32], vec![0u8; 32])];
-            let result = self.run_operation(points_a, points_b, scalars, 1).unwrap();
-            Ok(result[0].clone())
-        }
-
         fn double_points(
             &mut self,
             points: Vec<(Vec<u8>, Vec<u8>)>,
         ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, String> {
             let points_b = vec![(vec![0u8; 32], vec![0u8; 32]); points.len()];
             let scalars = vec![vec![0u8; 32]; points.len()];
-            let result = self.run_operation(points, points_b, scalars, 2).unwrap();
+            let result = self.run_operation(points, points_b, scalars, 1).unwrap();
             Ok(result)
         }
 
@@ -140,6 +132,14 @@ mod tests {
             let points_a = vec![point];
             let points_b = vec![(vec![0u8; 32], vec![0u8; 32])];
             let scalars = vec![vec![0u8; 32]; 1];
+            let result = self.run_operation(points_a, points_b, scalars, 1).unwrap();
+            Ok(result[0].clone())
+        }
+
+        fn g_times_scalar(&mut self, scalar: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), String> {
+            let scalars = vec![scalar];
+            let points_a = vec![(vec![0u8; 32], vec![0u8; 32])];
+            let points_b = vec![(vec![0u8; 32], vec![0u8; 32])];
             let result = self.run_operation(points_a, points_b, scalars, 2).unwrap();
             Ok(result[0].clone())
         }
