@@ -1,15 +1,25 @@
-__kernel void modularOperations(__global uchar *a, __global uchar *b,
-                                uchar operation, __global uchar *result) {
+#include "src/opencl/structs/uint256.h"
+#include "src/opencl/headers/uint256/fromBytes.h"
+#include "src/opencl/headers/uint256/toBytes.h"
+#include "src/opencl/headers/modularOperations/modularAddition.h"
+#include "src/opencl/headers/modularOperations/modularMultiplication.h"
+#include "src/opencl/headers/modularOperations/modularExponentiation.h"
+#include "src/opencl/headers/modularOperations/modularSubtraction.h"
+
+__kernel void modularOperations(__global unsigned char *a, __global unsigned char *b, unsigned char operation,
+                                __global unsigned char *result)
+{
 
   // THIS DOES NOT NEED TO BE FAST, IT IS ONLY USED FOR TESTING
 
-  uchar local_a[32];
-  uchar local_b[32];
-  uchar local_result[32];
+  unsigned char local_a[32];
+  unsigned char local_b[32];
+  unsigned char local_result[32];
   UInt256 localResultUint256;
 
 #pragma unroll
-  for (uchar i = 0; i < 32; i++) {
+  for (unsigned char i = 0; i < 32; i++)
+  {
     local_a[i] = a[i];
     local_b[i] = b[i];
   }
@@ -17,18 +27,25 @@ __kernel void modularOperations(__global uchar *a, __global uchar *b,
   const UInt256 b_as_uint256 = uint256FromBytes(local_b);
 
   //////////////////////////////////////
-  if (operation == 0) {
+  if (operation == 0)
+  {
     // simple integer modular addition between x1 and y1
     localResultUint256 = modularAddition(a_as_uint256, b_as_uint256);
-  } else if (operation == 1) {
+  }
+  else if (operation == 1)
+  {
     //  simple integer modular multiplication between x1 and y1 using the
     //  russian peasant algorithm
     localResultUint256 =
         modularMultiplicationUsingRussianPeasant(a_as_uint256, b_as_uint256);
-  } else if (operation == 2) {
+  }
+  else if (operation == 2)
+  {
     // modular exponentiation between x1 (base) and y1 (exponent)
     localResultUint256 = modularExponentiation(a_as_uint256, b_as_uint256);
-  } else if (operation == 3) {
+  }
+  else if (operation == 3)
+  {
     // modular subtraction between x1 and y1
     localResultUint256 = modularSubtraction(a_as_uint256, b_as_uint256);
   }
@@ -37,7 +54,8 @@ __kernel void modularOperations(__global uchar *a, __global uchar *b,
 
   // send result to the host
 #pragma unroll
-  for (uchar i = 0; i < 32; i++) {
+  for (unsigned char i = 0; i < 32; i++)
+  {
     result[i] = local_result[i];
   }
 }
