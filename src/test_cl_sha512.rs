@@ -36,7 +36,7 @@ mod tests {
 
             let queue = Queue::new(&context, device, None)?;
 
-            let src = include_str!(concat!(env!("OUT_DIR"), "/combined_kernels.cl"));
+            let src = include_str!(concat!(env!("OUT_DIR"), "/sha512"));
 
             let program = match Program::builder().src(src).devices(device).build(&context) {
                 Ok(program) => program,
