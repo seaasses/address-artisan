@@ -164,7 +164,7 @@ mod tests {
     ];
 
     #[test]
-    fn test_UInt256_t_1_plus_1() {
+    fn test_uinnt256_t_1_plus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_1_p_minus_1_plus_p_minus_1() {
+    fn test_uinnt256_t_1_p_minus_1_plus_p_minus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_add_zero() {
+    fn test_uinnt256_t_add_zero() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_large_numbers_overflowing() {
+    fn test_uinnt256_t_large_numbers_overflowing() {
         let mut ocl = ModularOperations::new().unwrap();
         // large numbers that do overflow the 256-bit integer
 
@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_1_p_minus_1_plus_minimun_to_overflow_256_bits() {
+    fn test_uinnt256_t_1_p_minus_1_plus_minimun_to_overflow_256_bits() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -281,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_large_numbers() {
+    fn test_uinnt256_t_large_numbers() {
         let mut ocl = ModularOperations::new().unwrap();
         // large numbers that do not overflow the 256-bit integer
 
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_p_minus_1_plus_1() {
+    fn test_uinnt256_t_p_minus_1_plus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         // (p-1) + 1 should equal 0 (mod p)
@@ -326,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_consecutive_additions() {
+    fn test_uinnt256_t_consecutive_additions() {
         let mut ocl = ModularOperations::new().unwrap();
 
         // Start with 1
@@ -361,7 +361,7 @@ mod tests {
     // SIMPLE INTEGER MODULAR MULTIPLICATION - ON SECP256K1 BECAUSE P IS USED
 
     #[test]
-    fn test_UInt256_t_2_times_3_mod_p() {
+    fn test_uinnt256_t_2_times_3_mod_p() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -386,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_8_bytes_times_8_bytes_not_overflowing() {
+    fn test_uinnt256_t_8_bytes_times_8_bytes_not_overflowing() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_16_bytes_times_16_bytes_not_overflowing() {
+    fn test_uinnt256_t_16_bytes_times_16_bytes_not_overflowing() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -437,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_modular_multiplication_p_minus_1_times_p_minus_1() {
+    fn test_uinnt256_t_modular_multiplication_p_minus_1_times_p_minus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -455,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_modular_multiplication_p_minus_1_times_big_number() {
+    fn test_uinnt256_t_modular_multiplication_p_minus_1_times_big_number() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -478,7 +478,7 @@ mod tests {
 
     // modular exponentiation
     #[test]
-    fn test_UInt256_t_modular_exponentiation_3_squared() {
+    fn test_uinnt256_t_modular_exponentiation_3_squared() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -504,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_modular_exponentiation_p_minus_1_power_0() {
+    fn test_uinnt256_t_modular_exponentiation_p_minus_1_power_0() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -526,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_modular_exponentiation_p_minus_1_power_3() {
+    fn test_uinnt256_t_modular_exponentiation_p_minus_1_power_3() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -548,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_modular_exponentiation_big_number_power_p_minus_2() {
+    fn test_uinnt256_t_modular_exponentiation_big_number_power_p_minus_2() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -571,7 +571,7 @@ mod tests {
     // modular subtraction
 
     #[test]
-    fn test_UInt256_t_3_minus_2() {
+    fn test_uinnt256_t_3_minus_2() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -597,7 +597,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_p_minus_1_minus_1() {
+    fn test_uinnt256_t_p_minus_1_minus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -615,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_p_minus_1_minus_p_minus_1() {
+    fn test_uinnt256_t_p_minus_1_minus_p_minus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_1.to_vec();
@@ -629,7 +629,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_3_minus_4() {
+    fn test_uinnt256_t_3_minus_4() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
@@ -650,7 +650,7 @@ mod tests {
         assert_eq!(result, expected);
     }
     #[test]
-    fn test_UInt256_t_p_minus_2_minus_p_minus_1() {
+    fn test_uinnt256_t_p_minus_2_minus_p_minus_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = SECP256K1_P_MINUS_2.to_vec();
@@ -664,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    fn test_UInt256_t_half_p_minus_p_1() {
+    fn test_uinnt256_t_half_p_minus_p_1() {
         let mut ocl = ModularOperations::new().unwrap();
 
         let a = vec![
