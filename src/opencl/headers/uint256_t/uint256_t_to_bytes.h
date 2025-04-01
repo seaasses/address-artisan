@@ -1,1 +1,0 @@
-void uint256ToBytes(const UInt256 a, uchar *result);

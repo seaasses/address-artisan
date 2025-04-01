@@ -1,5 +1,8 @@
+#include "src/opencl/headers/uint256/shiftLeft.h"
+
 #pragma inline
-const UInt256 uint256ShiftLeft(const UInt256 x) {
+const UInt256 uint256ShiftLeft(const UInt256 x)
+{
 
   UInt256 result;
 

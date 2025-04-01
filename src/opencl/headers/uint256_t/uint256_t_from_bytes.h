@@ -1,1 +1,0 @@
-const UInt256 uint256FromBytes(const uchar *input);

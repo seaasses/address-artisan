@@ -1,4 +1,8 @@
-void uint256ToBytes(const UInt256 a, uchar *result) {
+#include "src/opencl/headers/uint256/toBytes.h"
+
+#pragma inline
+void uint256ToBytes(const UInt256 a, unsigned char *result)
+{
   result[0] = a.limbs[0] >> 56;
   result[1] = a.limbs[0] >> 48;
   result[2] = a.limbs[0] >> 40;

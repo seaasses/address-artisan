@@ -1,1 +1,0 @@
-const UInt256 uint256ShiftLeft(const UInt256 x);

@@ -1,8 +1,11 @@
+#include "src/opencl/headers/uint256/subtraction.h"
+
 #pragma inline
-const UInt256 uint256Subtraction(const UInt256 a, const UInt256 b) {
+const UInt256 uint256Subtraction(const UInt256 a, const UInt256 b)
+{
   UInt256 result;
 
-  ulong borrow;
+  unsigned long borrow;
 
   result.limbs[3] = a.limbs[3] - b.limbs[3];
   borrow = (a.limbs[3] < b.limbs[3]);
