@@ -1,4 +1,4 @@
-#include "src/opencl/structs/uint256.h"
+#include "src/opencl/structs/structs.h"
 #include "src/opencl/headers/uint256/fromBytes.h"
 #include "src/opencl/headers/uint256/toBytes.h"
 #include "src/opencl/headers/modularOperations/modularAddition.h"

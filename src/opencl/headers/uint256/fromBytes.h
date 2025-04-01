@@ -1,2 +1,2 @@
-#include "src/opencl/structs/uint256.h"
+#include "src/opencl/structs/structs.h"
 UInt256 uint256FromBytes(const unsigned char *input);
