@@ -34,20 +34,22 @@ __kernel void uint256Operations(
 
   if (operation == 0)
   {
-    uint256AdditionWithOverflowFlag(&a, &b, &local_class_result,
+    uint256AdditionWithOverflowFlag(&a, &b, &local_class_result, // inplace unsafe
                                     &localBooleanFlag);
   }
   else if (operation == 1)
   {
-    uint256Subtraction(&a, &b, &local_class_result);
+    uint256Subtraction(&a, &b, &local_class_result); // inplace unsafe
   }
   else if (operation == 2)
   {
-    local_class_result = uint256ShiftLeft(a);
+    uint256ShiftLeft(&a, &a); // inplace safe
+    local_class_result = a;
   }
   else if (operation == 3)
   {
-    local_class_result = uint256ShiftRight(a);
+    uint256ShiftRight(&a, &a); // inplace safe
+    local_class_result = a;
   }
   else if (operation == 4)
   {

@@ -1,3 +1,3 @@
 #include "src/opencl/structs/structs.h"
 
-const UInt256 uint256ShiftLeft(const UInt256 x);
+void uint256ShiftLeft(const UInt256 *x, UInt256 *result);
