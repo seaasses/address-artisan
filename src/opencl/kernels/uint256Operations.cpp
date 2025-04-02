@@ -39,7 +39,7 @@ __kernel void uint256Operations(
   }
   else if (operation == 1)
   {
-    local_class_result = uint256Subtraction(a, b);
+    uint256Subtraction(&a, &b, &local_class_result);
   }
   else if (operation == 2)
   {
