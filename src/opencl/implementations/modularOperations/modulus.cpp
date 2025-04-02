@@ -3,32 +3,23 @@
 #include "src/opencl/headers/uint256/subtraction.h"
 
 #pragma inline
-const unsigned char is_outside_secp256k1_space(const UInt256 a)
+void modulus(const UInt256 *a, UInt256 *result)
 {
-  const UInt256 p = SECP256K1_P;
-#pragma unroll
-  for (unsigned char i = 0; i < 4; ++i)
-  {
-    if (a.limbs[i] > p.limbs[i])
-    {
-      return 1; // a is greater than p
-    }
-    else if (a.limbs[i] < p.limbs[i])
-    {
-      return 0; // a is less than p
-    }
-  }
+  // check if the number is outside the secp256k1 space
+  unsigned int isOutsideSecp256k1Space = 1;
+  isOutsideSecp256k1Space = (a->limbs[0] > SECP256K1_P_0) | (isOutsideSecp256k1Space & ~(a->limbs[0] > SECP256K1_P_0));
+  isOutsideSecp256k1Space = (a->limbs[1] > SECP256K1_P_1) | (isOutsideSecp256k1Space & ~(a->limbs[1] > SECP256K1_P_1));
+  isOutsideSecp256k1Space = (a->limbs[2] > SECP256K1_P_2) | (isOutsideSecp256k1Space & ~(a->limbs[2] > SECP256K1_P_2));
+  isOutsideSecp256k1Space = (a->limbs[3] > SECP256K1_P_3) | (isOutsideSecp256k1Space & ~(a->limbs[3] < SECP256K1_P_3));
 
-  return 1; // a is equal to p
-}
+  const unsigned long toSubtractMask = -((unsigned long)isOutsideSecp256k1Space);
 
-#pragma inline
-const UInt256 modulus(const UInt256 a)
-{
-  if (is_outside_secp256k1_space(a))
-  {
-    return uint256Subtraction(a, SECP256K1_P);
-  }
+  const UInt256 toSubtract = (UInt256){.limbs = {
+                                           SECP256K1_P_0 & toSubtractMask,
+                                           SECP256K1_P_1 & toSubtractMask,
+                                           SECP256K1_P_2 & toSubtractMask,
+                                           SECP256K1_P_3 & toSubtractMask,
+                                       }};
 
-  return a;
+  uint256Subtraction(a, &toSubtract, result);
 }
