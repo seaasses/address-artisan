@@ -1,3 +1,3 @@
 #include "src/opencl/structs/structs.h"
 
-const UInt256 modulus(const UInt256 a);
+void modulus(const UInt256 *a, UInt256 *result);
