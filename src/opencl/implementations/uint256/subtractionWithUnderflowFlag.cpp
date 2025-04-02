@@ -17,6 +17,5 @@ void uint256SubtractionWithUnderflowFlag(const UInt256 *a, const UInt256 *b,
 
     result->limbs[0] = a->limbs[0] - b->limbs[0] - borrow;
 
-    *underflowFlag =
-        ((a->limbs[0] < b->limbs[0]) | ((a->limbs[0] == b->limbs[0]) && borrow));
+    *underflowFlag = (a->limbs[0] < b->limbs[0]) | ((a->limbs[0] == b->limbs[0]) & borrow);
 }
