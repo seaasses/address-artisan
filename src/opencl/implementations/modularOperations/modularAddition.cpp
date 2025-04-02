@@ -7,7 +7,7 @@
 #pragma inline
 void modularAddition(const UInt256 *a, const UInt256 *b, UInt256 *result)
 {
-  unsigned int overflowFlag;
+  bool overflowFlag;
   UInt256 tmp;
 
   uint256AdditionWithOverflowFlag(a, b, result, &overflowFlag);
