@@ -4,7 +4,7 @@
 #include "src/opencl/headers/modularOperations/modularAddition.h"
 // #iinclude "src/opencl/headers/modularOperations/modularMultiplication.h"
 // #iinclude "src/opencl/headers/modularOperations/modularExponentiation.h"
-// #iinclude "src/opencl/headers/modularOperations/modularSubtraction.h"
+#include "src/opencl/headers/modularOperations/modularSubtraction.h"
 
 __kernel void modularOperations(__global unsigned char *a, __global unsigned char *b, unsigned char operation,
                                 __global unsigned char *result)
@@ -44,11 +44,11 @@ __kernel void modularOperations(__global unsigned char *a, __global unsigned cha
   //   // modular exponentiation between x1 (base) and y1 (exponent)
   //   localResultUint256 = modularExponentiation(a_as_uint256, b_as_uint256);
   // }
-  // else if (operation == 3)
-  // {
-  //   // modular subtraction between x1 and y1
-  //   localResultUint256 = modularSubtraction(a_as_uint256, b_as_uint256);
-  // }
+  else if (operation == 3)
+  {
+    // modular subtraction between x1 and y1
+    modularSubtraction(&a_as_uint256, &b_as_uint256, &localResultUint256);
+  }
 
   uint256ToBytes(localResultUint256, local_result);
 

@@ -4,16 +4,20 @@
 #include "src/opencl/headers/uint256/subtractionWithUnderflowFlag.h"
 
 #pragma inline
-const UInt256 modularSubtraction(const UInt256 a, const UInt256 b)
+void modularSubtraction(const UInt256 *a, const UInt256 *b, UInt256 *result)
 {
-  const UInt256 result;
   bool underflowFlag;
-  uint256SubtractionWithUnderflowFlag(&a, &b, &result, &underflowFlag);
+  UInt256 tmp;
 
-  if (underflowFlag)
-  {
-    return uint256Addition(result, SECP256K1_P);
-  }
+  uint256SubtractionWithUnderflowFlag(a, b, &tmp, &underflowFlag);
 
-  return result; // no need to modulus here
+  unsigned long maskToSum = -((unsigned long)underflowFlag);
+  const UInt256 toSum = (UInt256){.limbs = {
+                                SECP256K1_P_0 & maskToSum,
+                                SECP256K1_P_1 & maskToSum,
+                                SECP256K1_P_2 & maskToSum,
+                                SECP256K1_P_3 & maskToSum,
+                            }};
+
+  uint256Addition(&tmp, &toSum, result);
 }
