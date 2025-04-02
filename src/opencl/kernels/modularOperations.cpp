@@ -2,9 +2,9 @@
 #include "src/opencl/headers/uint256/fromBytes.h"
 #include "src/opencl/headers/uint256/toBytes.h"
 #include "src/opencl/headers/modularOperations/modularAddition.h"
-#include "src/opencl/headers/modularOperations/modularMultiplication.h"
-#include "src/opencl/headers/modularOperations/modularExponentiation.h"
-#include "src/opencl/headers/modularOperations/modularSubtraction.h"
+// #iinclude "src/opencl/headers/modularOperations/modularMultiplication.h"
+// #iinclude "src/opencl/headers/modularOperations/modularExponentiation.h"
+// #iinclude "src/opencl/headers/modularOperations/modularSubtraction.h"
 
 __kernel void modularOperations(__global unsigned char *a, __global unsigned char *b, unsigned char operation,
                                 __global unsigned char *result)
@@ -30,25 +30,25 @@ __kernel void modularOperations(__global unsigned char *a, __global unsigned cha
   if (operation == 0)
   {
     // simple integer modular addition between x1 and y1
-    localResultUint256 = modularAddition(a_as_uint256, b_as_uint256);
+    modularAddition(&a_as_uint256, &b_as_uint256, &localResultUint256);
   }
-  else if (operation == 1)
-  {
-    //  simple integer modular multiplication between x1 and y1 using the
-    //  russian peasant algorithm
-    localResultUint256 =
-        modularMultiplicationUsingRussianPeasant(a_as_uint256, b_as_uint256);
-  }
-  else if (operation == 2)
-  {
-    // modular exponentiation between x1 (base) and y1 (exponent)
-    localResultUint256 = modularExponentiation(a_as_uint256, b_as_uint256);
-  }
-  else if (operation == 3)
-  {
-    // modular subtraction between x1 and y1
-    localResultUint256 = modularSubtraction(a_as_uint256, b_as_uint256);
-  }
+  // else if (operation == 1)
+  // {
+  //   //  simple integer modular multiplication between x1 and y1 using the
+  //   //  russian peasant algorithm
+  //   localResultUint256 =
+  //       modularMultiplicationUsingRussianPeasant(a_as_uint256, b_as_uint256);
+  // }
+  // else if (operation == 2)
+  // {
+  //   // modular exponentiation between x1 (base) and y1 (exponent)
+  //   localResultUint256 = modularExponentiation(a_as_uint256, b_as_uint256);
+  // }
+  // else if (operation == 3)
+  // {
+  //   // modular subtraction between x1 and y1
+  //   localResultUint256 = modularSubtraction(a_as_uint256, b_as_uint256);
+  // }
 
   uint256ToBytes(localResultUint256, local_result);
 

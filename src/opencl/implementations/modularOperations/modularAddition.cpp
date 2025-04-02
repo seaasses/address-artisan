@@ -5,17 +5,23 @@
 #include "src/opencl/definitions/secp256k1.h"
 
 #pragma inline
-const UInt256 modularAddition(const UInt256 a, const UInt256 b)
+void modularAddition(const UInt256 *a, const UInt256 *b, UInt256 *result)
 {
-  bool overflowFlag;
-  const UInt256 result;
+  unsigned int overflowFlag;
+  UInt256 tmp;
 
-  uint256AdditionWithOverflowFlag(&a, &b, &result, &overflowFlag);
+  uint256AdditionWithOverflowFlag(a, b, result, &overflowFlag);
 
-  if (overflowFlag)
-  {
-    return uint256Subtraction(result, SECP256K1_P);
-  }
+  const unsigned long toSubtractMask = -((unsigned long)overflowFlag);
 
-  return modulus(result);
+  const UInt256 toSubtract = (UInt256){.limbs = {
+                                           SECP256K1_P_0 & toSubtractMask,
+                                           SECP256K1_P_1 & toSubtractMask,
+                                           SECP256K1_P_2 & toSubtractMask,
+                                           SECP256K1_P_3 & toSubtractMask,
+                                       }};
+
+  uint256Subtraction(result, &toSubtract, &tmp);
+
+  modulus(&tmp, result);
 }
