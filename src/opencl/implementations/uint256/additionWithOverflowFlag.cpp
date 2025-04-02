@@ -5,7 +5,7 @@ void uint256AdditionWithOverflowFlag(const UInt256 *a, const UInt256 *b,
                                      UInt256 *result, bool *overflowFlag)
 {
         result->limbs[3] = a->limbs[3] + b->limbs[3];
-        unsigned long carry = result->limbs[3] < a->limbs[3];
+        unsigned int carry = result->limbs[3] < a->limbs[3];
 
         result->limbs[2] = a->limbs[2] + b->limbs[2] + carry;
         carry = (result->limbs[2] < a->limbs[2]) | ((result->limbs[2] == a->limbs[2]) & carry);
