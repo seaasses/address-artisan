@@ -3,6 +3,7 @@
 #include "src/opencl/headers/uint256/toBytes.h"
 #include "src/opencl/headers/modularOperations/modularAddition.h"
 #include "src/opencl/headers/modularOperations/modularMultiplication.h"
+#include "src/opencl/headers/modularOperations/modularShiftLeft.h"
 // #iinclude "src/opencl/headers/modularOperations/modularExponentiation.h"
 #include "src/opencl/headers/modularOperations/modularSubtraction.h"
 
@@ -52,6 +53,12 @@ __kernel void modularOperations(__global unsigned char *a, __global unsigned cha
   {
     // modulus operation
     modulus(&a_as_uint256, &localResultUint256);
+  }
+  else if (operation == 5)
+  {
+    // modular double
+    modularShiftLeft(&a_as_uint256, &a_as_uint256);
+    localResultUint256 = a_as_uint256;
   }
 
   uint256ToBytes(localResultUint256, local_result);

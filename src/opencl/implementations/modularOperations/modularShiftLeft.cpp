@@ -4,15 +4,19 @@
 #include "src/opencl/headers/uint256/shiftLeft.h"
 #include "src/opencl/headers/uint256/subtraction.h"
 
-// TODO: test if this is faster than modularAddition(a,a) - I think it is
 #pragma inline
-const UInt256 modularShiftLeft(const UInt256 a)
+void modularShiftLeft(const UInt256 *a, UInt256 *result) // inplace safe
 {
-  const UInt256 result = uint256ShiftLeft(a);
+  const unsigned long toSubtractMask = -((((unsigned long)a->limbs[0]) & 0x8000000000000000ull) >> 63);
+  const UInt256 toSubtract = {.limbs = {
+                                  SECP256K1_P_0 & toSubtractMask,
+                                  SECP256K1_P_1 & toSubtractMask,
+                                  SECP256K1_P_2 & toSubtractMask,
+                                  SECP256K1_P_3 & toSubtractMask,
+                              }};
 
-  if (a.limbs[0] & 0x8000000000000000ull)
-  {
-    return uint256Subtraction(result, SECP256K1_P);
-  }
-  return modulus(result);
+  UInt256 tmp;
+  uint256ShiftLeft(a, &tmp);
+  uint256Subtraction(&tmp, &toSubtract, result);
+  modulus(result, result);
 }
