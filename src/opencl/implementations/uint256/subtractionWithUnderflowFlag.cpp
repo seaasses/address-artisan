@@ -4,6 +4,7 @@
 void uint256SubtractionWithUnderflowFlag(const UInt256 *a, const UInt256 *b,
                                          UInt256 *result, bool *underflowFlag)
 {
+    // inplace unsafe
     // The underflow flag is set basically if a < b
 
     result->limbs[3] = a->limbs[3] - b->limbs[3];

@@ -2,7 +2,7 @@
 
 #pragma inline
 void uint256Addition(const UInt256 *a, const UInt256 *b, UInt256 *result)
-{
+{ //inplace unsafe
 
         result->limbs[3] = a->limbs[3] + b->limbs[3];
         unsigned int carry = result->limbs[3] < a->limbs[3];
