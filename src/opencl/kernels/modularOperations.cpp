@@ -2,7 +2,7 @@
 #include "src/opencl/headers/uint256/fromBytes.h"
 #include "src/opencl/headers/uint256/toBytes.h"
 #include "src/opencl/headers/modularOperations/modularAddition.h"
-// #iinclude "src/opencl/headers/modularOperations/modularMultiplication.h"
+#include "src/opencl/headers/modularOperations/modularMultiplication.h"
 // #iinclude "src/opencl/headers/modularOperations/modularExponentiation.h"
 #include "src/opencl/headers/modularOperations/modularSubtraction.h"
 
@@ -32,13 +32,12 @@ __kernel void modularOperations(__global unsigned char *a, __global unsigned cha
     // simple integer modular addition between x1 and y1
     modularAddition(&a_as_uint256, &b_as_uint256, &localResultUint256);
   }
-  // else if (operation == 1)
-  // {
-  //   //  simple integer modular multiplication between x1 and y1 using the
-  //   //  russian peasant algorithm
-  //   localResultUint256 =
-  //       modularMultiplicationUsingRussianPeasant(a_as_uint256, b_as_uint256);
-  // }
+  else if (operation == 1)
+  {
+    //  simple integer modular multiplication between x1 and y1 using the
+    //  russian peasant algorithm
+    modularMultiplicationUsingRussianPeasant(&a_as_uint256, &b_as_uint256, &localResultUint256);
+  }
   // else if (operation == 2)
   // {
   //   // modular exponentiation between x1 (base) and y1 (exponent)
@@ -48,6 +47,11 @@ __kernel void modularOperations(__global unsigned char *a, __global unsigned cha
   {
     // modular subtraction between x1 and y1
     modularSubtraction(&a_as_uint256, &b_as_uint256, &localResultUint256);
+  }
+  else if (operation == 4)
+  {
+    // modulus operation
+    modulus(&a_as_uint256, &localResultUint256);
   }
 
   uint256ToBytes(localResultUint256, local_result);
