@@ -1,0 +1,503 @@
+#[cfg(test)]
+mod tests {
+    use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
+
+    pub struct Uint256ShiftLeft {
+        x_buffer: Buffer<u8>,
+        result_buffer: Buffer<u8>,
+        uint256_shift_left_kernel: Kernel,
+    }
+
+    impl Uint256ShiftLeft {
+        pub fn new() -> Result<Self, String> {
+            // CREATE OPENCL CONTEXT
+            let (device, context, queue) = Self::get_device_context_and_queue()?;
+
+            // Create buffers
+            let x_buffer = Self::new_buffer(&queue, 32)?;
+
+            let result_buffer = Self::new_buffer(&queue, 32)?;
+
+            let program = Self::build_program(device, context)?;
+
+            // Create kernel
+            let uint256_shift_left_kernel = match Kernel::builder()
+                .program(&program)
+                .name("uint256ShiftLeftKernel")
+                .queue(queue.clone())
+                .arg(&x_buffer)
+                .arg(&result_buffer)
+                .global_work_size(1)
+                .build()
+            {
+                Ok(kernel) => kernel,
+                Err(e) => return Err("Error creating kernel: ".to_string() + &e.to_string()),
+            };
+
+            Ok(Self {
+                x_buffer,
+                result_buffer,
+                uint256_shift_left_kernel,
+            })
+        }
+        fn new_buffer(queue: &Queue, len: usize) -> Result<Buffer<u8>, String> {
+            let buffer = match Buffer::<u8>::builder()
+                .queue(queue.clone())
+                .len(len)
+                .build()
+            {
+                Ok(buffer) => buffer,
+                Err(e) => return Err("Error creating buffer: ".to_string() + &e.to_string()),
+            };
+            Ok(buffer)
+        }
+
+        fn build_program(device: Device, context: Context) -> Result<Program, String> {
+            let src = include_str!(concat!(env!("OUT_DIR"), "/uint256ShiftLeftKernel"));
+
+            let program = match Program::builder().src(src).devices(device).build(&context) {
+                Ok(program) => program,
+                Err(e) => {
+                    return Err("Error building OpenCL program: ".to_string() + &e.to_string())
+                }
+            };
+
+            Ok(program)
+        }
+
+        fn get_device_context_and_queue() -> Result<(Device, Context, Queue), String> {
+            let platform = match Platform::first() {
+                Ok(platform) => platform,
+                Err(e) => {
+                    return Err("Error getting OpenCL platform: ".to_string() + &e.to_string())
+                }
+            };
+
+            let device = match Device::first(platform) {
+                Ok(device) => device,
+                Err(e) => return Err("Error getting OpenCL device: ".to_string() + &e.to_string()),
+            };
+
+            let context = match Context::builder()
+                .platform(platform)
+                .devices(device.clone())
+                .build()
+            {
+                Ok(context) => context,
+                Err(e) => {
+                    return Err("Error building OpenCL context: ".to_string() + &e.to_string())
+                }
+            };
+
+            let queue = Queue::new(&context, device, None).map_err(|e| e.to_string())?;
+
+            Ok((device, context, queue))
+        }
+
+        fn write_to_buffer(
+            self: &mut Self,
+            buffer: &Buffer<u8>,
+            data: Vec<u8>,
+        ) -> Result<(), String> {
+            match buffer.write(&data[..]).enq() {
+                Ok(_) => (),
+                Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
+            };
+            Ok(())
+        }
+        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+            let mut data = vec![0u8; 32];
+            match buffer.read(&mut data[..]).enq() {
+                Ok(_) => (),
+                Err(e) => return Err("Error reading from buffer: ".to_string() + &e.to_string()),
+            };
+            Ok(data)
+        }
+
+        fn shift_left(&mut self, x: Vec<u8>) -> Result<Vec<u8>, String> {
+            if x.len() != 32 {
+                return Err(format!(
+                    "Input vectors must be 32 bytes long, got a: {}",
+                    x.len()
+                ));
+            }
+
+            // Clone the buffer to avoid borrowing issues
+            self.write_to_buffer(&self.x_buffer.clone(), x)?;
+
+            // Execute kernel
+            unsafe {
+                match self.uint256_shift_left_kernel.enq() {
+                    Ok(_) => (),
+                    Err(e) => return Err("Error executing kernel: ".to_string() + &e.to_string()),
+                };
+            }
+
+            // Clone the buffer to avoid borrowing issues
+            let result_array = self.read_from_buffer(&self.result_buffer.clone())?;
+
+            Ok(result_array)
+        }
+    }
+
+    // SHIFT LEFT TESTS
+
+    #[test]
+    fn test_uint256_t_shift_left_1() {
+        let mut ocl = Uint256ShiftLeft::new().unwrap();
+
+        // Test subtraction of zero
+        let a = vec![
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0b00000001,
+        ];
+
+        let result = ocl.shift_left(a).unwrap();
+        assert_eq!(
+            result,
+            vec![
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0b00000010,
+            ]
+        );
+    }
+    // #[test]
+    // fn test_uint256_t_shift_left_complete() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test subtraction of zero
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0b10010101,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0b00000001, 0b00101010,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_byte_boundary() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with value that crosses byte boundary (0x80 -> 0x100)
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x80,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x01, 0x00,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_middle_bytes() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with value in middle bytes
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78,
+    //         0x00, 0x00, 0x00, 0x00,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x68, 0xAC, 0xF0,
+    //             0x00, 0x00, 0x00, 0x00,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_high_bytes() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with value in high bytes
+    //     let a = vec![
+    //         0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     // The highest bit should be lost in the shift
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_all_bytes() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with all bytes having values
+    //     let a = vec![
+    //         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+    //         0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+    //         0x1D, 0x1E, 0x1F, 0x20,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C,
+    //             0x1E, 0x20, 0x22, 0x24, 0x26, 0x28, 0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34, 0x36, 0x38,
+    //             0x3A, 0x3C, 0x3E, 0x40,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_alternating_bits() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with alternating bit pattern
+    //     let a = vec![
+    //         0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    //         0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    //         0xAA, 0xAA, 0xAA, 0xAA,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    //             0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    //             0x55, 0x55, 0x55, 0x54,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_just_most_significant_bit_set() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with maximum value (all bits set)
+    //     let a = vec![
+    //         0b10000000, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(result, vec![0; 32]);
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_max_value() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with maximum value (all bits set)
+    //     let a = vec![
+    //         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    //         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    //         0xFF, 0xFF, 0xFF, 0xFF,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    //             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    //             0xFF, 0xFF, 0xFF, 0b11111110,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_with_carry_chain() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with a value that will create a chain of carries
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x7F, 0xFF, 0xFF, 0xFF,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0xFF, 0xFF, 0xFF, 0xFE,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_sparse_bits() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with sparse bit pattern
+    //     let a = vec![
+    //         0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00,
+    //         0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00,
+    //         0x10, 0x00, 0x10, 0x01,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00,
+    //             0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00,
+    //             0x20, 0x00, 0x20, 0x02,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_zero() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with zero
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_cross_byte_boundaries() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with values that cross multiple byte boundaries
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x81, 0x81, 0x81, 0x81,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    //             0x03, 0x03, 0x03, 0x02,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_single_bit_propagation() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with a single bit that propagates through the entire number
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x80,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x01, 0x00,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_mixed_pattern() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test shift left with a mixed pattern of bits
+    //     let a = vec![
+    //         0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC,
+    //         0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78,
+    //         0x9A, 0xBC, 0xDE, 0xF5,
+    //     ];
+
+    //     let result = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0b00100100, 0b01101000, 0b10101100, 0b11110001, 0b00110101, 0b01111001, 0b10111101,
+    //             0b11100000, 0b00100100, 0b01101000, 0b10101100, 0b11110001, 0b00110101, 0b01111001,
+    //             0b10111101, 0b11100000, 0b00100100, 0b01101000, 0b10101100, 0b11110001, 0b00110101,
+    //             0b01111001, 0b10111101, 0b11100000, 0b00100100, 0b01101000, 0b10101100, 0b11110001,
+    //             0b00110101, 0b01111001, 0b10111101, 0b11101010,
+    //         ]
+    //     );
+    // }
+
+    // #[test]
+    // fn test_uint256_t_shift_left_consecutive_shifts() {
+    //     let mut ocl = Uint256Operations::new().unwrap();
+
+    //     // Test multiple consecutive shifts (shift left twice)
+    //     let a = vec![
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x01,
+    //     ];
+
+    //     // First shift
+    //     let intermediate = ocl.shift_left(a).unwrap();
+    //     assert_eq!(
+    //         intermediate,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x02,
+    //         ]
+    //     );
+
+    //     // Second shift
+    //     let result = ocl.shift_left(intermediate).unwrap();
+    //     assert_eq!(
+    //         result,
+    //         vec![
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //             0x00, 0x00, 0x00, 0x04,
+    //         ]
+    //     );
+    // }
+}
