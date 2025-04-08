@@ -2,7 +2,7 @@
 mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
-    pub struct Uint256Addition {
+    pub struct Uint256AdditionWithOverflowFlag {
         a_buffer: Buffer<u8>,
         b_buffer: Buffer<u8>,
         overflow_flag_buffer: Buffer<u8>,
@@ -10,7 +10,7 @@ mod tests {
         uint256_addition_with_overflow_flag_kernel: Kernel,
     }
 
-    impl Uint256Addition {
+    impl Uint256AdditionWithOverflowFlag {
         pub fn new() -> Result<Self, String> {
             // CREATE OPENCL CONTEXT
             let (device, context, queue) = Self::get_device_context_and_queue()?;
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_addition_1_1() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn test_addition_carry_on_limb_3() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_addition_carry_on_limb_2() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_addition_carry_on_limb_1() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_addition_overflow() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_addition_all_bits_set_plus_1() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_addition_all_bits_set_plus_all_bits_set() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_addition_0_1_bits_pattern_plus_0_1_bits_pattern() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0b01010101, 0b01010101, 0b01010101, 0b01010101, 0b01010101, 0b01010101, 0b01010101,
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_addition_1_0_bits_pattern_plus_1_0_bits_pattern() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010,
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_addition_1_0_bits_pattern_plus_0_1_bits_pattern() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010,
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_addition_big_numbers_that_overflow() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0xf1, 0x35, 0xb9, 0x59, 0x87, 0xfc, 0xb5, 0x40, 0x07, 0xe0, 0x3a, 0x04, 0xd6, 0x29,
@@ -479,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_addition_big_numbers_that_do_not_overflow() {
-        let mut ocl = Uint256Addition::new().unwrap();
+        let mut ocl = Uint256AdditionWithOverflowFlag::new().unwrap();
 
         let a = vec![
             0x05, 0x38, 0x13, 0x53, 0x2e, 0xe4, 0x8e, 0x08, 0x00, 0xb6, 0x25, 0x4e, 0x5c, 0xfa,
