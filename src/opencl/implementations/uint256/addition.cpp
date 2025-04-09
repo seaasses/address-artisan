@@ -4,6 +4,7 @@
 void uint256Addition(const UInt256 *a, const UInt256 *b, UInt256 *result)
 { //inplace unsafe
 
+        // TODO: we can use result->limbs[0] as the carry and save a variable. Test if this is faster
         result->limbs[3] = a->limbs[3] + b->limbs[3];
         unsigned int carry = result->limbs[3] < a->limbs[3];
 
