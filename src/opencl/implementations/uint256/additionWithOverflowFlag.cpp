@@ -2,7 +2,7 @@
 
 #pragma inline
 void uint256AdditionWithOverflowFlag(const UInt256 *a, const UInt256 *b,
-                                     UInt256 *result, bool *overflowFlag)
+                                     UInt256 *result, unsigned int *overflowFlag)
 {
         // inplace unsafe
         result->limbs[3] = a->limbs[3] + b->limbs[3];
