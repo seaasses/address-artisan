@@ -2,7 +2,7 @@
 
 #pragma inline
 void uint256SubtractionWithUnderflowFlag(const UInt256 *a, const UInt256 *b,
-                                         UInt256 *result, bool *underflowFlag)
+                                         UInt256 *result, unsigned int *underflowFlag)
 {
     // inplace unsafe
     // The underflow flag is set basically if a < b
