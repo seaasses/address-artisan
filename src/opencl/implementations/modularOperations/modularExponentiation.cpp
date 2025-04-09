@@ -3,29 +3,60 @@
 #include "src/opencl/headers/uint256/shiftRight.h"
 
 #pragma inline
-const UInt256 modularExponentiation(UInt256 base, UInt256 exponent)
+void modularExponentiation(const UInt256 *base, const UInt256 *exponent, UInt256 *result)
 {
+  // inplace semi sami. Safe when result = base
 
   // base will be < modulus, so no need to modulus before starting
-  UInt256 result = {.limbs = {
-                        0x0000000000000000,
-                        0x0000000000000000,
-                        0x0000000000000000,
-                        0x0000000000000001,
-                    }};
+  UInt256 localBase = *base;
+  UInt256 tmp;
+  UInt256 toMultiply;
 
-  while (exponent.limbs[0] | exponent.limbs[1] | exponent.limbs[2] |
-         exponent.limbs[3])
+  unsigned long limb;
+  unsigned long toMultiplyMask;
+
+  *result = (UInt256) {0, 0, 0, 1};
+
+#pragma unroll
+  for (int i = 3; i >= 0 ; --i)
   {
-    if (exponent.limbs[3] & 1)
+    limb = exponent->limbs[i];
+  #pragma unroll
+    for (unsigned int i = 0; i < 32; ++i)
     {
-      result = modularMultiplicationUsingRussianPeasant(result, base);
+      toMultiplyMask = -(limb & 1);
+      toMultiply = (UInt256) {
+        .limbs = {
+          localBase.limbs[0] & toMultiplyMask,
+          localBase.limbs[1] & toMultiplyMask,
+          localBase.limbs[2] & toMultiplyMask,
+          (localBase.limbs[3] & toMultiplyMask) | ((~toMultiplyMask) & 1)
+        }
+      };
+
+      modularMultiplicationUsingRussianPeasant(result, &toMultiply, result);
+
+      modularMultiplicationUsingRussianPeasant(&localBase, &localBase, &tmp); // base = base^2
+      // localBase is in tmp now, instead of *localBase = tmp, I will use tmp as localBase
+      // inside this iteration and loop half as long
+
+      limb >>= 1;
+      toMultiplyMask = -(limb & 1);
+
+      toMultiply = (UInt256) {
+        .limbs = {
+          tmp.limbs[0] & toMultiplyMask,
+          tmp.limbs[1] & toMultiplyMask,
+          tmp.limbs[2] & toMultiplyMask,
+          (tmp.limbs[3] & toMultiplyMask) | ((~toMultiplyMask) & 1)
+        }
+      };
+
+      modularMultiplicationUsingRussianPeasant(result, &toMultiply, result);
+
+      modularMultiplicationUsingRussianPeasant(&tmp, &tmp, &localBase); // base = base^2
+      // localBase is again in localBase
+      limb >>= 1;
     }
-
-    base =
-        modularMultiplicationUsingRussianPeasant(base, base); // base = base^2
-    exponent = uint256ShiftRight(exponent);                   // exponent = exponent // 2
   }
-
-  return result;
 }
