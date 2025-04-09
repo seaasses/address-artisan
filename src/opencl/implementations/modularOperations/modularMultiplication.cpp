@@ -1,34 +1,47 @@
 #include "src/opencl/headers/modularOperations/modularMultiplication.h"
 #include "src/opencl/headers/modularOperations/modularAddition.h"
-#include "src/opencl/headers/modularOperations/modularShiftLeft.h"
+#include "src/opencl/headers/modularOperations/modularDouble.h"
 #include "src/opencl/headers/uint256/shiftRight.h"
 
 // TODO: implement multiplication and then modulus with 512 bits to test if this
 // is faster - I really don't know
 #pragma inline
-const UInt256 modularMultiplicationUsingRussianPeasant(UInt256 a, UInt256 b)
-{
+void modularMultiplicationUsingRussianPeasant(const UInt256 *a, const UInt256 *b, UInt256 *result)
+{ // inplace semi-safe. safe if result = a
   // I know that a and b are already < P, no need to modules before starting
-  UInt256 result = {0};
-  UInt256 toSum;
-  unsigned long mask;
-
+  UInt256 localA = *a;
+  UInt256 toAdd;
+  unsigned long limb;
+  unsigned long toAddMask;
+  *result = (UInt256) {0};
   // TODO: maybe do 256 is faster than see if b is zero? ors are fast, but this
   // can cause warp stalls
   // TODO: maybe see what is smaller and use it to loop? - do not need to do
   // this if the above is true
-  while (b.limbs[0] | b.limbs[1] | b.limbs[2] | b.limbs[3])
+
+#pragma unroll
+  for (unsigned char limbIndex = 3; limbIndex != 0xFF; --limbIndex) 
   {
-    // for (uint i = 0; i != 256; i++) { // TODO: test this
+    limb = b->limbs[limbIndex];
+#pragma unroll
+    for (unsigned int i = 0; i != 64; i++) 
+    {
 
-    if (b.limbs[3] & 1)
-    { // if is odd
-      result = modularAddition(result, a);
+      toAddMask = -(limb & 1);
+
+      UInt256 toAdd = (UInt256) {
+        .limbs = {
+          localA.limbs[0] & toAddMask,
+          localA.limbs[1] & toAddMask,
+          localA.limbs[2] & toAddMask,
+          localA.limbs[3] & toAddMask,
+        }
+      };
+
+      modularAddition(result, &toAdd, result);
+      modularDouble(&localA, &localA);
+
+      limb >>= 1;
     }
-
-    a = modularShiftLeft(a);
-    b = uint256ShiftRight(b);
   }
-
-  return result;
 }

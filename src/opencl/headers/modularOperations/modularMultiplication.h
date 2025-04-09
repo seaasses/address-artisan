@@ -1,3 +1,3 @@
 #include "src/opencl/structs/structs.h"
 
-const UInt256 modularMultiplicationUsingRussianPeasant(UInt256 a, UInt256 b);
+void modularMultiplicationUsingRussianPeasant(const UInt256 *a, const UInt256 *b, UInt256 *result);
