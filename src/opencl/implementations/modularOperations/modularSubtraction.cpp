@@ -6,7 +6,7 @@
 #pragma inline
 void modularSubtraction(const UInt256 *a, const UInt256 *b, UInt256 *result)
 {
-  bool underflowFlag;
+  unsigned int underflowFlag;
   UInt256 tmp;
 
   uint256SubtractionWithUnderflowFlag(a, b, &tmp, &underflowFlag);
