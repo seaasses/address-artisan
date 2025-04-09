@@ -5,9 +5,10 @@
 #include "src/opencl/definitions/secp256k1.h"
 
 #pragma inline
-void modularAddition(const UInt256 *a, const UInt256 *b, UInt256 *result) // inplace unsafe
+void modularAddition(const UInt256 *a, const UInt256 *b, UInt256 *result)
 {
-  bool overflowFlag;
+  // inplace unsafe
+  unsigned int overflowFlag;
   UInt256 tmp;
 
   uint256AdditionWithOverflowFlag(a, b, result, &overflowFlag);
