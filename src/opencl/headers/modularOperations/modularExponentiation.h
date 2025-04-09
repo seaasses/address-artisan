@@ -1,3 +1,3 @@
 #include "src/opencl/structs/structs.h"
 
-const UInt256 modularExponentiation(UInt256 base, UInt256 exponent);
+void modularExponentiation(const UInt256 *base, const UInt256 *exponent, UInt256 *result);
