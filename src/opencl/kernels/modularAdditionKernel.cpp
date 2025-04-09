@@ -23,7 +23,8 @@ __kernel void modularAdditionKernel(
 
   UInt256 local_class_result;
 
-  modularAddition(&a, &b, &local_class_result); // inplace unsafe
+  modularAddition(&a, &b, &a); // inplace safe
+  local_class_result = a;
 
   uint256ToBytes(local_class_result, local_result);
 
