@@ -1,3 +1,3 @@
 #include "src/opencl/structs/structs.h"
 
-const Point doublePoint(const Point p);
+void doublePoint(const Point *p, Point *result);
