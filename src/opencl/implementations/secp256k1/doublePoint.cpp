@@ -1,34 +1,46 @@
 #include "src/opencl/headers/secp256k1/doublePoint.h"
 #include "src/opencl/headers/modularOperations/modularMultiplication.h"
-#include "src/opencl/headers/modularOperations/modularAddition.h"
-#include "src/opencl/headers/modularOperations/modularShiftLeft.h"
-#include "src/opencl/headers/modularOperations/modularExponentiation.h"
 #include "src/opencl/headers/modularOperations/modularSubtraction.h"
+#include "src/opencl/headers/modularOperations/modularDouble.h"
+#include "src/opencl/headers/modularOperations/modularExponentiation.h"
 #include "src/opencl/definitions/secp256k1.h"
 
+
 #pragma inline
-const Point doublePoint(const Point p)
+void doublePoint(const Point *p, Point *result)
 {
-    // In teory, this ans sumPoints could/should be merged together
+    // In teory, this and sumPoints could/should be merged together
     // but in practice, when sumPoints is called, probably the points are not the
     // same. By doing this, we can save a check in sumPoints to see if the points
-    // are the same and simplify the code.
-    // This will be used primarily to double a point and implement Point * scalar
+    // are the same and simplify the code and be more efficient.
+
+    // This function will be used primarily to double a point and implement Point * scalar
     // multiplication
 
-    const UInt256 xSquared = modularMultiplicationUsingRussianPeasant(p.x, p.x);
+    UInt256 tmp = SECP256K1_P_MINUS_2;
 
-    const UInt256 lambda = modularMultiplicationUsingRussianPeasant(
-        modularAddition(modularShiftLeft(xSquared), xSquared),
-        modularExponentiation(modularShiftLeft(p.y), SECP256K1_P_MINUS_2));
+    // LAMBDA = (3x^2 + a) * (2y)^(-1)
 
-    const UInt256 xResult = modularSubtraction(
-        modularMultiplicationUsingRussianPeasant(lambda, lambda),
-        modularShiftLeft(p.x));
+    modularMultiplicationUsingRussianPeasant(&p->x, &p->x, &result->y); // result.y = x^2
+    modularDouble(&result->y, &result->x); // result.x = 2x^2 and result.y = x^2
+    modularAddition(&result->y, &result->x, &result->y); // result.x = 2x^2 and result.y = 3x^2
 
-    return (Point){
-        .x = xResult,
-        .y = modularSubtraction(modularMultiplicationUsingRussianPeasant(
-                                    modularSubtraction(p.x, xResult), lambda),
-                                p.y)};
+    modularDouble(&p->y, &result->x); // result.x = 2y and result.y = 3x^2 
+
+    modularExponentiation(&result->x, &tmp, &result->x); // result.x = (2y)^(-1) and result.y = 3x^2
+
+    modularMultiplicationUsingRussianPeasant(&result->y, &result->x, &result->y); // result.x = (2y)^(-1) and result.y = LAMBDA
+
+    // X_RESULT = lambda^2 - 2x
+
+    modularDouble(&p->x, &result->x); // result.x = 2x and result.y = LAMBDA
+    modularMultiplicationUsingRussianPeasant(&result->y, &result->y, &tmp); // result.x = 2x, result.y = LAMBDA and tmp = LAMBDA^2 
+    modularSubtraction(&tmp, &result->x, &result->x); // result.x = X_RESULT, result.y = LAMBDA and tmp = LAMBDA^2
+
+    // Y_RESULT = lambda * (x - X_RESULT) - y
+
+    modularSubtraction(&p->x, &result->x, &tmp); // result.x = X_RESULT, tmp = x - X_RESULT and result.y = LAMBDA
+    modularMultiplicationUsingRussianPeasant(&result->y, &tmp, &result->y); // result.x = X_RESULT, tmp = x - X_RESULT and result.y = lambda * (x - X_RESULT)
+    modularSubtraction(&result->y, &p->y, &result->y); // result.x = X_RESULT, result.y = Y_RESULT :D
+
 }
