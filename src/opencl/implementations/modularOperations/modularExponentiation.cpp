@@ -5,7 +5,7 @@
 #pragma inline
 void modularExponentiation(const UInt256 *base, const UInt256 *exponent, UInt256 *result)
 {
-  // inplace semi sami. Safe when result = base
+  // inplace semi safe. Safe when result = base
 
   // base will be < modulus, so no need to modulus before starting
   UInt256 localBase = *base;
