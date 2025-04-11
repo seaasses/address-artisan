@@ -27,17 +27,21 @@ void doublePoint(const Point *p, Point *result)
 
     modularDouble(&p->y, &result->x); // result.x = 2y and result.y = 3x^2 
 
+    // TODO: This uses Fermat's little theorem to compute the inverse. Create a function to this and test it vs the 
+    // Extended Euclidean Algorithm
+
+    // add comment about montgomery multiplication
     modularExponentiation(&result->x, &tmp, &result->x); // result.x = (2y)^(-1) and result.y = 3x^2
 
     modularMultiplicationUsingRussianPeasant(&result->y, &result->x, &result->y); // result.x = (2y)^(-1) and result.y = LAMBDA
 
-    // X_RESULT = lambda^2 - 2x
+    // X_RESULT = LAMBDA^2 - 2x
 
     modularDouble(&p->x, &result->x); // result.x = 2x and result.y = LAMBDA
     modularMultiplicationUsingRussianPeasant(&result->y, &result->y, &tmp); // result.x = 2x, result.y = LAMBDA and tmp = LAMBDA^2 
     modularSubtraction(&tmp, &result->x, &result->x); // result.x = X_RESULT, result.y = LAMBDA and tmp = LAMBDA^2
 
-    // Y_RESULT = lambda * (x - X_RESULT) - y
+    // Y_RESULT = LAMBDA * (x - X_RESULT) - y
 
     modularSubtraction(&p->x, &result->x, &tmp); // result.x = X_RESULT, tmp = x - X_RESULT and result.y = LAMBDA
     modularMultiplicationUsingRussianPeasant(&result->y, &tmp, &result->y); // result.x = X_RESULT, tmp = x - X_RESULT and result.y = lambda * (x - X_RESULT)
