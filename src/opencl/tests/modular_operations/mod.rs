@@ -1,6 +1,0 @@
-pub mod test_modulus;
-pub mod test_modular_addition;
-pub mod test_modular_subtraction;
-pub mod test_modular_double;
-pub mod test_modular_multiplication;
-pub mod test_modular_exponentiation;
