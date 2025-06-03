@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/uint256_addition.h"
+#include "src/opencl/headers/big_uint/big_uint_addition.h"
 #include "src/opencl/headers/big_uint/uint256_from_bytes.h"
 #include "src/opencl/headers/big_uint/uint256_to_bytes.h"
 

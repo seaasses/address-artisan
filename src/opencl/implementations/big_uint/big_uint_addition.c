@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/uint256_addition.h"
+#include "src/opencl/headers/big_uint/big_uint_addition.h"
 
 inline void uint256_addition(const Uint256 *a, const Uint256 *b,
                              Uint256 *result)
