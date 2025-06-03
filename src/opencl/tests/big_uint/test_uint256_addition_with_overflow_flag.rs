@@ -125,7 +125,7 @@ mod tests {
             Ok(data)
         }
 
-        fn modular_addition(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<(Vec<u8>, bool), String> {
+        fn addition_with_overflow_flag(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<(Vec<u8>, bool), String> {
             if a.len() != 32 || b.len() != 32 {
                 return Err(format!(
                     "Input vectors must be 32 bytes long, got a: {}, b: {}",
@@ -173,7 +173,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x02,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -199,7 +199,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x01,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -225,7 +225,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -251,7 +251,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -277,7 +277,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -303,7 +303,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, true);
@@ -325,7 +325,7 @@ mod tests {
         ];
         let expected = vec![0; 32];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, true);
@@ -351,7 +351,7 @@ mod tests {
             0xb5, 0x70, 0x72, 0x6f,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, false);
@@ -377,7 +377,7 @@ mod tests {
             0x02, 0x12, 0xdc, 0xe1,
         ];
 
-        let (result, overflow_flag) = ocl.modular_addition(a, b).unwrap();
+        let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
         assert_eq!(overflow_flag, true);

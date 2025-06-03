@@ -118,7 +118,7 @@ mod tests {
             Ok(data)
         }
 
-        fn modular_addition(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
+        fn addition(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<Vec<u8>, String> {
             if a.len() != 32 || b.len() != 32 {
                 return Err(format!(
                     "Input vectors must be 32 bytes long, got a: {}, b: {}",
@@ -165,7 +165,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x02,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x01,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -211,7 +211,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -234,7 +234,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFE,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -299,7 +299,7 @@ mod tests {
         ];
         let expected = vec![0; 32];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -322,7 +322,7 @@ mod tests {
             0xb5, 0x70, 0x72, 0x6f,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 
     #[test]
@@ -345,6 +345,6 @@ mod tests {
             0x02, 0x12, 0xdc, 0xe1,
         ];
 
-        assert_eq!(ocl.modular_addition(a, b).unwrap(), expected);
+        assert_eq!(ocl.addition(a, b).unwrap(), expected);
     }
 }
