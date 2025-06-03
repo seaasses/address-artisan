@@ -1,6 +1,6 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
-#include "src/opencl/headers/big_uint/uint256_from_bytes.h"
-#include "src/opencl/headers/big_uint/uint256_to_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 __kernel void uint256_addition_with_overflow_flag_kernel(
     __global unsigned char *input_a,
