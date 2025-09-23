@@ -1,4 +1,4 @@
-#include "src/opencl/headers/ulong_operations.h"
+#include "src/opencl/headers/big_uint/ulong_operations.h"
 #include "src/opencl/headers/big_uint/big_uint_multiplication.h"
 
 inline void add_component_to_limb(ulong a_limb, ulong b_limb,

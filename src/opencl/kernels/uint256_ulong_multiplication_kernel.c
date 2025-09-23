@@ -1,4 +1,3 @@
-#include "src/opencl/headers/ulong_operations.h"
 #include "src/opencl/headers/big_uint/big_uint_multiplication.h"
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"

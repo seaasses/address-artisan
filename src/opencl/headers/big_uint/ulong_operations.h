@@ -1,5 +1,3 @@
-#define ULONG_OPERATIONS_H
-
 #define UINT64_MULTIPLICATION(a, b, high, low)                              \
     do                                                                      \
     {                                                                       \
