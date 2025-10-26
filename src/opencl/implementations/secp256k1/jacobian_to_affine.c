@@ -4,13 +4,17 @@
 #include "src/opencl/headers/modular_operations/modular_inverse.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline void jacobian_to_affine(const JacobianPoint *point_jac, Point *point)
+inline Point jacobian_to_affine(JacobianPoint point_jac)
 {
-    modular_inverse(&point_jac->z, &point->y);
+    Point point;
 
-    modular_multiplication(&point->y, &point->y, &point->x);
-    modular_multiplication(&point->x, &point->y, &point->y);
+    point.y = modular_inverse(point_jac.z);
 
-    modular_multiplication(&point->x, &point_jac->x, &point->x);
-    modular_multiplication(&point->y, &point_jac->y, &point->y);
+    point.x = modular_multiplication(point.y, point.y);
+    point.y = modular_multiplication(point.x, point.y);
+
+    point.x = modular_multiplication(point.x, point_jac.x);
+    point.y = modular_multiplication(point.y, point_jac.y);
+
+    return point;
 }

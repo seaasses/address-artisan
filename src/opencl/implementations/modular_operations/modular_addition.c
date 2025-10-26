@@ -3,17 +3,14 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline void modular_addition(const Uint256 *a, const Uint256 *b, Uint256 *result)
+inline Uint256 modular_addition(Uint256 a, Uint256 b)
 {
-
-  // inplace safe
-  unsigned int overflow_flag;
-  Uint256 tmp;
-
-  uint256_addition_with_overflow_flag(a, b, &tmp, &overflow_flag);
+  Uint256WithOverflow addition_result = uint256_addition_with_overflow_flag(a, b);
+  Uint256 tmp = addition_result.result;
+  unsigned int overflow_flag = addition_result.overflow;
 
   // cases:
-  // 1. less than p : subtract 0 
+  // 1. less than p : subtract 0
   // 2. more than p-1 and less than 2^256 : subtract p
   // 3. more than 2^256: subtract p
   // I really do not need to call modulus and can save a subtraction - and turns the function inplace safe without using a temporary variable
@@ -35,5 +32,6 @@ inline void modular_addition(const Uint256 *a, const Uint256 *b, Uint256 *result
                                            SECP256K1_P_3 & to_subtract_mask,
                                        }};
 
-  uint256_subtraction(&tmp, &to_subtract, result);
+  Uint256 result = uint256_subtraction(tmp, to_subtract);
+  return result;
 }

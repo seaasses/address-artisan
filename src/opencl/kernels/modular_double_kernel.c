@@ -20,7 +20,7 @@ __kernel void modular_double_kernel(
     bytes_to_uint256(a_private, &a);
 
     // Perform modular double
-    modular_double(&a, &result);
+    result = modular_double(a);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_private[32];

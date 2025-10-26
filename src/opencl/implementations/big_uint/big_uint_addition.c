@@ -1,51 +1,59 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 
-inline void uint256_addition(const Uint256 *a, const Uint256 *b,
-                             Uint256 *result)
+inline Uint256WithOverflow uint256_addition_with_overflow_flag(Uint256 a, Uint256 b)
 {
-    // inplace unsafe
-    result->limbs[3] = a->limbs[3] + b->limbs[3];
-    unsigned int carry = result->limbs[3] < a->limbs[3];
+  Uint256WithOverflow ret;
 
-    result->limbs[2] = a->limbs[2] + b->limbs[2] + carry;
-    carry = (result->limbs[2] < a->limbs[2]) | ((result->limbs[2] == a->limbs[2]) & carry);
+  ret.result.limbs[3] = a.limbs[3] + b.limbs[3];
+  unsigned int carry = ret.result.limbs[3] < a.limbs[3];
 
-    result->limbs[1] = a->limbs[1] + b->limbs[1] + carry;
-    carry = (result->limbs[1] < a->limbs[1]) | ((result->limbs[1] == a->limbs[1]) & carry);
+  ret.result.limbs[2] = a.limbs[2] + b.limbs[2] + carry;
+  carry = (ret.result.limbs[2] < a.limbs[2]) | ((ret.result.limbs[2] == a.limbs[2]) & carry);
 
-    result->limbs[0] = a->limbs[0] + b->limbs[0] + carry;
+  ret.result.limbs[1] = a.limbs[1] + b.limbs[1] + carry;
+  carry = (ret.result.limbs[1] < a.limbs[1]) | ((ret.result.limbs[1] == a.limbs[1]) & carry);
+
+  ret.result.limbs[0] = a.limbs[0] + b.limbs[0] + carry;
+  ret.overflow = (ret.result.limbs[0] < a.limbs[0]) | ((ret.result.limbs[0] == a.limbs[0]) & carry);
+
+  return ret;
 }
 
-inline void uint256_addition_with_overflow_flag(const Uint256 *a, const Uint256 *b, Uint256 *result, unsigned int *overflowFlag)
+inline Uint256 uint256_addition(Uint256 a, Uint256 b)
 {
-    // inplace unsafe
-    result->limbs[3] = a->limbs[3] + b->limbs[3];
-    unsigned int carry = result->limbs[3] < a->limbs[3];
+  Uint256 result;
 
-    result->limbs[2] = a->limbs[2] + b->limbs[2] + carry;
-    carry = (result->limbs[2] < a->limbs[2]) | ((result->limbs[2] == a->limbs[2]) & carry);
+  result.limbs[3] = a.limbs[3] + b.limbs[3];
+  unsigned int carry = result.limbs[3] < a.limbs[3];
 
-    result->limbs[1] = a->limbs[1] + b->limbs[1] + carry;
-    carry = (result->limbs[1] < a->limbs[1]) | ((result->limbs[1] == a->limbs[1]) & carry);
+  result.limbs[2] = a.limbs[2] + b.limbs[2] + carry;
+  carry = (result.limbs[2] < a.limbs[2]) | ((result.limbs[2] == a.limbs[2]) & carry);
 
-    result->limbs[0] = a->limbs[0] + b->limbs[0] + carry;
-    *overflowFlag = (result->limbs[0] < a->limbs[0]) | ((result->limbs[0] == a->limbs[0]) & carry);
+  result.limbs[1] = a.limbs[1] + b.limbs[1] + carry;
+  carry = (result.limbs[1] < a.limbs[1]) | ((result.limbs[1] == a.limbs[1]) & carry);
+
+  result.limbs[0] = a.limbs[0] + b.limbs[0] + carry;
+
+  return result;
 }
 
-inline void uint320_uint256_addition(const Uint320 *a, const Uint256 *b, Uint320 *result)
+inline Uint320 uint320_uint256_addition(Uint320 a, Uint256 b)
 {
+    Uint320 result;
 
-    result->limbs[4] = a->limbs[4] + b->limbs[3];
-    unsigned int carry = result->limbs[4] < a->limbs[4];
+    result.limbs[4] = a.limbs[4] + b.limbs[3];
+    unsigned int carry = result.limbs[4] < a.limbs[4];
 
-    result->limbs[3] = a->limbs[3] + b->limbs[2] + carry;
-    carry = (result->limbs[3] < a->limbs[3]) | ((result->limbs[3] == a->limbs[3]) & carry);
+    result.limbs[3] = a.limbs[3] + b.limbs[2] + carry;
+    carry = (result.limbs[3] < a.limbs[3]) | ((result.limbs[3] == a.limbs[3]) & carry);
 
-    result->limbs[2] = a->limbs[2] + b->limbs[1] + carry;
-    carry = (result->limbs[2] < a->limbs[2]) | ((result->limbs[2] == a->limbs[2]) & carry);
+    result.limbs[2] = a.limbs[2] + b.limbs[1] + carry;
+    carry = (result.limbs[2] < a.limbs[2]) | ((result.limbs[2] == a.limbs[2]) & carry);
 
-    result->limbs[1] = a->limbs[1] + b->limbs[0] + carry;
-    carry = (result->limbs[1] < a->limbs[1]) | ((result->limbs[1] == a->limbs[1]) & carry);
+    result.limbs[1] = a.limbs[1] + b.limbs[0] + carry;
+    carry = (result.limbs[1] < a.limbs[1]) | ((result.limbs[1] == a.limbs[1]) & carry);
 
-    result->limbs[0] = a->limbs[0] + carry;
+    result.limbs[0] = a.limbs[0] + carry;
+
+    return result;
 }

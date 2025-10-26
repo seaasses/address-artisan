@@ -20,7 +20,7 @@ __kernel void modular_inverse_kernel(
     bytes_to_uint256(a_private, &a);
 
     // Perform modular inverse
-    modular_inverse(&a, &result);
+    result = modular_inverse(a);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_private[32];

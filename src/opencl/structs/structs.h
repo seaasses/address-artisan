@@ -1,17 +1,29 @@
 typedef struct
 {
-  unsigned long limbs[4];
+  ulong limbs[4];
 } Uint256;
 
 typedef struct
 {
-  unsigned long limbs[5];
+  ulong limbs[5];
 } Uint320;
 
 typedef struct
 {
-  unsigned long limbs[8];
+  ulong limbs[8];
 } Uint512;
+
+typedef struct
+{
+  Uint256 result;
+  unsigned int overflow;
+} Uint256WithOverflow;
+
+typedef struct
+{
+  Uint256 result;
+  unsigned int underflow;
+} Uint256WithUnderflow;
 
 typedef struct
 {

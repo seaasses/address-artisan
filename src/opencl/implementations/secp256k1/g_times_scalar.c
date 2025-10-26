@@ -4,6 +4,7 @@
 #include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
 #include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 
+// Precomputed points for g_times_scalar
 __constant Point g_times[256] = {
     {.x = {.limbs = {0, 0, 0, 0}}, .y = {.limbs = {0, 0, 0, 0}}}, // will never be used
     {.x = {.limbs = {0x79be667ef9dcbbac, 0x55a06295ce870b07, 0x029bfcdb2dce28d9, 0x59f2815b16f81798}}, .y = {.limbs = {0x483ada7726a3c465, 0x5da4fbfc0e1108a8, 0xfd17b448a6855419, 0x9c47d08ffb10d4b8}}},
@@ -264,9 +265,9 @@ __constant Point g_times[256] = {
 
 };
 
-inline void g_times_scalar(const Uint256 *scalar, Point *result_point)
+inline Point g_times_scalar(Uint256 scalar)
 {
-    JacobianPoint jacobian_result_point;
+    JacobianPoint jacobian_result_point = {0};
     JacobianPoint tmp_point;
 
     ulong limb;
@@ -276,21 +277,20 @@ inline void g_times_scalar(const Uint256 *scalar, Point *result_point)
     ulong mask_use_g_times_window = 0;        // we do not had a non-zero window yet - this window can be zero or not
     ulong mask_sum_g_times_window = 0;        // window is not zero and this is not the first non-zero window
     ulong mask_do_not_sum_g_times_window = 0; // window is zero and is not the first non-zero window
-    Point g_times_window_private;
 
     for (unsigned char limb_index = 0; limb_index < 4; ++limb_index)
     {
-        limb = scalar->limbs[limb_index];
+        limb = scalar.limbs[limb_index];
         for (unsigned char i = 0; i < 8; ++i)
         {
-            jacobian_double_point(&jacobian_result_point, &tmp_point);
-            jacobian_double_point(&tmp_point, &jacobian_result_point);
-            jacobian_double_point(&jacobian_result_point, &tmp_point);
-            jacobian_double_point(&tmp_point, &jacobian_result_point);
-            jacobian_double_point(&jacobian_result_point, &tmp_point);
-            jacobian_double_point(&tmp_point, &jacobian_result_point);
-            jacobian_double_point(&jacobian_result_point, &tmp_point);
-            jacobian_double_point(&tmp_point, &jacobian_result_point);
+            tmp_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(tmp_point);
+            tmp_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(tmp_point);
+            tmp_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(tmp_point);
+            tmp_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(tmp_point);
 
             ulong window = limb >> 56;
             ulong window_is_not_zero = !!window; // bool
@@ -301,8 +301,7 @@ inline void g_times_scalar(const Uint256 *scalar, Point *result_point)
 
             is_not_first_non_zero_window = is_not_first_non_zero_window | window_is_not_zero;
 
-            g_times_window_private = g_times[window]; // Copy from constant to private memory
-            jacobian_point_affine_point_addition(&jacobian_result_point, &g_times_window_private, &tmp_point);
+            tmp_point = jacobian_point_affine_point_addition(jacobian_result_point, g_times[window]);
 
             jacobian_result_point.x.limbs[0] = (g_times[window].x.limbs[0] & mask_use_g_times_window) | (tmp_point.x.limbs[0] & mask_sum_g_times_window) | (jacobian_result_point.x.limbs[0] & mask_do_not_sum_g_times_window);
             jacobian_result_point.y.limbs[0] = (g_times[window].y.limbs[0] & mask_use_g_times_window) | (tmp_point.y.limbs[0] & mask_sum_g_times_window) | (jacobian_result_point.y.limbs[0] & mask_do_not_sum_g_times_window);
@@ -318,11 +317,11 @@ inline void g_times_scalar(const Uint256 *scalar, Point *result_point)
 
             jacobian_result_point.x.limbs[3] = (g_times[window].x.limbs[3] & mask_use_g_times_window) | (tmp_point.x.limbs[3] & mask_sum_g_times_window) | (jacobian_result_point.x.limbs[3] & mask_do_not_sum_g_times_window);
             jacobian_result_point.y.limbs[3] = (g_times[window].y.limbs[3] & mask_use_g_times_window) | (tmp_point.y.limbs[3] & mask_sum_g_times_window) | (jacobian_result_point.y.limbs[3] & mask_do_not_sum_g_times_window);
-            jacobian_result_point.z.limbs[3] = (1UL & mask_use_g_times_window) | (tmp_point.z.limbs[3] & mask_sum_g_times_window) | (jacobian_result_point.z.limbs[3] & mask_do_not_sum_g_times_window);
+            jacobian_result_point.z.limbs[3] = (1ULL & mask_use_g_times_window) | (tmp_point.z.limbs[3] & mask_sum_g_times_window) | (jacobian_result_point.z.limbs[3] & mask_do_not_sum_g_times_window);
 
             limb <<= 8;
         }
     }
 
-    jacobian_to_affine(&jacobian_result_point, result_point);
+    return jacobian_to_affine(jacobian_result_point);
 }

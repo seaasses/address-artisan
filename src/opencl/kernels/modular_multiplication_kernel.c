@@ -25,7 +25,7 @@ __kernel void modular_multiplication_kernel(
     bytes_to_uint256(b_private, &b);
 
     // Perform modular multiplication
-    modular_multiplication(&a, &b, &result);
+    result = modular_multiplication(a, b);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_private[32];

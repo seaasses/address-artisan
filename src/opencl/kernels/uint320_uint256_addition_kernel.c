@@ -25,9 +25,7 @@ __kernel void uint320_uint256_addition_kernel(
     const Uint320 a = uint320_from_bytes(local_a);
     const Uint256 b = uint256_from_bytes(local_b);
 
-    Uint320 local_class_result;
-
-    uint320_uint256_addition(&a, &b, &local_class_result);
+    Uint320 local_class_result = uint320_uint256_addition(a, b);
 
     uint320_to_bytes(local_class_result, local_result);
 

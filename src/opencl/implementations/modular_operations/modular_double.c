@@ -3,14 +3,10 @@
 #include "src/opencl/headers/big_uint/big_uint_subtraction.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline void modular_double(const Uint256 *a, Uint256 *result) 
+inline Uint256 modular_double(Uint256 a)
 {
-
-  // inplace safe
-
-  Uint256 tmp;
-  ulong tmp_bool = a->limbs[0] >> 63; // now tmp_bool is 1 if most significant bit is set, 0 otherwise
-  uint256_shift_left(a, &tmp);
+  ulong tmp_bool = a.limbs[0] >> 63; // now tmp_bool is 1 if most significant bit is set, 0 otherwise
+  Uint256 tmp = uint256_shift_left(a);
 
   // cases:
   // 1. result is less than p: subtract 0
@@ -36,6 +32,7 @@ inline void modular_double(const Uint256 *a, Uint256 *result)
                                   SECP256K1_P_3 & tmp_bool,
                               }};
 
-  uint256_subtraction(&tmp, &to_subtract, result);
+  Uint256 result = uint256_subtraction(tmp, to_subtract);
+  return result;
 }
 

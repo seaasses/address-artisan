@@ -27,7 +27,7 @@ __kernel void uint256_ulong_multiplication_kernel(
     b = bytes_to_ulong(b_private);
 
     // Perform multiplication
-    uint256_ulong_multiplication(&a, b, &result);
+    result = uint256_ulong_multiplication(a, b);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_private[40];

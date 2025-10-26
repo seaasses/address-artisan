@@ -21,9 +21,7 @@ __kernel void uint256_multiplication_kernel(
     const Uint256 a = uint256_from_bytes(local_a);
     const Uint256 b = uint256_from_bytes(local_b);
 
-    Uint512 local_class_result;
-
-    uint256_multiplication(&a, &b, &local_class_result);
+    Uint512 local_class_result = uint256_multiplication(a, b);
 
     uint512_to_bytes(local_class_result, local_result);
 

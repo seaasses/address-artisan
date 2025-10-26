@@ -30,7 +30,7 @@ __kernel void jacobian_double_point_kernel(
     bytes_to_uint256(point_z_private, &point.z);
 
     // Perform jacobian double point
-    jacobian_double_point(&point, &result);
+    result = jacobian_double_point(point);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_x_private[32];

@@ -21,7 +21,7 @@ __kernel void g_times_scalar_kernel(
     bytes_to_uint256(scalar_private, &scalar);
 
     // Perform g times scalar multiplication
-    g_times_scalar(&scalar, &result);
+    result = g_times_scalar(scalar);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_x_private[32];

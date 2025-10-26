@@ -1,8 +1,8 @@
 #include "src/opencl/structs/structs.h"
 
-void uint256_addition(const Uint256 *a, const Uint256 *b, Uint256 *result);
+Uint256 uint256_addition(Uint256 a, Uint256 b);
 
-void uint256_addition_with_overflow_flag(const Uint256 *a, const Uint256 *b, Uint256 *result, unsigned int *overflowFlag);
+Uint256WithOverflow uint256_addition_with_overflow_flag(Uint256 a, Uint256 b);
 
-void uint320_uint256_addition(const Uint320 *a, const Uint256 *b, Uint320 *result);
+Uint320 uint320_uint256_addition(Uint320 a, Uint256 b);
 

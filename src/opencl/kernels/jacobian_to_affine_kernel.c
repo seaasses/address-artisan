@@ -29,7 +29,7 @@ __kernel void jacobian_to_affine_kernel(
     bytes_to_uint256(jac_z_private, &jac_point.z);
 
     // Perform jacobian to affine conversion
-    jacobian_to_affine(&jac_point, &aff_point);
+    aff_point = jacobian_to_affine(jac_point);
 
     // Convert result back to bytes and copy to global memory
     unsigned char aff_x_private[32];

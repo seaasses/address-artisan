@@ -1,5 +1,5 @@
 #include "src/opencl/structs/structs.h"
 
-void uint256_shift_left(const Uint256 *x, Uint256 *result);
+Uint256 uint256_shift_left(Uint256 x);
 
-void uint256_shift_right(const Uint256 *x, Uint256 *result);
+Uint256 uint256_shift_right(Uint256 x);

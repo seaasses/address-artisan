@@ -21,9 +21,7 @@ __kernel void uint256_subtraction_kernel(
     const Uint256 a = uint256_from_bytes(local_a);
     const Uint256 b = uint256_from_bytes(local_b);
 
-    Uint256 local_class_result;
-
-    uint256_subtraction(&a, &b, &local_class_result);
+    Uint256 local_class_result = uint256_subtraction(a, b);
 
     uint256_to_bytes(local_class_result, local_result);
 

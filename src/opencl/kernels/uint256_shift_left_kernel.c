@@ -16,7 +16,7 @@ __kernel void uint256_shift_left_kernel(
 
     Uint256 x = uint256_from_bytes(local_input);
 
-    uint256_shift_left(&x, &x);
+    x = uint256_shift_left(x);
 
     uint256_to_bytes(x, local_result);
 

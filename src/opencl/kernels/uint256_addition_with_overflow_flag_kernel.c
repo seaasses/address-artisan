@@ -24,16 +24,14 @@ __kernel void uint256_addition_with_overflow_flag_kernel(
     const Uint256 a = uint256_from_bytes(local_a);
     const Uint256 b = uint256_from_bytes(local_b);
 
-    Uint256 local_class_result;
+    Uint256WithOverflow addition_result = uint256_addition_with_overflow_flag(a, b);
 
-    uint256_addition_with_overflow_flag(&a, &b, &local_class_result, &local_overflow_flag);
-
-    uint256_to_bytes(local_class_result, local_result);
+    uint256_to_bytes(addition_result.result, local_result);
 
     for (unsigned char i = 0; i < 32; i++)
     {
         result[i] = local_result[i];
     }
 
-    *overflow_flag = (unsigned char)local_overflow_flag;
+    *overflow_flag = (unsigned char)addition_result.overflow;
 }

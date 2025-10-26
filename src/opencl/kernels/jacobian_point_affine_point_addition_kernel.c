@@ -39,7 +39,7 @@ __kernel void jacobian_point_affine_point_addition_kernel(
     bytes_to_uint256(aff_b_y_private, &aff_b.y);
 
     // Perform jacobian point + affine point addition
-    jacobian_point_affine_point_addition(&jac_a, &aff_b, &result);
+    result = jacobian_point_affine_point_addition(jac_a, aff_b);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_x_private[32];
