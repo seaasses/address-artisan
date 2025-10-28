@@ -35,7 +35,7 @@
         (bytes)[(offset) + 7] = (word);         \
     } while (0)
 
-inline void sha512_process_block(const unsigned char *block, ulong *H)
+inline void sha512_process_block(const unsigned char *restrict block, ulong *restrict H)
 {
     ulong W[80];
     ulong a, b, c, d, e, f, g, h;

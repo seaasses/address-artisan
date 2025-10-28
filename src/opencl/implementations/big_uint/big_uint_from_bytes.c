@@ -1,6 +1,6 @@
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
-Uint256 uint256_from_bytes(const unsigned char *input)
+inline Uint256 uint256_from_bytes(const unsigned char *restrict input)
 {
     return (Uint256){
         .limbs = {
@@ -24,7 +24,7 @@ Uint256 uint256_from_bytes(const unsigned char *input)
     };
 };
 
-Uint320 uint320_from_bytes(const unsigned char *input)
+inline Uint320 uint320_from_bytes(const unsigned char *restrict input)
 {
     return (Uint320){
         .limbs = {
@@ -55,7 +55,7 @@ Uint320 uint320_from_bytes(const unsigned char *input)
     };
 };
 
-ulong ulong_from_bytes(const unsigned char *input)
+inline ulong ulong_from_bytes(const unsigned char *restrict input)
 {
     return (((ulong)(input[0]) << 56) | ((ulong)(input[1]) << 48) |
             ((ulong)(input[2]) << 40) | ((ulong)(input[3]) << 32) |
@@ -63,12 +63,12 @@ ulong ulong_from_bytes(const unsigned char *input)
             ((ulong)(input[6]) << 8) | ((ulong)(input[7])));
 }
 
-void bytes_to_uint256(const unsigned char *input, Uint256 *result)
+inline void bytes_to_uint256(const unsigned char *restrict input, Uint256 *restrict result)
 {
     *result = uint256_from_bytes(input);
 }
 
-ulong bytes_to_ulong(const unsigned char *input)
+inline ulong bytes_to_ulong(const unsigned char *restrict input)
 {
     return ulong_from_bytes(input);
 }
