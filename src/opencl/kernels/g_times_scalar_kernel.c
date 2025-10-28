@@ -1,4 +1,5 @@
 #include "src/opencl/headers/secp256k1/g_times_scalar.h"
+#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
@@ -8,6 +9,7 @@ __kernel void g_times_scalar_kernel(
     __global unsigned char *result_y_buffer)
 {
     Uint256 scalar;
+    JacobianPoint jacobian_result;
     Point result;
 
     // Copy data from global to private memory and convert
@@ -20,8 +22,11 @@ __kernel void g_times_scalar_kernel(
     // Convert byte arrays to Uint256
     bytes_to_uint256(scalar_private, &scalar);
 
-    // Perform g times scalar multiplication
-    result = g_times_scalar(scalar);
+    // Perform g times scalar multiplication (returns Jacobian point)
+    jacobian_result = g_times_scalar(scalar);
+
+    // Convert to affine coordinates
+    result = jacobian_to_affine(jacobian_result);
 
     // Convert result back to bytes and copy to global memory
     unsigned char result_x_private[32];

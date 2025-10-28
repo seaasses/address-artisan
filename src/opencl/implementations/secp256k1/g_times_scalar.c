@@ -2,7 +2,6 @@
 #include "src/opencl/headers/secp256k1/g_times_scalar.h"
 #include "src/opencl/headers/secp256k1/jacobian_double_point.h"
 #include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
-#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 
 // Precomputed points for g_times_scalar
 __constant Point g_times[256] = {
@@ -265,7 +264,7 @@ __constant Point g_times[256] = {
 
 };
 
-inline Point g_times_scalar(Uint256 scalar)
+inline JacobianPoint g_times_scalar(Uint256 scalar)
 {
     JacobianPoint jacobian_result_point = {0};
     JacobianPoint tmp_point;
@@ -283,14 +282,14 @@ inline Point g_times_scalar(Uint256 scalar)
         limb = scalar.limbs[limb_index];
         for (unsigned char i = 0; i < 8; ++i)
         {
-            tmp_point = jacobian_double_point(jacobian_result_point);
-            jacobian_result_point = jacobian_double_point(tmp_point);
-            tmp_point = jacobian_double_point(jacobian_result_point);
-            jacobian_result_point = jacobian_double_point(tmp_point);
-            tmp_point = jacobian_double_point(jacobian_result_point);
-            jacobian_result_point = jacobian_double_point(tmp_point);
-            tmp_point = jacobian_double_point(jacobian_result_point);
-            jacobian_result_point = jacobian_double_point(tmp_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
+            jacobian_result_point = jacobian_double_point(jacobian_result_point);
 
             ulong window = limb >> 56;
             ulong window_is_not_zero = !!window; // bool
@@ -323,5 +322,5 @@ inline Point g_times_scalar(Uint256 scalar)
         }
     }
 
-    return jacobian_to_affine(jacobian_result_point);
+    return jacobian_result_point;
 }

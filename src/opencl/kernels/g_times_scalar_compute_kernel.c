@@ -1,5 +1,6 @@
 #include "src/opencl/structs/structs.h"
 #include "src/opencl/headers/secp256k1/g_times_scalar.h"
+#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
 __kernel void g_times_scalar_compute_kernel(
@@ -30,8 +31,11 @@ __kernel void g_times_scalar_compute_kernel(
     scalar.limbs[2] += (ulong)thread_id + offset;
     scalar.limbs[3] += (ulong)thread_id;
 
-    // Perform g times scalar multiplication
-    Point result = g_times_scalar(scalar);
+    // Perform g times scalar multiplication (returns Jacobian point)
+    JacobianPoint jacobian_result = g_times_scalar(scalar);
+
+    // Convert to affine coordinates
+    Point result = jacobian_to_affine(jacobian_result);
 
     // FORÇA a GPU a escrever resultados únicos para cada thread
     // Cada thread escreve em uma posição diferente do array de output
