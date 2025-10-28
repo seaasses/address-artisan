@@ -1,11 +1,7 @@
 #include "src/opencl/headers/hash/sha512.h"
+#include "src/opencl/headers/hash/hash_common.h"
 
-#define CH(x, y, z) (((x) & (y)) | ((~(x)) & (z)))
-#define MAJ(x, y, z) (((x) & ((y) | (z))) | ((y) & (z)))
-
-#define ROTR(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
-#define SHR(x, n) ((x) >> (n))
-
+// SHA512-specific sigma functions
 #define BSIG0(x) (ROTR(x, 28) ^ ROTR(x, 34) ^ ROTR(x, 39))
 #define BSIG1(x) (ROTR(x, 14) ^ ROTR(x, 18) ^ ROTR(x, 41))
 
