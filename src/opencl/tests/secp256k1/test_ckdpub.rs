@@ -7,8 +7,7 @@ mod tests {
         k_par_x_buffer: Buffer<u8>,
         k_par_y_buffer: Buffer<u8>,
         index_buffer: Buffer<u32>,
-        k_child_x_buffer: Buffer<u8>,
-        k_child_y_buffer: Buffer<u8>,
+        compressed_key_buffer: Buffer<u8>,
         ckdpub_kernel: Kernel,
     }
 
@@ -22,8 +21,7 @@ mod tests {
             let k_par_x_buffer = Self::new_u8_buffer(&queue, 32)?;
             let k_par_y_buffer = Self::new_u8_buffer(&queue, 32)?;
             let index_buffer = Self::new_u32_buffer(&queue, 1)?;
-            let k_child_x_buffer = Self::new_u8_buffer(&queue, 32)?;
-            let k_child_y_buffer = Self::new_u8_buffer(&queue, 32)?;
+            let compressed_key_buffer = Self::new_u8_buffer(&queue, 33)?;
 
             let program = Self::build_program(device, context)?;
 
@@ -36,8 +34,7 @@ mod tests {
                 .arg(&k_par_x_buffer)
                 .arg(&k_par_y_buffer)
                 .arg(&index_buffer)
-                .arg(&k_child_x_buffer)
-                .arg(&k_child_y_buffer)
+                .arg(&compressed_key_buffer)
                 .global_work_size(1)
                 .build()
             {
@@ -50,8 +47,7 @@ mod tests {
                 k_par_x_buffer,
                 k_par_y_buffer,
                 index_buffer,
-                k_child_x_buffer,
-                k_child_y_buffer,
+                compressed_key_buffer,
                 ckdpub_kernel,
             })
         }
@@ -165,7 +161,7 @@ mod tests {
             k_par_x: Vec<u8>,
             k_par_y: Vec<u8>,
             index: u32,
-        ) -> Result<(Vec<u8>, Vec<u8>), String> {
+        ) -> Result<Vec<u8>, String> {
             if chain_code.len() != 32 {
                 return Err(format!(
                     "Chain code must be exactly 32 bytes, got {}",
@@ -202,10 +198,9 @@ mod tests {
             }
 
             // Read result
-            let k_child_x = self.read_u8_buffer(&self.k_child_x_buffer.clone(), 32)?;
-            let k_child_y = self.read_u8_buffer(&self.k_child_y_buffer.clone(), 32)?;
+            let compressed_key = self.read_u8_buffer(&self.compressed_key_buffer.clone(), 33)?;
 
-            Ok((k_child_x, k_child_y))
+            Ok(compressed_key)
         }
     }
 
@@ -232,20 +227,17 @@ mod tests {
         // Child index (non-hardened)
         let index = 3u32;
 
-        // Expected child (m/3) public key
-        let expected_child_x =
-            hex::decode("c85080e00080aa933f93a2718bba9f01fd6fdc8e4712a155849f5ba588666471")
-                .unwrap();
-        let expected_child_y =
-            hex::decode("a0d3de7fd4bd91e187b4400cbf603e8f01878d7f142b77d2c39ddd027b38674a")
+        // Expected child (m/3) compressed public key
+        // Y ends in 0x4a (even), so prefix is 0x02
+        let expected_compressed_key =
+            hex::decode("02c85080e00080aa933f93a2718bba9f01fd6fdc8e4712a155849f5ba588666471")
                 .unwrap();
 
-        let (k_child_x, k_child_y) = ocl
+        let compressed_key = ocl
             .derive_child(chain_code, k_par_x, k_par_y, index)
             .unwrap();
 
-        assert_eq!(k_child_x, expected_child_x, "Child X coordinate mismatch");
-        assert_eq!(k_child_y, expected_child_y, "Child Y coordinate mismatch");
+        assert_eq!(compressed_key, expected_compressed_key, "Compressed key mismatch");
     }
 
     #[test]
@@ -262,22 +254,16 @@ mod tests {
             hex::decode("b39ebe21b159b7525b063110338989d7ff27888e71300c548c032edf9254c546")
                 .unwrap();
 
-        let (k_child_x, k_child_y) = ocl.derive_child(chain_code, k_par_x, k_par_y, 436).unwrap();
+        let compressed_key = ocl.derive_child(chain_code, k_par_x, k_par_y, 436).unwrap();
 
-        let expected_x =
-            hex::decode("de89c8d6ebdb6b510209da8b4868311a42e62469ec4ad143ccec7958ee7f2fe8")
-                .unwrap();
-        let expected_y =
-            hex::decode("09011ecf4eccf80b51dbcc7b14163274d72c7b402753e26db31b1d4eb0443cad")
+        // Y ends in 0xad (odd), so prefix is 0x03
+        let expected_compressed_key =
+            hex::decode("03de89c8d6ebdb6b510209da8b4868311a42e62469ec4ad143ccec7958ee7f2fe8")
                 .unwrap();
 
         assert_eq!(
-            k_child_x, expected_x,
-            "Vanity address X coordinate mismatch"
-        );
-        assert_eq!(
-            k_child_y, expected_y,
-            "Vanity address Y coordinate mismatch"
+            compressed_key, expected_compressed_key,
+            "Vanity address compressed key mismatch"
         );
     }
 }

@@ -1,7 +1,8 @@
 #include "src/opencl/structs/structs.h"
 
-Point ckdpub(
-    const unsigned char *chain_code,
+void ckdpub(
+    const unsigned char *restrict chain_code,
     const Point k_par,
-    unsigned int index
+    unsigned int index,
+    unsigned char *restrict result
 );

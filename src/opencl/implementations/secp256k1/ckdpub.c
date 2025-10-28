@@ -8,10 +8,11 @@
 #include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
 #include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 
-inline Point ckdpub(
-    const unsigned char *chain_code,
+inline void ckdpub(
+    const unsigned char *restrict chain_code,
     const Point k_par,
-    unsigned int index)
+    unsigned int index,
+    unsigned char *restrict result)
 {
     unsigned char compressed_key[33];
     compressed_key[0] = (unsigned char)(0x02 | (((unsigned char)(k_par.y.limbs[3])) & 1));
@@ -31,9 +32,13 @@ inline Point ckdpub(
     unsigned char hmac_hash[64];
     hmac_sha512_key32_msg37(chain_code, hmac_message, hmac_hash);
 
-    return jacobian_to_affine(
+    Point k_child = jacobian_to_affine(
         jacobian_point_affine_point_addition(
             g_times_scalar(
                 uint256_from_bytes(hmac_hash)),
             k_par));
+
+    // Write compressed public key to result buffer
+    result[0] = (unsigned char)(0x02 | (((unsigned char)(k_child.y.limbs[3])) & 1));
+    uint256_to_bytes(k_child.x, &result[1]);
 }
