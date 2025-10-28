@@ -147,15 +147,17 @@ inline void sha512_192_bytes(const unsigned char *restrict message, unsigned cha
     }
 
     // Padding byte
-    padded[192] = 0x80;
 
-    // Write 8 x 64-bit words starting at 193, then overwrite only non-zero bytes
-    ulong *padded_words = (ulong *)(padded + 193);
+    // Write 8 x 64-bit words starting at 192, then overwrite only non-zero bytes
+    ulong *padded_words = (ulong *)(padded + 192);
 #pragma unroll
     for (unsigned int i = 0; i < 8; i++)
     {
         padded_words[i] = 0x0000000000000000ULL;
     }
+
+    padded[192] = 0x80;
+
     // Message length is 1536 bits (192 bytes) = 0x0600
     padded[254] = 0x06;
     padded[255] = 0x00;
