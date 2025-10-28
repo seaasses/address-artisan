@@ -1,7 +1,7 @@
 #include "src/opencl/headers/hash/hmac_sha512.h"
 #include "src/opencl/headers/hash/sha512.h"
 
-void hmac_sha512_key32_msg37(const unsigned char *restrict key, const unsigned char *restrict message, unsigned char *restrict hash)
+inline void hmac_sha512_key32_msg37(const unsigned char *restrict key, const unsigned char *restrict message, unsigned char *restrict hash)
 {
     unsigned char inner_message[SHA512_165_BYTES_MESSAGE_SIZE]; // 128 + 37 = 165
     unsigned char outer_message[SHA512_192_BYTES_MESSAGE_SIZE]; // 128 + 64 = 192
