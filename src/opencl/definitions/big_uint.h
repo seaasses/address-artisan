@@ -1,0 +1,3 @@
+#include "src/opencl/structs/structs.h"
+
+#define UINT256_ONE {.limbs = {0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000001}}
