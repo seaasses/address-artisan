@@ -25,9 +25,9 @@ __kernel void jacobian_double_point_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(point_x_private, &point.x);
-    bytes_to_uint256(point_y_private, &point.y);
-    bytes_to_uint256(point_z_private, &point.z);
+    point.x = UINT256_FROM_BYTES(point_x_private);
+    point.y = UINT256_FROM_BYTES(point_y_private);
+    point.z = UINT256_FROM_BYTES(point_z_private);
 
     // Perform jacobian double point
     result = jacobian_double_point(point);

@@ -1,6 +1,6 @@
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
-inline void uint256_to_bytes(const Uint256 a, unsigned char *restrict result)
+inline void uint256_to_bytes(const Uint256 a, unsigned char *result)
 {
     result[0] = a.limbs[0] >> 56;
     result[1] = a.limbs[0] >> 48;
@@ -39,7 +39,7 @@ inline void uint256_to_bytes(const Uint256 a, unsigned char *restrict result)
     result[31] = a.limbs[3];
 }
 
-inline void uint320_to_bytes(const Uint320 a, unsigned char *restrict result)
+inline void uint320_to_bytes(const Uint320 a, unsigned char *result)
 {
     result[0] = a.limbs[0] >> 56;
     result[1] = a.limbs[0] >> 48;
@@ -87,7 +87,7 @@ inline void uint320_to_bytes(const Uint320 a, unsigned char *restrict result)
     result[39] = a.limbs[4];
 }
 
-inline void uint512_to_bytes(const Uint512 a, unsigned char *restrict result)
+inline void uint512_to_bytes(const Uint512 a, unsigned char *result)
 {
     result[0] = a.limbs[0] >> 56;
     result[1] = a.limbs[0] >> 48;

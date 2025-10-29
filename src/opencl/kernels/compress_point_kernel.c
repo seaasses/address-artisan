@@ -18,8 +18,8 @@ __kernel void compress_point_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(point_x_private, &point.x);
-    bytes_to_uint256(point_y_private, &point.y);
+    point.x = UINT256_FROM_BYTES(point_x_private);
+    point.y = UINT256_FROM_BYTES(point_y_private);
 
     // Compress the point to 33 bytes
     unsigned char compressed_private[33];

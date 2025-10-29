@@ -23,8 +23,8 @@ __kernel void uint256_ulong_multiplication_kernel(
     }
 
     // Convert byte arrays to Uint256 and ulong
-    bytes_to_uint256(a_private, &a);
-    b = bytes_to_ulong(b_private);
+    a = UINT256_FROM_BYTES(a_private);
+    b = ULONG_FROM_BYTES(b_private);
 
     // Perform multiplication
     result = uint256_ulong_multiplication(a, b);

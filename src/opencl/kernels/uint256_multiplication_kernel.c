@@ -18,8 +18,8 @@ __kernel void uint256_multiplication_kernel(
         local_b[i] = input_b[i];
     }
 
-    const Uint256 a = uint256_from_bytes(local_a);
-    const Uint256 b = uint256_from_bytes(local_b);
+    const Uint256 a = UINT256_FROM_BYTES(local_a);
+    const Uint256 b = UINT256_FROM_BYTES(local_b);
 
     Uint512 local_class_result = uint256_multiplication(a, b);
 

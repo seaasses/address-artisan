@@ -20,7 +20,7 @@ __kernel void g_times_scalar_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(scalar_private, &scalar);
+    scalar = UINT256_FROM_BYTES(scalar_private);
 
     // Perform g times scalar multiplication (returns Jacobian point)
     jacobian_result = g_times_scalar(scalar);

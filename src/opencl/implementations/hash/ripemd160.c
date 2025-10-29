@@ -1,4 +1,6 @@
 #include "src/opencl/headers/hash/ripemd160.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 // RIPEMD160-specific functions
 #define F(x, y, z) ((x) ^ (y) ^ (z))
@@ -9,22 +11,6 @@
 
 // Rotate left for RIPEMD160 (uint/32-bit)
 #define ROL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
-
-// Little-endian conversion for RIPEMD160
-#define BYTES_TO_WORD(bytes, offset)       \
-    (((uint)(bytes)[(offset)]) |           \
-     ((uint)(bytes)[(offset) + 1] << 8) |  \
-     ((uint)(bytes)[(offset) + 2] << 16) | \
-     ((uint)(bytes)[(offset) + 3] << 24))
-
-#define WORD_TO_BYTES(word, bytes, offset)      \
-    do                                          \
-    {                                           \
-        (bytes)[(offset)] = (word);             \
-        (bytes)[(offset) + 1] = ((word) >> 8);  \
-        (bytes)[(offset) + 2] = ((word) >> 16); \
-        (bytes)[(offset) + 3] = ((word) >> 24); \
-    } while (0)
 
 inline void ripemd160_process_block(const unsigned char *restrict block, uint *restrict H)
 {
@@ -38,7 +24,7 @@ inline void ripemd160_process_block(const unsigned char *restrict block, uint *r
 #pragma unroll
     for (j = 0; j < 16; j++)
     {
-        X[j] = BYTES_TO_WORD(block, j << 2);
+        X[j] = UINT_FROM_BYTES_LE(block + (j << 2));
     }
 
     // Initialize working variables
@@ -131,6 +117,6 @@ inline void ripemd160_32_bytes(const unsigned char *restrict message, unsigned c
 #pragma unroll
     for (unsigned int i = 0; i < 5; i++)
     {
-        WORD_TO_BYTES(H[i], hash, i << 2);
+        UINT_TO_BYTES_LE(H[i], hash + (i << 2));
     }
 }

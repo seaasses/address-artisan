@@ -24,9 +24,9 @@ __kernel void jacobian_to_affine_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(jac_x_private, &jac_point.x);
-    bytes_to_uint256(jac_y_private, &jac_point.y);
-    bytes_to_uint256(jac_z_private, &jac_point.z);
+    jac_point.x = UINT256_FROM_BYTES(jac_x_private);
+    jac_point.y = UINT256_FROM_BYTES(jac_y_private);
+    jac_point.z = UINT256_FROM_BYTES(jac_z_private);
 
     // Perform jacobian to affine conversion
     aff_point = jacobian_to_affine(jac_point);

@@ -1,5 +1,7 @@
 #include "src/opencl/headers/hash/sha512.h"
 #include "src/opencl/headers/hash/hash_common.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 // SHA512-specific sigma functions
 #define BSIG0(x) (ROTR(x, 28) ^ ROTR(x, 34) ^ ROTR(x, 39))
@@ -7,29 +9,6 @@
 
 #define SSIG0(x) (ROTR(x, 1) ^ ROTR(x, 8) ^ SHR(x, 7))
 #define SSIG1(x) (ROTR(x, 19) ^ ROTR(x, 61) ^ SHR(x, 6))
-
-#define BYTES_TO_WORD(bytes, offset)        \
-    (((ulong)(bytes)[(offset)] << 56) |     \
-     ((ulong)(bytes)[(offset) + 1] << 48) | \
-     ((ulong)(bytes)[(offset) + 2] << 40) | \
-     ((ulong)(bytes)[(offset) + 3] << 32) | \
-     ((ulong)(bytes)[(offset) + 4] << 24) | \
-     ((ulong)(bytes)[(offset) + 5] << 16) | \
-     ((ulong)(bytes)[(offset) + 6] << 8) |  \
-     ((ulong)(bytes)[(offset) + 7]))
-
-#define WORD_TO_BYTES(word, bytes, offset)      \
-    do                                          \
-    {                                           \
-        (bytes)[(offset)] = ((word) >> 56);     \
-        (bytes)[(offset) + 1] = ((word) >> 48); \
-        (bytes)[(offset) + 2] = ((word) >> 40); \
-        (bytes)[(offset) + 3] = ((word) >> 32); \
-        (bytes)[(offset) + 4] = ((word) >> 24); \
-        (bytes)[(offset) + 5] = ((word) >> 16); \
-        (bytes)[(offset) + 6] = ((word) >> 8);  \
-        (bytes)[(offset) + 7] = (word);         \
-    } while (0)
 
 inline void sha512_process_block(const unsigned char *restrict block, ulong *restrict H)
 {
@@ -41,7 +20,7 @@ inline void sha512_process_block(const unsigned char *restrict block, ulong *res
 #pragma unroll
     for (t = 0; t < 16; t++)
     {
-        W[t] = BYTES_TO_WORD(block, t << 3);
+        W[t] = ULONG_FROM_BYTES(block + (t << 3));
     }
 
 #pragma unroll
@@ -121,7 +100,7 @@ inline void sha512_165_bytes(const unsigned char *restrict message, unsigned cha
     // NO unroll - no performance benefit
     for (unsigned int i = 0; i < 8; i++)
     {
-        WORD_TO_BYTES(H[i], hash, i << 3);
+        ULONG_TO_BYTES(H[i], hash + (i << 3));
     }
 }
 
@@ -164,6 +143,6 @@ inline void sha512_192_bytes(const unsigned char *restrict message, unsigned cha
     // NO unroll - no performance benefit
     for (unsigned int i = 0; i < 8; i++)
     {
-        WORD_TO_BYTES(H[i], hash, i << 3);
+        ULONG_TO_BYTES(H[i], hash + (i << 3));
     }
 }

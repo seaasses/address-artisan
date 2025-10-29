@@ -22,7 +22,7 @@ __kernel void g_times_scalar_compute_kernel(
     Uint256 scalar;
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(scalar_private, &scalar);
+    scalar = UINT256_FROM_BYTES(scalar_private);
 
     // Add thread ID AND iteration offset to make EVERY execution different
     // Isso evita que o compilador/GPU cache os resultados entre kernels

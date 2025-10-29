@@ -21,8 +21,8 @@ __kernel void modular_subtraction_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(a_private, &a);
-    bytes_to_uint256(b_private, &b);
+    a = UINT256_FROM_BYTES(a_private);
+    b = UINT256_FROM_BYTES(b_private);
 
     // Perform modular subtraction
     result = modular_subtraction(a, b);

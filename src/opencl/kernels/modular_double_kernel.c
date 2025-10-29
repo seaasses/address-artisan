@@ -17,7 +17,7 @@ __kernel void modular_double_kernel(
     }
 
     // Convert byte array to Uint256
-    bytes_to_uint256(a_private, &a);
+    a = UINT256_FROM_BYTES(a_private);
 
     // Perform modular double
     result = modular_double(a);

@@ -24,8 +24,8 @@ __kernel void ckdpub_kernel(
 
     // Convert byte arrays to Point
     Point k_par;
-    bytes_to_uint256(k_par_x_private, &k_par.x);
-    bytes_to_uint256(k_par_y_private, &k_par.y);
+    k_par.x = UINT256_FROM_BYTES(k_par_x_private);
+    k_par.y = UINT256_FROM_BYTES(k_par_y_private);
 
     // Derive child key - result is written to private buffer
     unsigned char compressed_key_private[33];

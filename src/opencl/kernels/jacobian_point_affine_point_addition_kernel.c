@@ -32,11 +32,11 @@ __kernel void jacobian_point_affine_point_addition_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(jac_a_x_private, &jac_a.x);
-    bytes_to_uint256(jac_a_y_private, &jac_a.y);
-    bytes_to_uint256(jac_a_z_private, &jac_a.z);
-    bytes_to_uint256(aff_b_x_private, &aff_b.x);
-    bytes_to_uint256(aff_b_y_private, &aff_b.y);
+    jac_a.x = UINT256_FROM_BYTES(jac_a_x_private);
+    jac_a.y = UINT256_FROM_BYTES(jac_a_y_private);
+    jac_a.z = UINT256_FROM_BYTES(jac_a_z_private);
+    aff_b.x = UINT256_FROM_BYTES(aff_b_x_private);
+    aff_b.y = UINT256_FROM_BYTES(aff_b_y_private);
 
     // Perform jacobian point + affine point addition
     result = jacobian_point_affine_point_addition(jac_a, aff_b);

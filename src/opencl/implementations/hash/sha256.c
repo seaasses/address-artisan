@@ -1,5 +1,7 @@
 #include "src/opencl/headers/hash/sha256.h"
 #include "src/opencl/headers/hash/hash_common.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 // SHA256-specific sigma functions
 #define BSIG0(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
@@ -7,21 +9,6 @@
 
 #define SSIG0(x) (ROTR(x, 7) ^ ROTR(x, 18) ^ SHR(x, 3))
 #define SSIG1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ SHR(x, 10))
-
-#define BYTES_TO_WORD(bytes, offset)        \
-    (((uint)(bytes)[(offset)] << 24) |      \
-     ((uint)(bytes)[(offset) + 1] << 16) |  \
-     ((uint)(bytes)[(offset) + 2] << 8) |   \
-     ((uint)(bytes)[(offset) + 3]))
-
-#define WORD_TO_BYTES(word, bytes, offset)      \
-    do                                          \
-    {                                           \
-        (bytes)[(offset)] = ((word) >> 24);     \
-        (bytes)[(offset) + 1] = ((word) >> 16); \
-        (bytes)[(offset) + 2] = ((word) >> 8);  \
-        (bytes)[(offset) + 3] = (word);         \
-    } while (0)
 
 inline void sha256_process_block(const unsigned char *restrict block, uint *restrict H)
 {
@@ -33,7 +20,7 @@ inline void sha256_process_block(const unsigned char *restrict block, uint *rest
 #pragma unroll
     for (t = 0; t < 16; t++)
     {
-        W[t] = BYTES_TO_WORD(block, t << 2);
+        W[t] = UINT_FROM_BYTES_BE(block + (t << 2));
     }
 
 #pragma unroll
@@ -110,6 +97,6 @@ inline void sha256_33_bytes(const unsigned char *restrict message, unsigned char
 
     for (unsigned int i = 0; i < 8; i++)
     {
-        WORD_TO_BYTES(H[i], hash, i << 2);
+        UINT_TO_BYTES_BE(H[i], hash + (i << 2));
     }
 }

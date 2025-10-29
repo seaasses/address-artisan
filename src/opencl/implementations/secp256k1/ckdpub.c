@@ -35,7 +35,7 @@ inline void ckdpub(
     Point k_child = jacobian_to_affine(
         jacobian_point_affine_point_addition(
             g_times_scalar(
-                uint256_from_bytes(hmac_hash)),
+                UINT256_FROM_BYTES(hmac_hash)),
             k_par));
 
     // Write compressed public key to result buffer

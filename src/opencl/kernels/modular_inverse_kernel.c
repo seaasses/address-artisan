@@ -17,7 +17,7 @@ __kernel void modular_inverse_kernel(
     }
 
     // Convert byte arrays to Uint256
-    bytes_to_uint256(a_private, &a);
+    a = UINT256_FROM_BYTES(a_private);
 
     // Perform modular inverse
     result = modular_inverse(a);
