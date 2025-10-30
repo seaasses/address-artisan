@@ -15,7 +15,7 @@ inline void add_component_to_limb(ulong a_limb, ulong b_limb,
     *carry_high += carry_tmp_high;
 }
 
-inline Uint512 uint256_multiplication(Uint256 a, Uint256 b)
+inline Uint512 uint256_multiplication(const Uint256 a, const Uint256 b)
 {
     Uint512 result;
     ulong carry_high = 0;
@@ -79,7 +79,7 @@ inline Uint512 uint256_multiplication(Uint256 a, Uint256 b)
     return result;
 }
 
-inline Uint320 uint256_ulong_multiplication(Uint256 a, ulong b)
+inline Uint320 uint256_ulong_multiplication(const Uint256 a, const ulong b)
 {
     Uint320 result;
     ulong carry_high = 0;

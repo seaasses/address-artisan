@@ -5,7 +5,7 @@
 #include "src/opencl/headers/modular_operations/modular_multiplication.h"
 #include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
 
-inline JacobianPoint jacobian_point_affine_point_addition(JacobianPoint a, Point b)
+inline JacobianPoint jacobian_point_affine_point_addition(const JacobianPoint a, const Point b)
 {
     JacobianPoint result_point;
     Uint256 tmp_0, tmp_1, tmp_2;

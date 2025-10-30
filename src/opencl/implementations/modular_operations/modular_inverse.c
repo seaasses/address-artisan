@@ -1,7 +1,7 @@
 #include "src/opencl/headers/modular_operations/modular_inverse.h"
 #include "src/opencl/headers/modular_operations/modular_multiplication.h"
 
-inline Uint256 modular_inverse(Uint256 a)
+inline Uint256 modular_inverse(const Uint256 a)
 {
   Uint256 tmp_0, tmp_1, tmp_2, tmp_3, tmp_4, result;
 

@@ -1,6 +1,6 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 
-inline Uint256WithOverflow uint256_addition_with_overflow_flag(Uint256 a, Uint256 b)
+inline Uint256WithOverflow uint256_addition_with_overflow_flag(const Uint256 a, const Uint256 b)
 {
   Uint256WithOverflow ret;
 
@@ -19,7 +19,7 @@ inline Uint256WithOverflow uint256_addition_with_overflow_flag(Uint256 a, Uint25
   return ret;
 }
 
-inline Uint256 uint256_addition(Uint256 a, Uint256 b)
+inline Uint256 uint256_addition(const Uint256 a, const Uint256 b)
 {
   Uint256 result;
 
@@ -37,7 +37,7 @@ inline Uint256 uint256_addition(Uint256 a, Uint256 b)
   return result;
 }
 
-inline Uint320 uint320_uint256_addition(Uint320 a, Uint256 b)
+inline Uint320 uint320_uint256_addition(const Uint320 a, const Uint256 b)
 {
     Uint320 result;
 

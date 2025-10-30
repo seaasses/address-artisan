@@ -3,7 +3,7 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline Uint256 modular_addition(Uint256 a, Uint256 b)
+inline Uint256 modular_addition(const Uint256 a, const Uint256 b)
 {
   Uint256WithOverflow addition_result = uint256_addition_with_overflow_flag(a, b);
   Uint256 tmp = addition_result.result;

@@ -6,7 +6,7 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 #include "src/opencl/structs/structs.h"
 
-inline Uint256 modular_multiplication(Uint256 a, Uint256 b)
+inline Uint256 modular_multiplication(const Uint256 a, const Uint256 b)
 {
     Uint256 result;
     Uint512 tmp_0;

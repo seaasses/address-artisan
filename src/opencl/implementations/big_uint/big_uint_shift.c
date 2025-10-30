@@ -1,6 +1,6 @@
 #include "src/opencl/headers/big_uint/big_uint_shift.h"
 
-inline Uint256 uint256_shift_left(Uint256 x)
+inline Uint256 uint256_shift_left(const Uint256 x)
 {
   Uint256 result;
   result.limbs[0] = (x.limbs[0] << 1) | (x.limbs[1] >> 63);
@@ -10,7 +10,7 @@ inline Uint256 uint256_shift_left(Uint256 x)
   return result;
 }
 
-inline Uint256 uint256_shift_right(Uint256 x)
+inline Uint256 uint256_shift_right(const Uint256 x)
 {
   Uint256 result;
   result.limbs[3] = (x.limbs[3] >> 1) | (x.limbs[2] << 63);

@@ -4,7 +4,7 @@
 #include "src/opencl/headers/modular_operations/modular_inverse.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline Point jacobian_to_affine(JacobianPoint point_jac)
+inline Point jacobian_to_affine(const JacobianPoint point_jac)
 {
     Point point;
 

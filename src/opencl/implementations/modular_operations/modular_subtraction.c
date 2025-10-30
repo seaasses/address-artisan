@@ -3,7 +3,7 @@
 #include "src/opencl/headers/big_uint/big_uint_addition.h"
 #include "src/opencl/headers/big_uint/big_uint_subtraction.h"
 
-inline Uint256 modular_subtraction(Uint256 a, Uint256 b)
+inline Uint256 modular_subtraction(const Uint256 a, const Uint256 b)
 {
     Uint256WithUnderflow subtraction_result = uint256_subtraction_with_underflow_flag(a, b);
     Uint256 tmp = subtraction_result.result;

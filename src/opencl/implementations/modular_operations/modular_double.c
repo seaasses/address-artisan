@@ -3,7 +3,7 @@
 #include "src/opencl/headers/big_uint/big_uint_subtraction.h"
 #include "src/opencl/definitions/secp256k1.h"
 
-inline Uint256 modular_double(Uint256 a)
+inline Uint256 modular_double(const Uint256 a)
 {
   ulong tmp_bool = a.limbs[0] >> 63; // now tmp_bool is 1 if most significant bit is set, 0 otherwise
   Uint256 tmp = uint256_shift_left(a);

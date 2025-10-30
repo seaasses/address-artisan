@@ -264,7 +264,7 @@ __constant Point g_times[256] = {
 
 };
 
-inline JacobianPoint g_times_scalar(Uint256 scalar)
+inline JacobianPoint g_times_scalar(const Uint256 scalar)
 {
     JacobianPoint jacobian_result_point = {0};
     JacobianPoint tmp_point;

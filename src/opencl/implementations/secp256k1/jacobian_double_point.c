@@ -5,7 +5,7 @@
 #include "src/opencl/headers/modular_operations/modular_double.h"
 #include "src/opencl/headers/secp256k1/jacobian_double_point.h"
 
-inline JacobianPoint jacobian_double_point(JacobianPoint point)
+inline JacobianPoint jacobian_double_point(const JacobianPoint point)
 {
     JacobianPoint result_point;
     Uint256 tmp_0, tmp_1;
