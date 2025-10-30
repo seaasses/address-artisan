@@ -81,15 +81,12 @@ inline void sha256_33_bytes(const unsigned char *restrict message, unsigned char
 
     padded[33] = 0x80;
 
-    uint *padded_words = (uint *)(padded + 34);
 #pragma unroll
-    for (unsigned int i = 0; i < 5; i++)
+    for (uint i = 34; i < 62; i++)
     {
-        padded_words[i] = 0x00000000;
+        padded[i] = 0x00;
     }
 
-    padded[60] = 0x00;
-    padded[61] = 0x00;
     padded[62] = 0x01;
     padded[63] = 0x08;
 

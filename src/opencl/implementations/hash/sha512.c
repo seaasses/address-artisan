@@ -83,12 +83,10 @@ inline void sha512_165_bytes(const unsigned char *restrict message, unsigned cha
     // Padding byte
     padded[165] = 0x80;
 
-    // Write 11 x 64-bit words starting at 166, then overwrite only non-zero bytes
-    ulong *padded_words = (ulong *)(padded + 166);
 #pragma unroll
-    for (unsigned int i = 0; i < 11; i++)
+    for (uint i = 166; i < 254; i++)
     {
-        padded_words[i] = 0x0000000000000000ULL;
+        padded[i] = 0x00;
     }
     // Message length is 1320 bits (165 bytes) = 0x0528
     padded[254] = 0x05;
@@ -104,7 +102,7 @@ inline void sha512_165_bytes(const unsigned char *restrict message, unsigned cha
     }
 }
 
-inline void sha512_192_bytes(const unsigned char *restrict message, unsigned char *restrict hash)
+inline void sha512_192_bytes(const uchar *restrict message, uchar *restrict hash)
 {
     ulong H[8] = {
         0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
@@ -122,16 +120,13 @@ inline void sha512_192_bytes(const unsigned char *restrict message, unsigned cha
     }
 
     // Padding byte
-
-    // Write 8 x 64-bit words starting at 192, then overwrite only non-zero bytes
-    ulong *padded_words = (ulong *)(padded + 192);
-#pragma unroll
-    for (unsigned int i = 0; i < 8; i++)
-    {
-        padded_words[i] = 0x0000000000000000ULL;
-    }
-
     padded[192] = 0x80;
+
+#pragma unroll
+    for (uint i = 193; i < 254; i++)
+    {
+        padded[i] = 0x00;
+    }
 
     // Message length is 1536 bits (192 bytes) = 0x0600
     padded[254] = 0x06;

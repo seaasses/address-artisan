@@ -12,13 +12,13 @@
 // Rotate left for RIPEMD160 (uint/32-bit)
 #define ROL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
 
-inline void ripemd160_process_block(const unsigned char *restrict block, uint *restrict H)
+inline void ripemd160_process_block(const uchar *restrict block, uint *restrict H)
 {
     uint X[16];
     uint AL, BL, CL, DL, EL; // Left line
     uint AR, BR, CR, DR, ER; // Right line
     uint T;
-    unsigned int j;
+    uint j;
 
     // Load message into X array (little-endian)
 #pragma unroll
@@ -84,7 +84,7 @@ inline void ripemd160_process_block(const unsigned char *restrict block, uint *r
     H[0] = T;
 }
 
-inline void ripemd160_32_bytes(const unsigned char *restrict message, unsigned char *restrict hash)
+inline void ripemd160_32_bytes(const uchar *restrict message, uchar *restrict hash)
 {
     uint H[5] = {
         RIPEMD160_H0,
@@ -93,29 +93,38 @@ inline void ripemd160_32_bytes(const unsigned char *restrict message, unsigned c
         RIPEMD160_H3,
         RIPEMD160_H4};
 
-    unsigned char padded[64];
+    uchar padded[64];
 
 // Copy message (32 bytes)
 #pragma unroll
-    for (unsigned int i = 0; i < 32; i++)
+    for (uint i = 0; i < 32; i++)
     {
         padded[i] = message[i];
     }
 
     padded[32] = 0x80;
 
-    uint *padded_words = (uint *)(padded + 33);
+    // Zerar bytes [33-55]
 #pragma unroll
-    for (unsigned int i = 0; i < 7; i++)
+    for (uint i = 33; i < 56; i++)
     {
-        padded_words[i] = 0x00000000;
+        padded[i] = 0x00;
     }
+
+    // Tamanho em bits (32 bytes * 8 = 256 bits = 0x0100) em little-endian
+    padded[56] = 0x00;
     padded[57] = 0x01;
+    padded[58] = 0x00;
+    padded[59] = 0x00;
+    padded[60] = 0x00;
+    padded[61] = 0x00;
+    padded[62] = 0x00;
+    padded[63] = 0x00;
 
     ripemd160_process_block(padded, H);
 
 #pragma unroll
-    for (unsigned int i = 0; i < 5; i++)
+    for (uint i = 0; i < 5; i++)
     {
         UINT_TO_BYTES_LE(H[i], hash + (i << 2));
     }
