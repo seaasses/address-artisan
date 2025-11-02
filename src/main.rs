@@ -1,6 +1,7 @@
 mod bench_config;
 mod bitcoin_address_helper;
 mod cli;
+mod cpu_working_bench;
 mod extended_public_key;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
