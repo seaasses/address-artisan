@@ -1,3 +1,4 @@
+mod bench_config;
 mod bitcoin_address_helper;
 mod cli;
 mod extended_public_key;
@@ -7,6 +8,7 @@ mod logger;
 mod prefix;
 mod state_handler;
 mod vanity_address;
+mod working_bench;
 
 use cli::Cli;
 use extended_public_key::ExtendedPubKey;
