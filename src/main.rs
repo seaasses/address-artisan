@@ -4,6 +4,7 @@ mod extended_public_key;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
 mod logger;
+mod prefix;
 mod state_handler;
 mod vanity_address;
 

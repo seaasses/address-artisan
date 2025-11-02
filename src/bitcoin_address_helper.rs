@@ -1,5 +1,6 @@
 use sha2::{Digest, Sha256};
 
+#[derive(Clone, Debug)]
 pub struct BitcoinAddressHelper {}
 
 impl BitcoinAddressHelper {
