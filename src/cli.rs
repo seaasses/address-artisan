@@ -21,12 +21,6 @@ pub struct Cli {
     )]
     pub max_depth: u32,
     #[arg(
-        long = "i-am-boring",
-        help = "Hmmm, so you are a boring person and don't have friends? Ok, I will not talk to you.",
-        value_parser = Cli::fix_i_am_boring
-    )]
-    pub i_am_boring: bool,
-    #[arg(
         short = 't',
         long = "cpu-threads",
         help = "Number of CPU threads to use (0 = auto-detect all available threads)",
@@ -39,15 +33,6 @@ pub struct Cli {
 impl Cli {
     pub fn parse_args() -> Self {
         Self::parse()
-    }
-    fn fix_i_am_boring(i_am_boring: &str) -> Result<bool, String> {
-        if i_am_boring == "true" {
-            return Ok(false);
-        }
-        if i_am_boring == "false" {
-            return Ok(true);
-        }
-        Err("Invalid value for i-am-boring".to_string())
     }
 
     fn validate_max_depth(max_depth: &str) -> Result<u32, String> {
