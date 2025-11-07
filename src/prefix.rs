@@ -1,34 +1,36 @@
-use crate::bitcoin_address_helper::BitcoinAddressHelper;
+use crate::bitcoin_address_helper::{AddressEncoder, BitcoinAddressHelper};
 use std::collections::HashSet;
+
+pub trait PrefixValidator {
+    fn validate_and_get_address(
+        &mut self,
+        prefix: &Prefix,
+        pubkey_hash: &[u8; 20],
+    ) -> Option<String>;
+}
 
 #[derive(Clone, Debug)]
 pub struct Prefix {
-    prefix_str: String,
-    pattern: Vec<u8>,
-    bitcoin_address_helper: BitcoinAddressHelper,
+    pub prefix_str: String,
+    pub pattern: Vec<u8>,
+}
+
+pub struct CpuPrefixValidator {
+    address_encoder: BitcoinAddressHelper,
 }
 
 impl Prefix {
     pub fn new(prefix_str: &str) -> Self {
-        let bitcoin_address_helper = BitcoinAddressHelper::new();
-        let pattern = Self::compute_pattern(prefix_str, &bitcoin_address_helper);
+        let helper = BitcoinAddressHelper::new();
+        let pattern = Self::compute_pattern(prefix_str, &helper);
 
         Self {
             prefix_str: prefix_str.to_string(),
             pattern,
-            bitcoin_address_helper,
         }
     }
 
-    pub fn as_str(&self) -> &str {
-        &self.prefix_str
-    }
-
-    pub fn pattern(&self) -> &[u8] {
-        &self.pattern
-    }
-
-    pub fn matches_pattern(&self, pubkey_hash: [u8; 20]) -> bool {
+    pub fn matches_pattern(&self, pubkey_hash: &[u8; 20]) -> bool {
         if self.pattern.len() == 1 {
             return true;
         }
@@ -40,26 +42,6 @@ impl Prefix {
         }
 
         true
-    }
-
-    pub fn validate_and_get_address(&self, pubkey_hash: [u8; 20]) -> Option<String> {
-        if !self.matches_pattern(pubkey_hash) {
-            return None;
-        }
-
-        let address_with_fake_checksum = self
-            .bitcoin_address_helper
-            .get_address_with_fake_checksum(pubkey_hash);
-
-        if !address_with_fake_checksum.starts_with(&self.prefix_str) {
-            return None;
-        }
-
-        let real_address = self
-            .bitcoin_address_helper
-            .get_address_from_pubkey_hash(pubkey_hash);
-
-        Some(real_address)
     }
 
     fn compute_pattern(prefix: &str, bitcoin_address_helper: &BitcoinAddressHelper) -> Vec<u8> {
@@ -75,7 +57,9 @@ impl Prefix {
                 let address = prefix.to_owned()
                     + &"1".repeat(ones)
                     + &"z".repeat(address_len - prefix_len - ones);
-                if let Some(pubkey_hash) = bitcoin_address_helper.get_pubkey_hash_from_address(address) {
+                if let Some(pubkey_hash) =
+                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
+                {
                     pubkey_hashs.push(pubkey_hash);
                 }
             }
@@ -86,7 +70,9 @@ impl Prefix {
                 let address = prefix.to_owned()
                     + &"z".repeat(zs)
                     + &"1".repeat(address_len - prefix_len - zs);
-                if let Some(pubkey_hash) = bitcoin_address_helper.get_pubkey_hash_from_address(address) {
+                if let Some(pubkey_hash) =
+                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
+                {
                     pubkey_hashs.push(pubkey_hash);
                 }
             }
@@ -101,7 +87,9 @@ impl Prefix {
                 let address = prefix.to_owned()
                     + extended_prefix
                     + &"1".repeat(address_len - prefix_len - extended_prefix_length);
-                if let Some(pubkey_hash) = bitcoin_address_helper.get_pubkey_hash_from_address(address) {
+                if let Some(pubkey_hash) =
+                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
+                {
                     pubkey_hashs.push(pubkey_hash);
                 }
             }
@@ -112,7 +100,9 @@ impl Prefix {
                 let address = prefix.to_owned()
                     + extended_prefix
                     + &"z".repeat(address_len - prefix_len - extended_prefix_length);
-                if let Some(pubkey_hash) = bitcoin_address_helper.get_pubkey_hash_from_address(address) {
+                if let Some(pubkey_hash) =
+                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
+                {
                     pubkey_hashs.push(pubkey_hash);
                 }
             }
@@ -170,6 +160,40 @@ impl Prefix {
     }
 }
 
+impl CpuPrefixValidator {
+    pub fn new() -> Self {
+        Self {
+            address_encoder: BitcoinAddressHelper::new(),
+        }
+    }
+}
+
+impl PrefixValidator for CpuPrefixValidator {
+    fn validate_and_get_address(
+        &mut self,
+        prefix: &Prefix,
+        pubkey_hash: &[u8; 20],
+    ) -> Option<String> {
+        if !prefix.matches_pattern(pubkey_hash) {
+            return None;
+        }
+
+        let address_with_fake_checksum = self
+            .address_encoder
+            .get_address_with_fake_checksum(pubkey_hash);
+
+        if !address_with_fake_checksum.starts_with(&prefix.prefix_str) {
+            return None;
+        }
+
+        let real_address = self
+            .address_encoder
+            .get_address_from_pubkey_hash(pubkey_hash);
+
+        Some(real_address)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,17 +201,17 @@ mod tests {
     #[test]
     fn test_prefix_creation() {
         let prefix = Prefix::new("1Test");
-        assert_eq!(prefix.as_str(), "1Test");
-        assert!(!prefix.pattern().is_empty());
+        assert_eq!(prefix.prefix_str, "1Test");
+        assert!(!prefix.pattern.is_empty());
     }
 
     #[test]
     fn test_single_char_prefix() {
         let prefix = Prefix::new("1");
-        assert_eq!(prefix.pattern(), &[0x00]);
+        assert_eq!(prefix.pattern, vec![0x00]);
 
         let dummy_hash = [0u8; 20];
-        assert!(prefix.matches_pattern(dummy_hash));
+        assert!(prefix.matches_pattern(&dummy_hash));
     }
 
     #[test]
@@ -195,16 +219,45 @@ mod tests {
         let prefix = Prefix::new("1ABC");
         let cloned = prefix.clone();
 
-        assert_eq!(prefix.as_str(), cloned.as_str());
-        assert_eq!(prefix.pattern(), cloned.pattern());
+        assert_eq!(prefix.prefix_str, cloned.prefix_str);
+        assert_eq!(prefix.pattern, cloned.pattern);
     }
 
     #[test]
     fn test_pattern_matching() {
         let prefix = Prefix::new("1Test");
-        assert!(prefix.pattern().len() > 1);
+        assert!(prefix.pattern.len() > 1);
 
         let non_matching_hash = [0xFFu8; 20];
-        assert!(!prefix.matches_pattern(non_matching_hash));
+        assert!(!prefix.matches_pattern(&non_matching_hash));
+    }
+
+    #[test]
+    fn test_cpu_prefix_validator() {
+        let prefix = Prefix::new("1");
+        let mut validator = CpuPrefixValidator::new();
+
+        let pubkey_hash = [
+            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
+            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
+        ];
+
+        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
+        assert!(result.is_some());
+        assert!(result.unwrap().starts_with("1"));
+    }
+
+    #[test]
+    fn test_validator_rejects_non_matching() {
+        let prefix = Prefix::new("1ZZZZ");
+        let mut validator = CpuPrefixValidator::new();
+
+        let pubkey_hash = [
+            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
+            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
+        ];
+
+        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
+        assert!(result.is_none());
     }
 }
