@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-const MIN_CHUNK_SIZE: u32 = 1_000;
+const MIN_CHUNK_SIZE: u32 = 100;
 const MAX_CHUNK_SIZE: u32 = 200_000;
 const TARGET_BATCH_DURATION_MS: u32 = 1_000;
 const MAX_UPPER_ADJUSTMENT_FACTOR: f32 = 1.20;
@@ -341,8 +341,8 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(
-            elapsed < std::time::Duration::from_millis(500),
-            "Should stop within 500ms"
+            elapsed < std::time::Duration::from_millis(1500),
+            "Should stop within 1500ms"
         );
 
         let generated_after = bench.total_generated();

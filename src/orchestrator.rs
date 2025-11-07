@@ -222,7 +222,7 @@ mod tests {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1");
         let stop_signal = Arc::new(AtomicBool::new(false));
-        let logger = Logger::new(true);
+        let logger = Logger::new();
 
         let orchestrator = Orchestrator::new(xpub, prefix, 10000, Arc::clone(&stop_signal), logger);
 

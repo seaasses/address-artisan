@@ -60,7 +60,6 @@ mod tests {
                 assert_ne!(name, "");
                 assert!(*threads > 0);
             }
-            _ => panic!("Expected CPU device"),
         }
     }
 
