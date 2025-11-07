@@ -1,0 +1,1 @@
+pub const NON_HARDENED_MAX_INDEX: u32 = 0x7FFFFFFF;

@@ -1,113 +1,98 @@
-use std::io::{self, Write};
-use std::thread;
-use std::time::Duration;
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
-pub struct Logger {
-    serious_mode: bool,
-    first_log_status: bool,
-    blocked: bool,
-}
+pub struct Logger;
 
 impl Logger {
-    pub fn new(serious_mode: bool) -> Self {
-        Logger {
-            serious_mode,
-            first_log_status: true,
-            blocked: false,
-        }
+    pub fn new() -> Self {
+        Logger
     }
 
-    pub fn start(&self, prefix: String) {
-        if self.serious_mode {
-            println!("Starting for prefix: {}", prefix);
-        } else {
-            println!("👨‍🎨: Hmmm, \"{}\" you say?", prefix);
-            thread::sleep(Duration::from_secs(2));
-            println!("👨‍🎨: What an interesting prefix!");
-            thread::sleep(Duration::from_secs(2));
-            println!("👨‍🎨: Ok, lets do it!");
-        }
+    pub fn start(&self, prefix: &str, max_depth: u32, cpu_threads: u32) {
+        println!("Starting address search");
+        println!("  Prefix: {}", prefix);
+        println!("  Max depth: {}", max_depth);
+        println!("  CPU threads: {}", cpu_threads);
     }
-    pub fn wait_for_hashrate(&self, wait_time: u8) {
-        if self.serious_mode {
-            print!("Waiting {} seconds to reach initial hashrate", wait_time);
-        } else {
-            print!(
-                "👨‍🎨: Just wait here for {} seconds, I will prepare my studio",
-                wait_time
-            );
-        }
-    }
-    pub fn print_statistics(&self, hashrate: f64) {
-        if self.serious_mode {
-            println!("Initial hashrate: {:.2} addresses/s", hashrate);
-        } else {
-            println!(
-                "👨‍🎨: I'm building around {:.0} addresses every second 😮‍💨",
-                hashrate
-            );
-            thread::sleep(Duration::from_secs(1));
-            println!("👨‍🎨: I hope to make one that you'll like...");
-        }
-    }
-    pub fn log_status(&mut self, generated: usize, found: usize, run_time: f64, hashrate: f64) {
-        if self.blocked {
-            return;
-        }
-        if self.first_log_status {
-            self.first_log_status = false;
-            println!("");
-        }
 
-        if self.serious_mode {
-            self.erase_previous_line();
-            println!(
-                "[{:.2} add/s] {} in {:.1} seconds",
-                hashrate, generated, run_time
-            );
-        } else {
-            self.erase_previous_line();
-            if found == 0 {
-                println!(
-                    "👨‍🎨: I already built {} addresses in the last {:.0} seconds. Wow, that's {:.0} per second!",
-                    generated, run_time, hashrate
-                );
+    pub fn workbench_started(&self, bench_id: &str) {
+        println!("✓ {} workbench started", bench_id);
+    }
+
+    pub fn log_status(&self, bench_stats: &HashMap<String, BenchStats>) {
+        println!("\n--- Status ---");
+
+        let mut total_generated = 0u64;
+        let mut total_hashrate = 0.0;
+
+        for (bench_id, stats) in bench_stats {
+            let elapsed = stats.start_time.elapsed().as_secs_f64();
+            let hashrate = if elapsed > 0.0 {
+                stats.total_generated as f64 / elapsed
             } else {
-                println!(
-                    "👨‍🎨: I already built {} addresses in the last {} seconds. Wow, that is {} per second! I found {} addresses!",
-                    generated, run_time, hashrate, found
-                );
-            }
-        }
-    }
-    pub fn log_found_address(&mut self, address: &str, path: &[u32]) {
-        self.blocked = true;
-        let address_index = path.last().unwrap();
-        let without_last_two = path
-            .iter()
-            .take(path.len() - 2)
-            .copied()
-            .collect::<Vec<u32>>();
-        let path_str = without_last_two
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<String>>()
-            .join("/");
+                0.0
+            };
 
-        if self.serious_mode {
             println!(
-                "Found address: {} at xpub'/{}, receive address {}",
-                address, path_str, address_index
+                "  {:<8} - {:.0} addr/s ({} generated, {:.1}s elapsed)",
+                bench_id, hashrate, stats.total_generated, elapsed
             );
-        } else {
-            println!(
-                "👨‍🎨: A MASTERPIECE! {} at xpub'/{}, receive address {}. Simply a masterpiece!",
-                address, path_str, address_index
-            );
+
+            total_generated += stats.total_generated;
+            total_hashrate += hashrate;
         }
+
+        println!(
+            "📊 TOTAL    - {:.0} addr/s ({} generated)",
+            total_hashrate, total_generated
+        );
+        println!();
     }
-    fn erase_previous_line(&self) {
-        print!("\x1B[1A\x1B[2K"); // Move up one line and clear it
-        io::stdout().flush().unwrap();
+
+    pub fn log_found_address(&self, bench_id: &str, address: &str, path: &[u32; 6]) {
+        println!();
+        println!("🎉 MATCH FOUND from {}!", bench_id);
+        println!("   Address: {}", address);
+        println!(
+            "   Path: m/{}/{}/{}/{}/{}/{}",
+            path[0], path[1], path[2], path[3], path[4], path[5]
+        );
+    }
+
+    pub fn log_derivation_error(&self) {
+        eprintln!("⚠️  Failed to derive address from path");
+    }
+
+    pub fn stop_requested(&self) {
+        println!("\n⏸  Stop requested, shutting down workbenches...");
+    }
+
+    pub fn workbench_stopped(&self, bench_id: &str, total_generated: u64, elapsed: Duration) {
+        println!(
+            "✓ {} stopped ({} generated in {:.1}s)",
+            bench_id,
+            total_generated,
+            elapsed.as_secs_f64()
+        );
+    }
+
+    /// Logs final status when all workbenches are done
+    pub fn final_status(&self) {
+        println!("\n✅ All workbenches stopped");
+    }
+}
+
+/// Statistics for a single workbench
+pub struct BenchStats {
+    pub start_time: Instant,
+    pub total_generated: u64,
+}
+
+impl BenchStats {
+    pub fn new(start_time: Instant) -> Self {
+        BenchStats {
+            start_time,
+            total_generated: 0,
+        }
     }
 }
