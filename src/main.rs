@@ -1,4 +1,3 @@
-mod bitcoin_address_helper;
 mod cli;
 mod constants;
 mod cpu_workbench;
