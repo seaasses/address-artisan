@@ -1,196 +1,166 @@
-use crate::bitcoin_address_helper::{AddressEncoder, BitcoinAddressHelper};
-use std::collections::HashSet;
+use num_bigint::BigUint;
+use num_traits::{One, ToPrimitive, Zero};
 
-pub trait PrefixValidator {
-    fn validate_and_get_address(
-        &mut self,
-        prefix: &Prefix,
-        pubkey_hash: &[u8; 20],
-    ) -> Option<String>;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Hash160Range {
+    pub low: [u8; 20],
+    pub high: [u8; 20],
+}
+
+impl Hash160Range {
+    pub fn new(low: [u8; 20], high: [u8; 20]) -> Self {
+        Self { low, high }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Prefix {
     pub prefix_str: String,
-    pub pattern: Vec<u8>,
-}
-
-pub struct CpuPrefixValidator {
-    address_encoder: BitcoinAddressHelper,
+    pub ranges: Vec<Hash160Range>,
 }
 
 impl Prefix {
     pub fn new(prefix_str: &str) -> Self {
-        let helper = BitcoinAddressHelper::new();
-        let pattern = Self::compute_pattern(prefix_str, &helper);
+        let ranges = Self::get_ranges(prefix_str);
 
         Self {
             prefix_str: prefix_str.to_string(),
-            pattern,
+            ranges,
         }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.prefix_str
     }
 
     pub fn matches_pattern(&self, pubkey_hash: &[u8; 20]) -> bool {
-        if self.pattern.len() == 1 {
-            return true;
-        }
-
-        for i in 0..self.pattern.len() {
-            if pubkey_hash[i] != self.pattern[i] {
-                return false;
-            }
-        }
-
-        true
+        self.ranges
+            .iter()
+            .any(|range| pubkey_hash >= &range.low && pubkey_hash <= &range.high)
     }
 
-    fn compute_pattern(prefix: &str, bitcoin_address_helper: &BitcoinAddressHelper) -> Vec<u8> {
-        if prefix.len() == 1 {
-            return vec![0x00];
+    fn get_ranges(prefix: &str) -> Vec<Hash160Range> {
+        let mut non_ones = prefix;
+        let mut ones_count = 0;
+        while non_ones.starts_with('1') {
+            non_ones = &non_ones[1..];
+            ones_count += 1;
         }
 
-        let prefix_len = prefix.len();
-        let mut pubkey_hashs: Vec<[u8; 20]> = Vec::new();
+        let b58top = if !non_ones.is_empty() {
+            let first_char = &non_ones[0..1];
+            Self::base58_to_biguint(first_char).to_usize().unwrap_or(0)
+        } else {
+            0
+        };
 
-        for address_len in 26..=35 {
-            for ones in 0..=address_len - prefix_len {
-                let address = prefix.to_owned()
-                    + &"1".repeat(ones)
-                    + &"z".repeat(address_len - prefix_len - ones);
-                if let Some(pubkey_hash) =
-                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
-                {
-                    pubkey_hashs.push(pubkey_hash);
-                }
+        let n = if !non_ones.is_empty() {
+            Self::base58_to_biguint(non_ones)
+        } else {
+            BigUint::zero()
+        };
+
+        let ceiling_shift = 200u32 - (ones_count as u32 * 8);
+        let ceiling = (BigUint::one() << ceiling_shift) - BigUint::one();
+
+        let floor = if non_ones.is_empty() {
+            BigUint::zero()
+        } else {
+            let floor_shift = 192u32 - (ones_count as u32 * 8);
+            BigUint::one() << floor_shift
+        };
+
+        let mut b58pow = 0;
+        let mut temp = ceiling.clone();
+        let fifty_eight = BigUint::from(58u32);
+        while temp >= fifty_eight {
+            b58pow += 1;
+            temp /= &fifty_eight;
+        }
+        let b58ceil = temp.to_usize().unwrap_or(0);
+
+        let k = b58pow - non_ones.len();
+
+        let (mut low, mut high) = if n > BigUint::zero() {
+            let multiplier = fifty_eight.pow(k as u32);
+            let low = &n * &multiplier;
+            let high = (&n + BigUint::one()) * &multiplier - BigUint::one();
+            (low, high)
+        } else {
+            (BigUint::zero(), ceiling.clone())
+        };
+
+        let mut check_upper = false;
+        let mut low2 = BigUint::zero();
+        let mut high2 = BigUint::zero();
+
+        if b58top <= b58ceil {
+            check_upper = true;
+            low2 = &low * &fifty_eight;
+            high2 = &high * &fifty_eight + BigUint::from(57u32);
+        }
+
+        if check_upper {
+            if low2 > ceiling {
+                check_upper = false;
+            } else if high2 > ceiling {
+                high2 = ceiling.clone();
             }
         }
 
-        for address_len in 26..=35 {
-            for zs in 0..=address_len - prefix_len {
-                let address = prefix.to_owned()
-                    + &"z".repeat(zs)
-                    + &"1".repeat(address_len - prefix_len - zs);
-                if let Some(pubkey_hash) =
-                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
-                {
-                    pubkey_hashs.push(pubkey_hash);
-                }
+        if high < floor {
+            if !check_upper {
+                return Vec::new();
             }
+            low = low2.clone();
+            high = high2.clone();
+            check_upper = false;
+        } else if low < floor {
+            low = floor.clone();
         }
 
-        let extended_prefix_length: usize = 3;
-        let extended_prefix_combinations: Vec<String> =
-            Self::get_all_base58_combinations(extended_prefix_length);
+        low = low.max(floor.clone());
+        high = high.min(ceiling.clone());
 
-        for address_len in 26..=35 {
-            for extended_prefix in extended_prefix_combinations.iter() {
-                let address = prefix.to_owned()
-                    + extended_prefix
-                    + &"1".repeat(address_len - prefix_len - extended_prefix_length);
-                if let Some(pubkey_hash) =
-                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
-                {
-                    pubkey_hashs.push(pubkey_hash);
-                }
-            }
+        let mut final_ranges = vec![Hash160Range::new(
+            Self::address_range_to_hash160_range(&low),
+            Self::address_range_to_hash160_range(&high),
+        )];
+
+        if check_upper {
+            low2 = low2.max(floor);
+            high2 = high2.min(ceiling);
+            final_ranges.push(Hash160Range::new(
+                Self::address_range_to_hash160_range(&low2),
+                Self::address_range_to_hash160_range(&high2),
+            ));
         }
 
-        for address_len in 26..=35 {
-            for extended_prefix in extended_prefix_combinations.iter() {
-                let address = prefix.to_owned()
-                    + extended_prefix
-                    + &"z".repeat(address_len - prefix_len - extended_prefix_length);
-                if let Some(pubkey_hash) =
-                    bitcoin_address_helper.get_pubkey_hash_from_address(address)
-                {
-                    pubkey_hashs.push(pubkey_hash);
-                }
-            }
-        }
-
-        if pubkey_hashs.len() < 2 {
-            return vec![];
-        }
-
-        let mut final_pattern: Vec<u8> = Vec::new();
-        for i in 0..=20 {
-            let mut pattern_for_this_index: HashSet<Vec<u8>> = HashSet::new();
-            for pubkey_hash in pubkey_hashs.iter() {
-                let first_n_bytes = pubkey_hash.iter().take(i).cloned().collect::<Vec<u8>>();
-                pattern_for_this_index.insert(first_n_bytes);
-            }
-            if pattern_for_this_index.len() == 1 {
-                final_pattern = pattern_for_this_index.iter().next().unwrap().clone();
-            } else {
-                break;
-            }
-        }
-        final_pattern
+        final_ranges.dedup();
+        final_ranges
     }
 
-    fn get_all_base58_combinations(n: usize) -> Vec<String> {
-        let base58_chars = [
-            "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H",
-            "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a",
-            "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "m", "n", "o", "p", "q", "r", "s",
-            "t", "u", "v", "w", "x", "y", "z",
-        ];
+    fn base58_to_biguint(base58_str: &str) -> BigUint {
+        match bs58::decode(base58_str).into_vec() {
+            Ok(bytes) => BigUint::from_bytes_be(&bytes),
+            Err(_) => BigUint::zero(),
+        }
+    }
 
-        fn generate_combinations(
-            chars: &[&str],
-            current: String,
-            length: usize,
-            result: &mut Vec<String>,
-        ) {
-            if length == 0 {
-                result.push(current);
-                return;
-            }
+    fn address_range_to_hash160_range(num: &BigUint) -> [u8; 20] {
+        let bytes = num.to_bytes_be();
+        let mut full_bytes = [0u8; 25];
 
-            for &c in chars {
-                let mut new_str = current.clone();
-                new_str.push_str(c);
-                generate_combinations(chars, new_str, length - 1, result);
-            }
+        if bytes.len() <= 25 {
+            let offset = 25 - bytes.len();
+            full_bytes[offset..].copy_from_slice(&bytes);
+        } else {
+            full_bytes.copy_from_slice(&bytes[bytes.len() - 25..]);
         }
 
-        let mut result = Vec::new();
-        generate_combinations(&base58_chars, String::new(), n, &mut result);
+        let mut result = [0u8; 20];
+        result.copy_from_slice(&full_bytes[1..21]);
         result
-    }
-}
-
-impl CpuPrefixValidator {
-    pub fn new() -> Self {
-        Self {
-            address_encoder: BitcoinAddressHelper::new(),
-        }
-    }
-}
-
-impl PrefixValidator for CpuPrefixValidator {
-    fn validate_and_get_address(
-        &mut self,
-        prefix: &Prefix,
-        pubkey_hash: &[u8; 20],
-    ) -> Option<String> {
-        if !prefix.matches_pattern(pubkey_hash) {
-            return None;
-        }
-
-        let address_with_fake_checksum = self
-            .address_encoder
-            .get_address_with_fake_checksum(pubkey_hash);
-
-        if !address_with_fake_checksum.starts_with(&prefix.prefix_str) {
-            return None;
-        }
-
-        let real_address = self
-            .address_encoder
-            .get_address_from_pubkey_hash(pubkey_hash);
-
-        Some(real_address)
     }
 }
 
@@ -199,65 +169,106 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_prefix_creation() {
-        let prefix = Prefix::new("1Test");
-        assert_eq!(prefix.prefix_str, "1Test");
-        assert!(!prefix.pattern.is_empty());
-    }
-
-    #[test]
-    fn test_single_char_prefix() {
+    fn test_prefix_1() {
         let prefix = Prefix::new("1");
-        assert_eq!(prefix.pattern, vec![0x00]);
+        assert_eq!(prefix.ranges.len(), 1);
 
-        let dummy_hash = [0u8; 20];
-        assert!(prefix.matches_pattern(&dummy_hash));
-    }
-
-    #[test]
-    fn test_prefix_clone() {
-        let prefix = Prefix::new("1ABC");
-        let cloned = prefix.clone();
-
-        assert_eq!(prefix.prefix_str, cloned.prefix_str);
-        assert_eq!(prefix.pattern, cloned.pattern);
-    }
-
-    #[test]
-    fn test_pattern_matching() {
-        let prefix = Prefix::new("1Test");
-        assert!(prefix.pattern.len() > 1);
-
-        let non_matching_hash = [0xFFu8; 20];
-        assert!(!prefix.matches_pattern(&non_matching_hash));
-    }
-
-    #[test]
-    fn test_cpu_prefix_validator() {
-        let prefix = Prefix::new("1");
-        let mut validator = CpuPrefixValidator::new();
-
-        let pubkey_hash = [
-            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
-            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
+        let expected_low = [
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let expected_high = [
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ];
 
-        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
-        assert!(result.is_some());
-        assert!(result.unwrap().starts_with("1"));
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
     }
 
     #[test]
-    fn test_validator_rejects_non_matching() {
-        let prefix = Prefix::new("1ZZZZ");
-        let mut validator = CpuPrefixValidator::new();
+    fn test_prefix_1a_uppercase() {
+        let prefix = Prefix::new("1A");
+        assert_eq!(prefix.ranges.len(), 2);
 
-        let pubkey_hash = [
-            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
-            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
+        // Range 1
+        let expected_low_1 = [
+            0x01, 0xb3, 0xbe, 0x60, 0x3f, 0x13, 0xac, 0xde, 0xf9, 0xf6, 0xc2, 0xa7, 0xe4, 0x66,
+            0x09, 0x00, 0xf6, 0x79, 0x46, 0x2e,
+        ];
+        let expected_high_1 = [
+            0x01, 0xe4, 0x28, 0xdc, 0xb7, 0xdc, 0xf8, 0xf7, 0xc0, 0x67, 0x82, 0xf3, 0x6f, 0x8d,
+            0xd1, 0x1d, 0x83, 0xa3, 0x31, 0x88,
         ];
 
-        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
-        assert!(result.is_none());
+        assert_eq!(prefix.ranges[0].low, expected_low_1);
+        assert_eq!(prefix.ranges[0].high, expected_high_1);
+
+        // Range 2
+        let expected_low_2 = [
+            0x62, 0xb9, 0x21, 0xce, 0x4a, 0x75, 0x2a, 0x84, 0xa1, 0xe8, 0x1a, 0x09, 0xbf, 0x1e,
+            0x0a, 0x37, 0xd7, 0x79, 0xe6, 0x89,
+        ];
+        let expected_high_2 = [
+            0x6d, 0xb1, 0x42, 0x01, 0xa8, 0x10, 0x68, 0x21, 0x97, 0x73, 0xab, 0x27, 0x46, 0x21,
+            0x60, 0xaf, 0xd2, 0xf9, 0x39, 0x09,
+        ];
+
+        assert_eq!(prefix.ranges[1].low, expected_low_2);
+        assert_eq!(prefix.ranges[1].high, expected_high_2);
+    }
+
+    #[test]
+    fn test_prefix_1a() {
+        let prefix = Prefix::new("1a");
+        assert_eq!(prefix.ranges.len(), 1);
+
+        let expected_low = [
+            0x06, 0x3d, 0xba, 0x0b, 0x91, 0xf2, 0xcf, 0x31, 0x94, 0x88, 0xc9, 0xbc, 0xf0, 0x20,
+            0xcb, 0xae, 0x32, 0x67, 0x56, 0xaa,
+        ];
+        let expected_high = [
+            0x06, 0x6e, 0x24, 0x88, 0x0a, 0xbc, 0x1b, 0x4a, 0x5a, 0xf9, 0x8a, 0x08, 0x7b, 0x48,
+            0x93, 0xca, 0xbf, 0x91, 0x42, 0x04,
+        ];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    #[test]
+    fn test_prefix_1ab() {
+        let prefix = Prefix::new("1ab");
+        assert_eq!(prefix.ranges.len(), 1);
+
+        let expected_low = [
+            0x06, 0x5a, 0x1b, 0xc7, 0x4b, 0x83, 0x4b, 0x40, 0x1a, 0x84, 0x43, 0x4a, 0x53, 0x5b,
+            0x6d, 0x20, 0x09, 0x91, 0x91, 0x2f,
+        ];
+        let expected_high = [
+            0x06, 0x5a, 0xf1, 0x79, 0xfe, 0x25, 0xa9, 0x40, 0x87, 0xde, 0x7b, 0x92, 0x3f, 0xaf,
+            0xf9, 0x67, 0x26, 0x7c, 0x38, 0x8d,
+        ];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    #[test]
+    fn test_prefix_1seaasses_uppercase() {
+        let prefix = Prefix::new("1SEAASSES");
+        assert_eq!(prefix.ranges.len(), 1);
+
+        let expected_low = [
+            0x04, 0xc5, 0x61, 0xfd, 0x54, 0x91, 0x4f, 0xe0, 0xf3, 0xf5, 0x34, 0x8d, 0x09, 0x79,
+            0x6a, 0x2e, 0x1d, 0x92, 0x56, 0xb4,
+        ];
+        let expected_high = [
+            0x04, 0xc5, 0x61, 0xfd, 0x54, 0x91, 0x67, 0xfd, 0x0b, 0x8b, 0x6e, 0xdf, 0x30, 0x36,
+            0xd1, 0x0a, 0x39, 0x94, 0x2a, 0x5c,
+        ];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
     }
 }

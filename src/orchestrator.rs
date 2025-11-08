@@ -1,8 +1,7 @@
-use crate::bitcoin_address_helper::{AddressEncoder, BitcoinAddressHelper};
 use crate::device_info::DeviceInfo;
 use crate::events::{EventSender, WorkbenchEvent};
 use crate::extended_public_key::ExtendedPubKey;
-use crate::extended_public_key_deriver::{ExtendedPublicKeyDeriver, KeyDeriver};
+use crate::ground_truth_validator::GroundTruthValidator;
 use crate::logger::{BenchStats, Logger};
 use crate::prefix::Prefix;
 use crate::workbench::Workbench;
@@ -25,8 +24,7 @@ pub struct Orchestrator {
     event_tx: Sender<WorkbenchEvent>,
     event_rx: Receiver<WorkbenchEvent>,
 
-    xpub_deriver: ExtendedPublicKeyDeriver,
-    address_helper: BitcoinAddressHelper,
+    ground_truth_validator: GroundTruthValidator,
 
     logger: Logger,
 }
@@ -37,11 +35,10 @@ impl Orchestrator {
         prefix: Prefix,
         max_depth: u32,
         stop_signal: Arc<AtomicBool>,
+        ground_truth_validator: GroundTruthValidator,
         logger: Logger,
     ) -> Self {
         let (event_tx, event_rx) = mpsc::channel();
-        let xpub_deriver = ExtendedPublicKeyDeriver::new(&xpub);
-        let address_helper = BitcoinAddressHelper::new();
 
         Self {
             xpub,
@@ -50,8 +47,7 @@ impl Orchestrator {
             stop_signal,
             event_tx,
             event_rx,
-            xpub_deriver,
-            address_helper,
+            ground_truth_validator,
             logger,
         }
     }
@@ -168,15 +164,27 @@ impl Orchestrator {
     }
 
     fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6]) -> bool {
-        let path_vec = path.to_vec();
-
-        match self.xpub_deriver.get_pubkey_hash_160(&path_vec) {
-            Ok(pubkey_hash) => {
-                let address = self
-                    .address_helper
-                    .get_address_from_pubkey_hash(&pubkey_hash);
-                self.logger.log_found_address(&bench_id, &address, &path);
-                true
+        // First validate that the address actually matches the prefix using ground truth
+        match self
+            .ground_truth_validator
+            .validate_address(self.prefix.as_str(), &path)
+        {
+            Ok(true) => {
+                // Only if it truly matches, get the address and log it
+                match self.ground_truth_validator.get_address(&path) {
+                    Ok(address) => {
+                        self.logger.log_found_address(&bench_id, &address, &path);
+                        true
+                    }
+                    Err(_) => {
+                        self.logger.log_derivation_error();
+                        false
+                    }
+                }
+            }
+            Ok(false) => {
+                // False positive from range matching - not a real match
+                false
             }
             Err(_) => {
                 self.logger.log_derivation_error();
@@ -219,12 +227,21 @@ mod tests {
     use crate::extended_public_key::ExtendedPubKey;
 
     fn create_test_orchestrator() -> (Orchestrator, Arc<AtomicBool>) {
-        let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let prefix = Prefix::new("1");
         let stop_signal = Arc::new(AtomicBool::new(false));
+        let ground_truth_validator = GroundTruthValidator::new(xpub_str).unwrap();
         let logger = Logger::new();
 
-        let orchestrator = Orchestrator::new(xpub, prefix, 10000, Arc::clone(&stop_signal), logger);
+        let orchestrator = Orchestrator::new(
+            xpub,
+            prefix,
+            10000,
+            Arc::clone(&stop_signal),
+            ground_truth_validator,
+            logger,
+        );
 
         (orchestrator, stop_signal)
     }
