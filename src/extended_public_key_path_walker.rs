@@ -1,5 +1,5 @@
 pub trait PathWalker {
-    type Iterator: Iterator<Item = Vec<u32>>;
+    type Iterator: Iterator<Item = [u32; 6]>;
     fn iter_from_counter(&self, start_counter: u64, chunk_size: u64) -> Self::Iterator;
 }
 
@@ -44,17 +44,17 @@ pub struct PathIterator {
 impl PathIterator {
     const MAX_31_BITS: u64 = 0x7FFFFFFF;
 
-    fn counter_to_path(&self, counter: u64) -> Vec<u32> {
+    fn counter_to_path(&self, counter: u64) -> [u32; 6] {
         let index = (counter % self.max_depth as u64) as u32;
         let a = ((counter / self.max_depth as u64) % Self::MAX_31_BITS) as u32;
         let b = (counter / (self.max_depth as u64 * Self::MAX_31_BITS)) as u32;
 
-        vec![self.seed0, self.seed1, b, a, 0, index]
+        [self.seed0, self.seed1, b, a, 0, index]
     }
 }
 
 impl Iterator for PathIterator {
-    type Item = Vec<u32>;
+    type Item = [u32; 6];
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_counter >= self.end_counter {
@@ -75,12 +75,12 @@ mod tests {
     fn test_simple_iteration() {
         let walker = ExtendedPublicKeyPathWalker::new(1000, 2000, 100);
 
-        let paths: Vec<Vec<u32>> = walker.iter_from_counter(0, 3).collect();
+        let paths: Vec<[u32; 6]> = walker.iter_from_counter(0, 3).collect();
 
         assert_eq!(paths.len(), 3);
-        assert_eq!(paths[0], vec![1000, 2000, 0, 0, 0, 0]);
-        assert_eq!(paths[1], vec![1000, 2000, 0, 0, 0, 1]);
-        assert_eq!(paths[2], vec![1000, 2000, 0, 0, 0, 2]);
+        assert_eq!(paths[0], [1000, 2000, 0, 0, 0, 0]);
+        assert_eq!(paths[1], [1000, 2000, 0, 0, 0, 1]);
+        assert_eq!(paths[2], [1000, 2000, 0, 0, 0, 2]);
     }
 
     #[test]
@@ -88,25 +88,25 @@ mod tests {
         let walker = ExtendedPublicKeyPathWalker::new(1000, 2000, 10000);
 
         let mut iter = walker.iter_from_counter(0, 1);
-        assert_eq!(iter.next(), Some(vec![1000, 2000, 0, 0, 0, 0]));
+        assert_eq!(iter.next(), Some([1000, 2000, 0, 0, 0, 0]));
 
         let mut iter = walker.iter_from_counter(5000, 1);
-        assert_eq!(iter.next(), Some(vec![1000, 2000, 0, 0, 0, 5000]));
+        assert_eq!(iter.next(), Some([1000, 2000, 0, 0, 0, 5000]));
 
         let mut iter = walker.iter_from_counter(10000, 1);
-        assert_eq!(iter.next(), Some(vec![1000, 2000, 0, 1, 0, 0]));
+        assert_eq!(iter.next(), Some([1000, 2000, 0, 1, 0, 0]));
     }
 
     #[test]
     fn test_chunk_iteration() {
         let walker = ExtendedPublicKeyPathWalker::new(100, 200, 10);
 
-        let paths: Vec<Vec<u32>> = walker.iter_from_counter(5, 3).collect();
+        let paths: Vec<[u32; 6]> = walker.iter_from_counter(5, 3).collect();
 
         assert_eq!(paths.len(), 3);
-        assert_eq!(paths[0], vec![100, 200, 0, 0, 0, 5]);
-        assert_eq!(paths[1], vec![100, 200, 0, 0, 0, 6]);
-        assert_eq!(paths[2], vec![100, 200, 0, 0, 0, 7]);
+        assert_eq!(paths[0], [100, 200, 0, 0, 0, 5]);
+        assert_eq!(paths[1], [100, 200, 0, 0, 0, 6]);
+        assert_eq!(paths[2], [100, 200, 0, 0, 0, 7]);
     }
 
     #[test]
@@ -114,10 +114,10 @@ mod tests {
         let walker = ExtendedPublicKeyPathWalker::new(0, 0, 100);
 
         let mut iter = walker.iter_from_counter(100, 1);
-        assert_eq!(iter.next(), Some(vec![0, 0, 0, 1, 0, 0]));
+        assert_eq!(iter.next(), Some([0, 0, 0, 1, 0, 0]));
 
         let mut iter = walker.iter_from_counter(200, 1);
-        assert_eq!(iter.next(), Some(vec![0, 0, 0, 2, 0, 0]));
+        assert_eq!(iter.next(), Some([0, 0, 0, 2, 0, 0]));
     }
 
     #[test]
@@ -140,15 +140,15 @@ mod tests {
 
         // Just before max_depth
         let mut iter = walker.iter_from_counter(99, 1);
-        assert_eq!(iter.next(), Some(vec![0, 0, 0, 0, 0, 99]));
+        assert_eq!(iter.next(), Some([0, 0, 0, 0, 0, 99]));
 
         // At max_depth - should roll over to a=1, index=0
         let mut iter = walker.iter_from_counter(100, 1);
-        assert_eq!(iter.next(), Some(vec![0, 0, 0, 1, 0, 0]));
+        assert_eq!(iter.next(), Some([0, 0, 0, 1, 0, 0]));
 
         // One after max_depth
         let mut iter = walker.iter_from_counter(101, 1);
-        assert_eq!(iter.next(), Some(vec![0, 0, 0, 1, 0, 1]));
+        assert_eq!(iter.next(), Some([0, 0, 0, 1, 0, 1]));
     }
 
     #[test]
@@ -156,14 +156,14 @@ mod tests {
         let walker = ExtendedPublicKeyPathWalker::new(0, 0, 10);
 
         // Start at 8, iterate across the boundary
-        let paths: Vec<Vec<u32>> = walker.iter_from_counter(8, 5).collect();
+        let paths: Vec<[u32; 6]> = walker.iter_from_counter(8, 5).collect();
 
         assert_eq!(paths.len(), 5);
-        assert_eq!(paths[0], vec![0, 0, 0, 0, 0, 8]); // counter=8
-        assert_eq!(paths[1], vec![0, 0, 0, 0, 0, 9]); // counter=9
-        assert_eq!(paths[2], vec![0, 0, 0, 1, 0, 0]); // counter=10, a increments!
-        assert_eq!(paths[3], vec![0, 0, 0, 1, 0, 1]); // counter=11
-        assert_eq!(paths[4], vec![0, 0, 0, 1, 0, 2]); // counter=12
+        assert_eq!(paths[0], [0, 0, 0, 0, 0, 8]); // counter=8
+        assert_eq!(paths[1], [0, 0, 0, 0, 0, 9]); // counter=9
+        assert_eq!(paths[2], [0, 0, 0, 1, 0, 0]); // counter=10, a increments!
+        assert_eq!(paths[3], [0, 0, 0, 1, 0, 1]); // counter=11
+        assert_eq!(paths[4], [0, 0, 0, 1, 0, 2]); // counter=12
     }
 
     #[test]
@@ -172,7 +172,7 @@ mod tests {
 
         // Start at a=1000, index=0
         let counter_start = 1000 * 100; // a=1000, index=0
-        let paths: Vec<Vec<u32>> = walker.iter_from_counter(counter_start, 150).collect();
+        let paths: Vec<[u32; 6]> = walker.iter_from_counter(counter_start, 150).collect();
 
         // First 100 should have a=1000, index 0-99
         for i in 0..100 {
@@ -228,7 +228,7 @@ mod tests {
     fn test_iterator_stops_at_chunk_size() {
         let walker = ExtendedPublicKeyPathWalker::new(0, 0, 100);
 
-        let paths: Vec<Vec<u32>> = walker.iter_from_counter(0, 5).collect();
+        let paths: Vec<[u32; 6]> = walker.iter_from_counter(0, 5).collect();
 
         assert_eq!(paths.len(), 5, "Should stop exactly at chunk_size");
 
