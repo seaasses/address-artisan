@@ -1,7 +1,6 @@
 use crate::events::EventSender;
 use crate::extended_public_key_deriver::{ExtendedPublicKeyDeriver, KeyDeriver};
 use crate::extended_public_key_path_walker::{ExtendedPublicKeyPathWalker, PathWalker};
-use crate::prefix::{CpuPrefixValidator, PrefixValidator};
 use crate::workbench::Workbench;
 use crate::workbench_config::WorkbenchConfig;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -62,7 +61,6 @@ impl Workbench for CPUWorkbench {
                 let path_walker =
                     ExtendedPublicKeyPathWalker::new(config.seed0, config.seed1, config.max_depth);
                 let mut xpub_deriver = ExtendedPublicKeyDeriver::new(&config.xpub);
-                let mut prefix_validator = CpuPrefixValidator::new();
                 let mut current_chunk_size = MIN_CHUNK_SIZE;
                 let mut generated_since_last_report = 0u64;
                 let mut last_report_time = Instant::now();
@@ -76,13 +74,8 @@ impl Workbench for CPUWorkbench {
                         path_walker.iter_from_counter(start_counter, current_chunk_size as u64)
                     {
                         if let Ok(pubkey_hash) = xpub_deriver.get_pubkey_hash_160(&path) {
-                            if prefix_validator
-                                .validate_and_get_address(&config.prefix, &pubkey_hash)
-                                .is_some()
-                            {
-                                if let Ok(path_array) = path.try_into() {
-                                    event_sender.potential_match(path_array);
-                                }
+                            if config.prefix.matches_pattern(&pubkey_hash) {
+                                event_sender.potential_match(path);
                             }
                         }
 
