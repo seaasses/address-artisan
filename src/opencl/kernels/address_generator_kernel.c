@@ -18,17 +18,15 @@ __kernel void address_generator_kernel(
 
     uint index = base_index + thread_id;
 
-    uchar chain_code[32];
+    XPub parent;
     for (int i = 0; i < 32; i++) {
-        chain_code[i] = chain_code_buffer[i];
+        parent.chain_code[i] = chain_code_buffer[i];
     }
-
-    Point k_par;
-    k_par.x = UINT256_FROM_BYTES(k_par_x_buffer);
-    k_par.y = UINT256_FROM_BYTES(k_par_y_buffer);
+    parent.k_par.x = UINT256_FROM_BYTES(k_par_x_buffer);
+    parent.k_par.y = UINT256_FROM_BYTES(k_par_y_buffer);
 
     uchar compressed_key[33];
-    ckdpub(chain_code, k_par, index, compressed_key);
+    ckdpub(parent, index, compressed_key);
 
     uchar hash160[20];
     hash160_33(compressed_key, hash160);

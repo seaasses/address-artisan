@@ -9,14 +9,13 @@
 #include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
 
 inline void ckdpub(
-    const unsigned char *restrict chain_code,
-    const Point k_par,
+    const XPub parent,
     unsigned int index,
     unsigned char *restrict result)
 {
     unsigned char compressed_key[33];
-    compressed_key[0] = (unsigned char)(0x02 | (((unsigned char)(k_par.y.limbs[3])) & 1));
-    uint256_to_bytes(k_par.x, &compressed_key[1]);
+    compressed_key[0] = (unsigned char)(0x02 | (((unsigned char)(parent.k_par.y.limbs[3])) & 1));
+    uint256_to_bytes(parent.k_par.x, &compressed_key[1]);
 
     unsigned char hmac_message[37];
     for (unsigned char i = 0; i < 33; i++)
@@ -30,15 +29,14 @@ inline void ckdpub(
     hmac_message[36] = (unsigned char)(index);
 
     unsigned char hmac_hash[64];
-    hmac_sha512_key32_msg37(chain_code, hmac_message, hmac_hash);
+    hmac_sha512_key32_msg37(parent.chain_code, hmac_message, hmac_hash);
 
     Point k_child = jacobian_to_affine(
         jacobian_point_affine_point_addition(
             g_times_scalar(
                 UINT256_FROM_BYTES(hmac_hash)),
-            k_par));
+            parent.k_par));
 
-    // Write compressed public key to result buffer
     result[0] = (unsigned char)(0x02 | (((unsigned char)(k_child.y.limbs[3])) & 1));
     uint256_to_bytes(k_child.x, &result[1]);
 }

@@ -9,7 +9,6 @@ __kernel void ckdpub_kernel(
     __global unsigned int *index_buffer,
     __global unsigned char *compressed_key_buffer)
 {
-    // Copy data from global to private memory
     unsigned char chain_code_private[32];
     unsigned char k_par_x_private[32];
     unsigned char k_par_y_private[32];
@@ -22,16 +21,16 @@ __kernel void ckdpub_kernel(
 
     unsigned int index = index_buffer[0];
 
-    // Convert byte arrays to Point
-    Point k_par;
-    k_par.x = UINT256_FROM_BYTES(k_par_x_private);
-    k_par.y = UINT256_FROM_BYTES(k_par_y_private);
+    XPub parent;
+    for (int i = 0; i < 32; i++) {
+        parent.chain_code[i] = chain_code_private[i];
+    }
+    parent.k_par.x = UINT256_FROM_BYTES(k_par_x_private);
+    parent.k_par.y = UINT256_FROM_BYTES(k_par_y_private);
 
-    // Derive child key - result is written to private buffer
     unsigned char compressed_key_private[33];
-    ckdpub(chain_code_private, k_par, index, compressed_key_private);
+    ckdpub(parent, index, compressed_key_private);
 
-    // Copy result to global memory
     for (int i = 0; i < 33; i++) {
         compressed_key_buffer[i] = compressed_key_private[i];
     }
