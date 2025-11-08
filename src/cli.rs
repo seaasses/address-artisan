@@ -21,25 +21,18 @@ pub struct Cli {
     )]
     pub max_depth: u32,
     #[arg(
-        long = "i-am-boring",
-        help = "Hmmm, so you are a boring person and don't have friends? Ok, I will not talk to you.",
-        value_parser = Cli::fix_i_am_boring
+        short = 't',
+        long = "cpu-threads",
+        help = "Number of CPU threads to use (0 = auto-detect all available threads)",
+        default_value = "0",
+        value_parser = Cli::validate_cpu_threads
     )]
-    pub i_am_boring: bool,
+    pub cpu_threads: u32,
 }
 
 impl Cli {
     pub fn parse_args() -> Self {
         Self::parse()
-    }
-    fn fix_i_am_boring(i_am_boring: &str) -> Result<bool, String> {
-        if i_am_boring == "true" {
-            return Ok(false);
-        }
-        if i_am_boring == "false" {
-            return Ok(true);
-        }
-        Err("Invalid value for i-am-boring".to_string())
     }
 
     fn validate_max_depth(max_depth: &str) -> Result<u32, String> {
@@ -94,6 +87,14 @@ impl Cli {
         }
 
         Ok(xpub.to_string())
+    }
+
+    fn validate_cpu_threads(threads: &str) -> Result<u32, String> {
+        let threads_int: u32 = threads
+            .parse()
+            .map_err(|e: std::num::ParseIntError| e.to_string())?;
+
+        Ok(threads_int)
     }
 }
 
@@ -218,6 +219,30 @@ mod tests {
     fn test_validate_max_depth_invalid_hex_max() {
         let max_depth = "0x80000001";
         let result = Cli::validate_max_depth(max_depth);
+        assert!(result.is_err());
+    }
+
+    // cpu_threads tests
+    #[test]
+    fn test_validate_cpu_threads_zero_auto_detect() {
+        let threads = "0";
+        let result = Cli::validate_cpu_threads(threads);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0, "Should return 0 for auto-detect");
+    }
+
+    #[test]
+    fn test_validate_cpu_threads_valid() {
+        let threads = "4";
+        let result = Cli::validate_cpu_threads(threads);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 4);
+    }
+
+    #[test]
+    fn test_validate_cpu_threads_invalid() {
+        let threads = "abc";
+        let result = Cli::validate_cpu_threads(threads);
         assert!(result.is_err());
     }
 }

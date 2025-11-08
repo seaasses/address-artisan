@@ -5,7 +5,6 @@ use sha2::{Digest, Sha256};
 pub struct ExtendedPubKey {
     pub public_key: PublicKey,
     pub chain_code: [u8; 32],
-    pub depth: u8,
 }
 
 impl ExtendedPubKey {
@@ -46,7 +45,6 @@ impl ExtendedPubKey {
         Ok(ExtendedPubKey {
             public_key,
             chain_code,
-            depth: payload[4],
         })
     }
 }
@@ -77,8 +75,6 @@ mod tests {
                 0x52, 0xd4, 0x32, 0xf4
             ]
         );
-
-        assert_eq!(extended_pub_key.depth, 0x03);
     }
 
     #[test]

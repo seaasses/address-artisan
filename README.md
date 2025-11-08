@@ -12,6 +12,10 @@ This software is inspired by [Senzu](https://github.com/kaiwolfram/senzu) and ai
 - ⚡ **Fast**: Built in Rust with fast public key derivation and prefix matching. 🚀
 - 😎 **Cool**: "1There1sNoSpoon" is much cooler than "bc1qtheresn0sp00n". P2PKH wins! 🎉
 
+## Coming soon
+
+I'm working on a version of this tool that will use the GPU to generate vanity addresses. You can follow the progress [here](https://github.com/seaasses/address-artisan/tree/feature/opencl).
+
 ## Get the Tool
 
 You can install the tool using:

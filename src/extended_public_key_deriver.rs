@@ -1,33 +1,42 @@
+use crate::constants::NON_HARDENED_MAX_INDEX;
 use crate::extended_public_key::ExtendedPubKey;
 use hmac::{Hmac, Mac};
+use lru::LruCache;
 use ripemd::Ripemd160;
 use secp256k1::{PublicKey, Secp256k1};
 use sha2::{Digest, Sha256, Sha512};
-use std::collections::HashMap;
+use std::num::NonZeroUsize;
 
-pub struct ExtendedPublicKeyDeriver {
-    pub non_hardening_max_index: u32,
-    derivation_cache: HashMap<Box<[u32]>, ExtendedPubKey>,
-    secp: Secp256k1<secp256k1::All>,
-    base_xpub: ExtendedPubKey,
+pub trait KeyDeriver {
+    fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String>;
+    fn get_pubkey(&mut self, path: &[u32]) -> Result<[u8; 33], String>;
 }
 
-const MAX_CACHE_SIZE: usize = 100_000;
+pub struct ExtendedPublicKeyDeriver {
+    derivation_cache: LruCache<Box<[u32]>, ExtendedPubKey>,
+    secp: Secp256k1<secp256k1::All>,
+    base_xpub: ExtendedPubKey,
+    sha256_hasher: Sha256,
+    ripemd_hasher: Ripemd160,
+}
+
+const MAX_CACHE_SIZE: usize = 10_000;
 
 impl ExtendedPublicKeyDeriver {
     pub fn new(base_xpub: &ExtendedPubKey) -> Self {
         Self {
-            non_hardening_max_index: 0x7FFFFFFF,
-            derivation_cache: HashMap::with_capacity(MAX_CACHE_SIZE),
+            derivation_cache: LruCache::new(NonZeroUsize::new(MAX_CACHE_SIZE).unwrap()),
             secp: Secp256k1::new(),
             base_xpub: base_xpub.clone(),
+            sha256_hasher: Sha256::new(),
+            ripemd_hasher: Ripemd160::new(),
         }
     }
 
     fn derive_child(&self, parent: &ExtendedPubKey, index: u32) -> Result<ExtendedPubKey, String> {
-        let mut data = Vec::with_capacity(37);
-        data.extend_from_slice(&parent.public_key.serialize());
-        data.extend_from_slice(&index.to_be_bytes());
+        let mut data = [0u8; 37]; // 33 bytes pubkey + 4 bytes index
+        data[0..33].copy_from_slice(&parent.public_key.serialize());
+        data[33..37].copy_from_slice(&index.to_be_bytes());
 
         let mut hmac = Hmac::<Sha512>::new_from_slice(&parent.chain_code)
             .map_err(|e| format!("HMAC error: {}", e))?;
@@ -37,8 +46,10 @@ impl ExtendedPublicKeyDeriver {
         let il = &result[0..32];
         let ir = &result[32..];
 
-        let tweak =
-            secp256k1::SecretKey::from_slice(il).map_err(|e| format!("Invalid tweak: {}", e))?;
+        let mut il_array = [0u8; 32];
+        il_array.copy_from_slice(il);
+        let tweak = secp256k1::SecretKey::from_byte_array(il_array)
+            .map_err(|e| format!("Invalid tweak: {}", e))?;
 
         let child_pubkey = parent
             .public_key
@@ -51,39 +62,7 @@ impl ExtendedPublicKeyDeriver {
         Ok(ExtendedPubKey {
             public_key: child_pubkey,
             chain_code,
-            depth: parent.depth + 1,
         })
-    }
-
-    pub fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String> {
-        let pubkey = self.get_pubkey(path)?;
-        let mut hasher = Sha256::new();
-        hasher.update(&pubkey);
-        let hash = hasher.finalize();
-
-        let mut ripemd_hasher = Ripemd160::new();
-        ripemd_hasher.update(hash);
-        let hash = ripemd_hasher.finalize();
-
-        let mut result = [0u8; 20];
-        result.copy_from_slice(&hash);
-        Ok(result)
-    }
-
-    pub fn get_pubkey(&mut self, path: &[u32]) -> Result<[u8; 33], String> {
-        let derived_xpub = self.get_derived_xpub(path)?;
-        Ok(derived_xpub.public_key.serialize())
-    }
-
-    fn get_from_cache(&self, path: &[u32]) -> Option<&ExtendedPubKey> {
-        self.derivation_cache.get(path)
-    }
-
-    fn store_in_cache(&mut self, path: &[u32], xpub: ExtendedPubKey) {
-        if self.derivation_cache.len() == MAX_CACHE_SIZE {
-            self.derivation_cache.clear();
-        }
-        self.derivation_cache.insert(path.into(), xpub);
     }
 
     fn derive_single_step(
@@ -91,38 +70,64 @@ impl ExtendedPublicKeyDeriver {
         parent: &ExtendedPubKey,
         index: u32,
     ) -> Result<ExtendedPubKey, String> {
-        if index > self.non_hardening_max_index {
+        if index > NON_HARDENED_MAX_INDEX {
             return Err(format!("{} is reserved for hardened derivation", index));
         }
         self.derive_child(parent, index)
     }
+}
 
+impl KeyDeriver for ExtendedPublicKeyDeriver {
+    fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String> {
+        let pubkey = self.get_pubkey(path)?;
+
+        self.sha256_hasher.reset();
+        self.sha256_hasher.update(&pubkey);
+        let hash = self.sha256_hasher.finalize_reset();
+
+        self.ripemd_hasher.reset();
+        self.ripemd_hasher.update(hash);
+        let hash = self.ripemd_hasher.finalize_reset();
+
+        let mut result = [0u8; 20];
+        result.copy_from_slice(&hash);
+        Ok(result)
+    }
+
+    fn get_pubkey(&mut self, path: &[u32]) -> Result<[u8; 33], String> {
+        let derived_xpub = self.get_derived_xpub(path)?;
+        Ok(derived_xpub.public_key.serialize())
+    }
+}
+
+impl ExtendedPublicKeyDeriver {
     fn get_derived_xpub(&mut self, path: &[u32]) -> Result<ExtendedPubKey, String> {
         if path.is_empty() {
             return Ok(self.base_xpub.clone());
         }
 
         let mut start_index = 0;
-        let mut current_xpub = self.base_xpub.clone();
+        let mut current_xpub = None;
 
         for i in (0..path.len() - 1).rev() {
             let subpath = &path[0..=i];
-            if let Some(cached) = self.get_from_cache(subpath) {
-                current_xpub = cached.clone();
+            if let Some(cached) = self.derivation_cache.get(subpath) {
+                current_xpub = Some(cached.clone());
                 start_index = i + 1;
                 break;
             }
         }
 
-        // Derive remaining steps
-        for &index in path[start_index..].iter() {
-            current_xpub = self.derive_single_step(&current_xpub, index)?;
+        let mut current_xpub = current_xpub.unwrap_or_else(|| self.base_xpub.clone());
 
-            // Cache intermediate paths
-            if start_index < path.len() - 1 {
-                self.store_in_cache(&path[0..=start_index], current_xpub.clone());
+        for (offset, &index) in path[start_index..].iter().enumerate() {
+            current_xpub = self.derive_single_step(&current_xpub, index)?;
+            let current_depth = start_index + offset;
+            if current_depth < path.len() - 1 {
+                let cache_path = &path[0..=current_depth];
+                self.derivation_cache
+                    .put(cache_path.into(), current_xpub.clone());
             }
-            start_index += 1;
         }
 
         Ok(current_xpub)
