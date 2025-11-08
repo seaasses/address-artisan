@@ -1,4 +1,4 @@
-use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
+use ocl::{Buffer, Context, Device, Queue};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -59,8 +59,6 @@ unsafe impl ocl::OclPrm for XPub {}
 pub struct GpuCache {
     _device: Device,
     _context: Context,
-    queue: Queue,
-    lookup_kernel: Kernel,
     keys_buffer: Buffer<CacheKey>,
     values_buffer: Buffer<XPub>,
     capacity: usize,
@@ -68,38 +66,14 @@ pub struct GpuCache {
 }
 
 impl GpuCache {
-    pub fn new(capacity: usize) -> Result<Self, String> {
-        let (device, context, queue) = Self::get_device_context_and_queue()?;
-
+    /// Create a new GPU cache using the provided OpenCL device, context, and queue
+    pub fn new(device: Device, context: Context, queue: Queue, capacity: usize) -> Result<Self, String> {
         let keys_buffer = Self::new_buffer::<CacheKey>(&queue, capacity)?;
         let values_buffer = Self::new_buffer::<XPub>(&queue, capacity)?;
-
-        let program = Self::build_program(device, context.clone())?;
-
-        let dummy_search = Self::new_buffer::<CacheKey>(&queue, 1)?;
-        let dummy_output = Self::new_buffer::<XPub>(&queue, 1)?;
-        let dummy_flags = Self::new_buffer::<i32>(&queue, 1)?;
-
-        let lookup_kernel = Kernel::builder()
-            .program(&program)
-            .name("cache_lookup")
-            .queue(queue.clone())
-            .global_work_size(1)
-            .arg(&keys_buffer)
-            .arg(&values_buffer)
-            .arg(&dummy_search)
-            .arg(&dummy_output)
-            .arg(&dummy_flags)
-            .arg(0u32)
-            .arg(0u32)
-            .build()
-            .map_err(|e| format!("Error creating lookup kernel: {}", e))?;
 
         Ok(Self {
             _device: device,
             _context: context,
-            queue,
-            lookup_kernel,
             keys_buffer,
             values_buffer,
             capacity,
@@ -156,101 +130,13 @@ impl GpuCache {
         Ok(())
     }
 
-    pub fn lookup(&self, search_keys: &[[u32; 2]]) -> Result<Vec<Option<XPub>>, String> {
-        if search_keys.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let search_count = search_keys.len();
-
-        let cache_search_keys: Vec<CacheKey> = search_keys
-            .iter()
-            .map(|k| CacheKey { b: k[0], a: k[1] })
-            .collect();
-
-        let search_buffer = Self::new_buffer::<CacheKey>(&self.queue, search_count)?;
-        let output_buffer = Self::new_buffer::<XPub>(&self.queue, search_count)?;
-        let found_flags_buffer = Self::new_buffer::<i32>(&self.queue, search_count)?;
-
-        search_buffer
-            .write(&cache_search_keys)
-            .enq()
-            .map_err(|e| format!("Error writing search keys: {}", e))?;
-        self.lookup_kernel
-            .set_arg(0, &self.keys_buffer)
-            .map_err(|e| format!("Error setting keys_buffer arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(1, &self.values_buffer)
-            .map_err(|e| format!("Error setting values_buffer arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(2, &search_buffer)
-            .map_err(|e| format!("Error setting search_buffer arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(3, &output_buffer)
-            .map_err(|e| format!("Error setting output_buffer arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(4, &found_flags_buffer)
-            .map_err(|e| format!("Error setting found_flags_buffer arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(5, self.current_size as u32)
-            .map_err(|e| format!("Error setting cache_size arg: {}", e))?;
-        self.lookup_kernel
-            .set_arg(6, search_count as u32)
-            .map_err(|e| format!("Error setting search_count arg: {}", e))?;
-
-        unsafe {
-            self.lookup_kernel
-                .cmd()
-                .global_work_size(search_count)
-                .enq()
-                .map_err(|e| format!("Error executing lookup kernel: {}", e))?;
-        }
-
-        let mut output_values = vec![XPub::default(); search_count];
-        let mut found_flags = vec![0i32; search_count];
-
-        output_buffer
-            .read(&mut output_values)
-            .enq()
-            .map_err(|e| format!("Error reading output values: {}", e))?;
-
-        found_flags_buffer
-            .read(&mut found_flags)
-            .enq()
-            .map_err(|e| format!("Error reading found flags: {}", e))?;
-
-        let results: Vec<Option<XPub>> = output_values
-            .into_iter()
-            .zip(found_flags.into_iter())
-            .map(|(value, flag)| if flag == 1 { Some(value) } else { None })
-            .collect();
-
-        Ok(results)
-    }
-
-    pub fn contains_key(&self, key: &[u32; 2]) -> Result<bool, String> {
-        let results = self.lookup(&[*key])?;
-        Ok(results[0].is_some())
-    }
-
     pub fn clear(&mut self) {
         self.current_size = 0;
     }
 
-    pub fn size(&self) -> usize {
-        self.current_size
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    pub fn keys_buffer(&self) -> &Buffer<CacheKey> {
-        &self.keys_buffer
-    }
-
-    pub fn values_buffer(&self) -> &Buffer<XPub> {
-        &self.values_buffer
+    /// Get buffers and size for use in batch kernels
+    pub fn get_buffers(&self) -> (&Buffer<CacheKey>, &Buffer<XPub>, usize) {
+        (&self.keys_buffer, &self.values_buffer, self.current_size)
     }
 
     fn new_buffer<T: ocl::OclPrm>(queue: &Queue, len: usize) -> Result<Buffer<T>, String> {
@@ -260,44 +146,29 @@ impl GpuCache {
             .build()
             .map_err(|e| format!("Error creating buffer: {}", e))
     }
-
-    fn build_program(device: Device, context: Context) -> Result<Program, String> {
-        let src = include_str!(concat!(env!("OUT_DIR"), "/cache_lookup"));
-
-        Program::builder()
-            .src(src)
-            .devices(device)
-            .build(&context)
-            .map_err(|e| format!("Error building OpenCL program: {}", e))
-    }
-
-    fn get_device_context_and_queue() -> Result<(Device, Context, Queue), String> {
-        let platform = Platform::first()
-            .map_err(|e| format!("Error getting OpenCL platform: {}", e))?;
-
-        let device = Device::first(platform)
-            .map_err(|e| format!("Error getting OpenCL device: {}", e))?;
-
-        let context = Context::builder()
-            .platform(platform)
-            .devices(device)
-            .build()
-            .map_err(|e| format!("Error creating OpenCL context: {}", e))?;
-
-        let queue = Queue::new(&context, device, None)
-            .map_err(|e| format!("Error creating OpenCL queue: {}", e))?;
-
-        Ok((device, context, queue))
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ocl::Platform;
+
+    fn create_test_opencl_context() -> (Device, Context, Queue) {
+        let platform = Platform::first().expect("No OpenCL platform found");
+        let device = Device::first(platform).expect("No OpenCL device found");
+        let context = Context::builder()
+            .platform(platform)
+            .devices(device)
+            .build()
+            .expect("Failed to create context");
+        let queue = Queue::new(&context, device, None).expect("Failed to create queue");
+        (device, context, queue)
+    }
 
     #[test]
     fn test_cache_basic_operations() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
 
         // Verify initial state
         assert_eq!(cache.size(), 0);
@@ -340,7 +211,8 @@ mod tests {
 
     #[test]
     fn test_cache_miss() {
-        let cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let cache = GpuCache::new(device, context, queue, 100).unwrap();
 
         // Lookup in empty cache
         let results = cache.lookup(&[[1, 2]]).unwrap();
@@ -352,7 +224,8 @@ mod tests {
 
     #[test]
     fn test_cache_capacity() {
-        let mut cache = GpuCache::new(10).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 10).unwrap();
 
         let keys: Vec<[u32; 2]> = (0..15).map(|i| [i, 0]).collect();
         let values: Vec<XPub> = (0..15).map(|_| XPub::default()).collect();
@@ -365,7 +238,8 @@ mod tests {
 
     #[test]
     fn test_multiple_lookups() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
 
         // Add multiple entries
         let keys = vec![[0, 0], [0, 1], [0, 2], [1, 0]];
@@ -404,7 +278,8 @@ mod tests {
 
     #[test]
     fn test_cache_clear() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
 
         let keys = vec![[1, 2]];
         let values = vec![XPub::default()];
@@ -418,7 +293,8 @@ mod tests {
 
     #[test]
     fn test_add_data_length_mismatch() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
 
         let keys = vec![[1, 2], [4, 5]];
         let values = vec![XPub::default()]; // Only 1 value for 2 keys

@@ -20,6 +20,7 @@ impl GroundTruthValidator {
         })
     }
 
+    #[cfg(test)]
     pub fn validate_address(&self, prefix: &str, path: &[u32; 6]) -> Result<bool, String> {
         let derived_key = self.derive_key(path)?;
 
@@ -28,9 +29,25 @@ impl GroundTruthValidator {
         Ok(address.starts_with(prefix))
     }
 
+    #[cfg(test)]
     pub fn get_address(&self, path: &[u32; 6]) -> Result<String, String> {
         let derived_key = self.derive_key(path)?;
         self.pubkey_to_p2pkh_address(&derived_key)
+    }
+
+    pub fn validate_and_get_address(
+        &self,
+        prefix: &str,
+        path: &[u32; 6],
+    ) -> Result<Option<String>, String> {
+        let derived_key = self.derive_key(path)?;
+        let address = self.pubkey_to_p2pkh_address(&derived_key)?;
+
+        if address.starts_with(prefix) {
+            Ok(Some(address))
+        } else {
+            Ok(None)
+        }
     }
 
     fn derive_key(&self, path: &[u32; 6]) -> Result<bitcoin::secp256k1::PublicKey, String> {

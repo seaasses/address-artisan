@@ -1,3 +1,6 @@
+#ifndef STRUCTS_H
+#define STRUCTS_H
+
 typedef struct
 {
   ulong limbs[4];
@@ -49,3 +52,5 @@ typedef struct
   uchar chain_code[32];
   Point k_par;
 } XPub;
+
+#endif // STRUCTS_H

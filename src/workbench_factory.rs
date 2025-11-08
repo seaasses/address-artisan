@@ -1,6 +1,7 @@
 use crate::cpu_workbench::CPUWorkbench;
 use crate::device_info::DeviceInfo;
 use crate::events::EventSender;
+use crate::gpu_workbench::GpuWorkbench;
 use crate::workbench::Workbench;
 use crate::workbench_config::WorkbenchConfig;
 use std::sync::atomic::AtomicBool;
@@ -21,6 +22,13 @@ impl WorkbenchFactory {
                 threads,
                 event_sender,
                 stop_signal,
+            )),
+            DeviceInfo::GPU { device_index, platform_index, .. } => Box::new(GpuWorkbench::new(
+                config,
+                event_sender,
+                stop_signal,
+                device_index,
+                platform_index,
             )),
         }
     }

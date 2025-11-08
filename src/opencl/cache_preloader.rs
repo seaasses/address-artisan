@@ -76,10 +76,24 @@ impl CachePreloader {
 mod tests {
     use super::*;
     use crate::extended_public_key::ExtendedPubKey;
+    use ocl::{Context, Device, Platform, Queue};
+
+    fn create_test_opencl_context() -> (Device, Context, Queue) {
+        let platform = Platform::first().expect("No OpenCL platform found");
+        let device = Device::first(platform).expect("No OpenCL device found");
+        let context = Context::builder()
+            .platform(platform)
+            .devices(device)
+            .build()
+            .expect("Failed to create context");
+        let queue = Queue::new(&context, device, None).expect("Failed to create queue");
+        (device, context, queue)
+    }
 
     #[test]
     fn test_preload_single_key() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
@@ -94,7 +108,8 @@ mod tests {
 
     #[test]
     fn test_preload_multiple_keys() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
@@ -111,7 +126,8 @@ mod tests {
 
     #[test]
     fn test_preload_empty() {
-        let mut cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);

@@ -31,16 +31,47 @@ impl CacheRangeAnalyzer {
 
         let mut cache_keys = Vec::new();
 
-        for b in b_start..=b_end {
-            let a_min = if b == b_start { a_start } else { 0 };
-            let a_max = if b == b_end {
-                a_end
-            } else {
-                NON_HARDENED_MAX_INDEX
-            };
+        // Guard against generating billions of keys when b changes
+        const MAX_REASONABLE_KEYS: usize = 100_000_000; // 100M max
 
-            for a in a_min..=a_max {
-                cache_keys.push([b, a]);
+        if b_start == b_end {
+            // Same b - just iterate a values
+            for a in a_start..=a_end {
+                cache_keys.push([b_start, a]);
+            }
+        } else {
+            // Different b values - this should be EXTREMELY rare with reasonable batch sizes
+            // Calculate how many keys would be generated
+            let keys_in_first_b = (NON_HARDENED_MAX_INDEX - a_start + 1) as u64;
+            let keys_in_last_b = (a_end + 1) as u64;
+            let keys_in_middle_bs =
+                (b_end.saturating_sub(b_start).saturating_sub(1)) as u64 * (NON_HARDENED_MAX_INDEX as u64 + 1);
+            let total_keys = keys_in_first_b + keys_in_middle_bs + keys_in_last_b;
+
+            if total_keys > MAX_REASONABLE_KEYS as u64 {
+                panic!(
+                    "Cache range analyzer would generate {} billion keys! This suggests max_depth is too large \
+                     or batch_size is absurdly huge. first=[{}, {}], last=[{}, {}]",
+                    total_keys / 1_000_000_000,
+                    b_start,
+                    a_start,
+                    b_end,
+                    a_end
+                );
+            }
+
+            // Generate keys (we already validated it won't be too many)
+            for b in b_start..=b_end {
+                let a_min = if b == b_start { a_start } else { 0 };
+                let a_max = if b == b_end {
+                    a_end
+                } else {
+                    NON_HARDENED_MAX_INDEX
+                };
+
+                for a in a_min..=a_max {
+                    cache_keys.push([b, a]);
+                }
             }
         }
 

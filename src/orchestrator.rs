@@ -164,25 +164,17 @@ impl Orchestrator {
     }
 
     fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6]) -> bool {
-        // First validate that the address actually matches the prefix using ground truth
+        // Validate and get address in one derivation to avoid double derivation
         match self
             .ground_truth_validator
-            .validate_address(self.prefix.as_str(), &path)
+            .validate_and_get_address(self.prefix.as_str(), &path)
         {
-            Ok(true) => {
-                // Only if it truly matches, get the address and log it
-                match self.ground_truth_validator.get_address(&path) {
-                    Ok(address) => {
-                        self.logger.log_found_address(&bench_id, &address, &path);
-                        true
-                    }
-                    Err(_) => {
-                        self.logger.log_derivation_error();
-                        false
-                    }
-                }
+            Ok(Some(address)) => {
+                // Match confirmed - log it
+                self.logger.log_found_address(&bench_id, &address, &path);
+                true
             }
-            Ok(false) => {
+            Ok(None) => {
                 // False positive from range matching - not a real match
                 false
             }
