@@ -40,6 +40,12 @@ typedef struct
 
 typedef struct
 {
+  uint b;
+  uint a;
+} CacheKey;
+
+typedef struct
+{
   uchar chain_code[32];
   Point k_par;
 } XPub;
