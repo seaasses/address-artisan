@@ -8,6 +8,7 @@ mod events;
 mod extended_public_key;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
+mod ground_truth_validator;
 mod logger;
 mod orchestrator;
 mod prefix;
@@ -18,6 +19,7 @@ mod workbench_factory;
 use cli::Cli;
 use device_manager::DeviceManager;
 use extended_public_key::ExtendedPubKey;
+use ground_truth_validator::GroundTruthValidator;
 use logger::Logger;
 use orchestrator::Orchestrator;
 use prefix::Prefix;
@@ -29,6 +31,8 @@ fn main() {
 
     let prefix = Prefix::new(&cli.prefix);
     let xpub = ExtendedPubKey::from_str(&cli.xpub).unwrap();
+    let ground_truth_validator = GroundTruthValidator::new(&cli.xpub)
+        .expect("Failed to create ground truth validator");
 
     let stop_signal = Arc::new(AtomicBool::new(false));
     let stop_signal_clone = Arc::clone(&stop_signal);
@@ -58,7 +62,7 @@ fn main() {
     logger.start(&cli.prefix, cli.max_depth, actual_threads);
     println!();
 
-    let mut orchestrator = Orchestrator::new(xpub, prefix, cli.max_depth, stop_signal, logger);
+    let mut orchestrator = Orchestrator::new(xpub, prefix, cli.max_depth, stop_signal, ground_truth_validator, logger);
 
     orchestrator.run(devices);
 }
