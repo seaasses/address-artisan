@@ -132,4 +132,71 @@ impl ExtendedPublicKeyDeriver {
 
         Ok(current_xpub)
     }
+
+    pub fn get_extended_key(&mut self, path: &[u32]) -> Result<([u8; 32], [u8; 32], [u8; 32]), String> {
+        let xpub = self.get_derived_xpub(path)?;
+
+        let uncompressed = xpub.public_key.serialize_uncompressed();
+
+        let mut x_coord = [0u8; 32];
+        let mut y_coord = [0u8; 32];
+        x_coord.copy_from_slice(&uncompressed[1..33]);
+        y_coord.copy_from_slice(&uncompressed[33..65]);
+
+        Ok((xpub.chain_code, x_coord, y_coord))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_extended_key_returns_valid_data() {
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+
+        let path = [131, 1342, 0, 0, 0];
+        let (chain_code, x_coord, y_coord) = deriver.get_extended_key(&path).unwrap();
+
+        assert_eq!(chain_code.len(), 32);
+        assert_eq!(x_coord.len(), 32);
+        assert_eq!(y_coord.len(), 32);
+
+        assert_ne!(chain_code, [0u8; 32]);
+        assert_ne!(x_coord, [0u8; 32]);
+        assert_ne!(y_coord, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_get_extended_key_matches_get_pubkey() {
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+
+        let path = [131, 1342, 0, 0, 0];
+
+        let compressed_key = deriver.get_pubkey(&path).unwrap();
+        let (_chain_code, x_coord, y_coord) = deriver.get_extended_key(&path).unwrap();
+
+        assert_eq!(compressed_key[0], 0x02 | (y_coord[31] & 1));
+        assert_eq!(&compressed_key[1..33], &x_coord[..]);
+    }
+
+    #[test]
+    fn test_get_extended_key_same_path_same_result() {
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+
+        let path = [131, 1342, 0, 0, 0];
+
+        let result1 = deriver.get_extended_key(&path).unwrap();
+        let result2 = deriver.get_extended_key(&path).unwrap();
+
+        assert_eq!(result1.0, result2.0);
+        assert_eq!(result1.1, result2.1);
+        assert_eq!(result1.2, result2.2);
+    }
 }
