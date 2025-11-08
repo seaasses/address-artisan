@@ -37,3 +37,9 @@ typedef struct
   Uint256 y;
   Uint256 z;
 } JacobianPoint;
+
+typedef struct
+{
+  uchar chain_code[32];
+  Point k_par;
+} XPub;
