@@ -15,6 +15,7 @@ impl Hash160Range {
 
 #[derive(Clone, Debug)]
 pub struct Prefix {
+    pub prefix_str: String,
     pub ranges: Vec<Hash160Range>,
 }
 
@@ -22,7 +23,14 @@ impl Prefix {
     pub fn new(prefix_str: &str) -> Self {
         let ranges = Self::get_ranges(prefix_str);
 
-        Self { ranges }
+        Self {
+            prefix_str: prefix_str.to_string(),
+            ranges,
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.prefix_str
     }
 
     pub fn matches_pattern(&self, pubkey_hash: &[u8; 20]) -> bool {
