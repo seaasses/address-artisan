@@ -34,12 +34,9 @@ impl Prefix {
     }
 
     pub fn matches_pattern(&self, pubkey_hash: &[u8; 20]) -> bool {
-        for range in &self.ranges {
-            if pubkey_hash >= &range.low && pubkey_hash <= &range.high {
-                return true;
-            }
-        }
-        false
+        self.ranges
+            .iter()
+            .any(|range| pubkey_hash >= &range.low && pubkey_hash <= &range.high)
     }
 
     fn get_ranges(prefix: &str) -> Vec<Hash160Range> {
