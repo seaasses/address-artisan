@@ -1,1 +1,0 @@
-pub mod g_times_scalar_benchmark;
