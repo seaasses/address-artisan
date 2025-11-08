@@ -1,4 +1,3 @@
-use crate::bitcoin_address_helper::{AddressEncoder, BitcoinAddressHelper};
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive, Zero};
 
@@ -14,32 +13,16 @@ impl Hash160Range {
     }
 }
 
-pub trait PrefixValidator {
-    fn validate_and_get_address(
-        &mut self,
-        prefix: &Prefix,
-        pubkey_hash: &[u8; 20],
-    ) -> Option<String>;
-}
-
 #[derive(Clone, Debug)]
 pub struct Prefix {
-    pub prefix_str: String,
     pub ranges: Vec<Hash160Range>,
-}
-
-pub struct CpuPrefixValidator {
-    address_encoder: BitcoinAddressHelper,
 }
 
 impl Prefix {
     pub fn new(prefix_str: &str) -> Self {
         let ranges = Self::get_ranges(prefix_str);
 
-        Self {
-            prefix_str: prefix_str.to_string(),
-            ranges,
-        }
+        Self { ranges }
     }
 
     pub fn matches_pattern(&self, pubkey_hash: &[u8; 20]) -> bool {
@@ -176,40 +159,6 @@ impl Prefix {
     }
 }
 
-impl CpuPrefixValidator {
-    pub fn new() -> Self {
-        Self {
-            address_encoder: BitcoinAddressHelper::new(),
-        }
-    }
-}
-
-impl PrefixValidator for CpuPrefixValidator {
-    fn validate_and_get_address(
-        &mut self,
-        prefix: &Prefix,
-        pubkey_hash: &[u8; 20],
-    ) -> Option<String> {
-        if !prefix.matches_pattern(pubkey_hash) {
-            return None;
-        }
-
-        let address_with_fake_checksum = self
-            .address_encoder
-            .get_address_with_fake_checksum(pubkey_hash);
-
-        if !address_with_fake_checksum.starts_with(&prefix.prefix_str) {
-            return None;
-        }
-
-        let real_address = self
-            .address_encoder
-            .get_address_from_pubkey_hash(pubkey_hash);
-
-        Some(real_address)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,34 +265,5 @@ mod tests {
 
         assert_eq!(prefix.ranges[0].low, expected_low);
         assert_eq!(prefix.ranges[0].high, expected_high);
-    }
-
-    #[test]
-    fn test_cpu_prefix_validator() {
-        let prefix = Prefix::new("1");
-        let mut validator = CpuPrefixValidator::new();
-
-        let pubkey_hash = [
-            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
-            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
-        ];
-
-        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
-        assert!(result.is_some());
-        assert!(result.unwrap().starts_with("1"));
-    }
-
-    #[test]
-    fn test_validator_rejects_non_matching() {
-        let prefix = Prefix::new("1ZZZZ");
-        let mut validator = CpuPrefixValidator::new();
-
-        let pubkey_hash = [
-            0x62, 0x31, 0x50, 0x63, 0x75, 0xbc, 0x46, 0x62, 0x98, 0x2d, 0x3e, 0x08, 0x5e, 0x67,
-            0x5f, 0x55, 0x7c, 0xc1, 0x99, 0xf4,
-        ];
-
-        let result = validator.validate_and_get_address(&prefix, &pubkey_hash);
-        assert!(result.is_none());
     }
 }
