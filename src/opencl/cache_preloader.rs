@@ -54,7 +54,7 @@ impl CachePreloader {
         let mut limbs = [0u64; LIMB_COUNT];
 
         for limb_idx in 0..LIMB_COUNT {
-            let byte_offset = (LIMB_COUNT - 1 - limb_idx) * BYTES_PER_LIMB;
+            let byte_offset = limb_idx * BYTES_PER_LIMB;
 
             limbs[limb_idx] = u64::from_be_bytes([
                 bytes[byte_offset],
