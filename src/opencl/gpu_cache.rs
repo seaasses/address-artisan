@@ -245,6 +245,14 @@ impl GpuCache {
         self.capacity
     }
 
+    pub fn keys_buffer(&self) -> &Buffer<CacheKey> {
+        &self.keys_buffer
+    }
+
+    pub fn values_buffer(&self) -> &Buffer<XPub> {
+        &self.values_buffer
+    }
+
     fn new_buffer<T: ocl::OclPrm>(queue: &Queue, len: usize) -> Result<Buffer<T>, String> {
         Buffer::<T>::builder()
             .queue(queue.clone())
