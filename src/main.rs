@@ -61,13 +61,19 @@ fn main() {
             .collect();
     }
 
-    // Filter out onboard GPUs
+    // Filter devices based on --gpu and --gpu-only flags
     all_devices = all_devices
         .into_iter()
         .filter(|device| {
             match device {
-                device_info::DeviceInfo::GPU { is_onboard, .. } => !is_onboard,
-                _ => true, // Keep CPU devices
+                device_info::DeviceInfo::GPU { is_onboard, .. } => {
+                    // Keep GPUs if --gpu or --gpu-only is set AND it's not onboard
+                    (cli.gpu || cli.gpu_only) && !is_onboard
+                },
+                device_info::DeviceInfo::CPU { .. } => {
+                    // Keep CPU only if --gpu-only is NOT set
+                    !cli.gpu_only
+                }
             }
         })
         .collect();
