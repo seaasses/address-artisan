@@ -1,3 +1,5 @@
+use crate::constants::NON_HARDENED_MAX_INDEX;
+
 pub trait PathWalker {
     type Iterator: Iterator<Item = [u32; 6]>;
     fn iter_from_counter(&self, start_counter: u64, chunk_size: u64) -> Self::Iterator;
@@ -42,12 +44,10 @@ pub struct PathIterator {
 }
 
 impl PathIterator {
-    const MAX_31_BITS: u64 = 0x7FFFFFFF;
-
     fn counter_to_path(&self, counter: u64) -> [u32; 6] {
         let index = (counter % self.max_depth as u64) as u32;
-        let a = ((counter / self.max_depth as u64) % Self::MAX_31_BITS) as u32;
-        let b = (counter / (self.max_depth as u64 * Self::MAX_31_BITS)) as u32;
+        let a = ((counter / self.max_depth as u64) % NON_HARDENED_MAX_INDEX as u64) as u32;
+        let b = (counter / (self.max_depth as u64 * NON_HARDENED_MAX_INDEX as u64)) as u32;
 
         [self.seed0, self.seed1, b, a, 0, index]
     }
