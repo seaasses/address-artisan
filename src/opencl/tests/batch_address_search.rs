@@ -7,6 +7,18 @@ mod tests {
     use crate::prefix::Prefix;
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
+    fn create_test_opencl_context() -> (Device, Context, Queue) {
+        let platform = Platform::first().expect("No OpenCL platform found");
+        let device = Device::first(platform).expect("No OpenCL device found");
+        let context = Context::builder()
+            .platform(platform)
+            .devices(device)
+            .build()
+            .expect("Failed to create context");
+        let queue = Queue::new(&context, device, None).expect("Failed to create queue");
+        (device, context, queue)
+    }
+
     struct BatchAddressSearch {
         kernel: Kernel,
         cache_keys_buffer: Buffer<CacheKey>,
@@ -221,7 +233,8 @@ mod tests {
 
     #[test]
     fn test_batch_address_search_basic() {
-        let mut gpu_cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
@@ -281,7 +294,8 @@ mod tests {
     #[test]
     fn test_batch_address_search_with_cache() {
         // Setup GPU cache
-        let mut gpu_cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
@@ -330,7 +344,8 @@ mod tests {
         let max_depth = 1u32;
 
         // Setup cache
-        let mut gpu_cache = GpuCache::new(100).unwrap();
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
 
