@@ -40,10 +40,14 @@ impl DeviceManager {
                                 .unwrap_or_else(|_| format!("GPU_{}", device_index))
                                 .replace(" ", "_");
 
+                            // Detect if GPU is onboard/integrated
+                            let is_onboard = Self::is_onboard_gpu(device);
+
                             gpus.push(DeviceInfo::GPU {
                                 name,
                                 device_index,
                                 platform_index,
+                                is_onboard,
                             });
                         }
                     }
@@ -52,6 +56,60 @@ impl DeviceManager {
         }
 
         gpus
+    }
+
+    fn is_onboard_gpu(device: &Device) -> bool {
+        // Method 1: Check HostUnifiedMemory - integrated GPUs share memory with CPU
+        if let Ok(unified) = device.info(ocl::enums::DeviceInfo::HostUnifiedMemory) {
+            if unified.to_string() == "true" || unified.to_string() == "1" {
+                return true;
+            }
+        }
+
+        // Method 2: Check global memory size - integrated typically has less
+        if let Ok(mem) = device.info(ocl::enums::DeviceInfo::GlobalMemSize) {
+            if let Ok(mem_str) = mem.to_string().parse::<u64>() {
+                // Less than 2GB is typically integrated
+                if mem_str < 2_147_483_648 {
+                    return true;
+                }
+            }
+        }
+
+        // Method 3: Check device name for common integrated GPU vendors
+        if let Ok(name) = device.name() {
+            let name_lower = name.to_lowercase();
+            // Intel integrated GPUs
+            if name_lower.contains("intel") &&
+               (name_lower.contains("hd") ||
+                name_lower.contains("uhd") ||
+                name_lower.contains("iris") ||
+                name_lower.contains("integrated")) {
+                return true;
+            }
+            // AMD integrated GPUs (APU)
+            if name_lower.contains("amd") &&
+               (name_lower.contains("radeon") &&
+                (name_lower.contains("graphics") || name_lower.contains("vega"))) {
+                return true;
+            }
+        }
+
+        // Method 4: Check vendor - Intel GPUs without "Arc" are typically integrated
+        if let Ok(vendor) = device.vendor() {
+            let vendor_lower = vendor.to_lowercase();
+            if vendor_lower.contains("intel") {
+                if let Ok(name) = device.name() {
+                    let name_lower = name.to_lowercase();
+                    // Discrete Intel GPUs would have "arc"
+                    if !name_lower.contains("arc") {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     fn detect_cpu_threads() -> u32 {

@@ -8,6 +8,7 @@ pub enum DeviceInfo {
         name: String,
         device_index: usize,
         platform_index: usize,
+        is_onboard: bool,
     },
 }
 

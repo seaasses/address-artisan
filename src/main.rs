@@ -61,6 +61,17 @@ fn main() {
             .collect();
     }
 
+    // Filter out onboard GPUs
+    all_devices = all_devices
+        .into_iter()
+        .filter(|device| {
+            match device {
+                device_info::DeviceInfo::GPU { is_onboard, .. } => !is_onboard,
+                _ => true, // Keep CPU devices
+            }
+        })
+        .collect();
+
     // Calculate total threads (for logging purposes)
     let total_cpu_threads: u32 = all_devices
         .iter()
