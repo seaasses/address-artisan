@@ -8,7 +8,6 @@ use crate::workbench_config::WorkbenchConfig;
 use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::thread::{self};
 use std::time::{Duration, Instant};
 
 // GPU processing constants
@@ -390,22 +389,18 @@ impl GpuWorkbench {
 
 impl Workbench for GpuWorkbench {
     fn start(&self) {
-        let config = self.config.clone();
-        let stop_signal = Arc::clone(&self.stop_signal);
-        let global_generated = Arc::clone(&self.global_generated);
-        let event_sender = self.event_sender.clone();
-        let device_index = self.device_index;
-        let platform_index = self.platform_index;
-
-        thread::spawn(move || {
-            Self::worker_loop(config, stop_signal, global_generated, event_sender, device_index, platform_index);
-        });
+        Self::worker_loop(
+            self.config.clone(),
+            Arc::clone(&self.stop_signal),
+            Arc::clone(&self.global_generated),
+            self.event_sender.clone(),
+            self.device_index,
+            self.platform_index,
+        );
     }
 
     fn wait(&self) {
-        while !self.stop_signal.load(Ordering::Relaxed) {
-            thread::sleep(Duration::from_millis(100));
-        }
+        // No-op: work is already done in start()
     }
 
     fn total_generated(&self) -> u64 {
