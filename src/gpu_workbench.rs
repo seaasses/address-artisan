@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 // GPU processing constants
-const GPU_WORK_SIZE: u64 = 1_000_000; // Process 100M addresses per kernel launch
+const GPU_WORK_SIZE: u64 = 524_288;
 const CACHE_CAPACITY: usize = 1_000_000; // ~ 100 MB
 const MAX_MATCHES: usize = 1000; // Max matches per kernel call
 const REPORT_INTERVAL: Duration = Duration::from_millis(1000);
@@ -339,19 +339,30 @@ impl GpuWorkbench {
         event_sender.stopped(total_generated, elapsed);
     }
 
-    fn init_opencl(device_index: usize, platform_index: usize) -> Result<(Device, Context, Queue), String> {
+    fn init_opencl(
+        device_index: usize,
+        platform_index: usize,
+    ) -> Result<(Device, Context, Queue), String> {
         // Get platform by index
         let platforms = Platform::list();
-        let platform = platforms
-            .get(platform_index)
-            .ok_or_else(|| format!("Platform index {} not found (only {} platforms available)", platform_index, platforms.len()))?;
+        let platform = platforms.get(platform_index).ok_or_else(|| {
+            format!(
+                "Platform index {} not found (only {} platforms available)",
+                platform_index,
+                platforms.len()
+            )
+        })?;
 
         // Get device by index
-        let devices = Device::list_all(*platform)
-            .map_err(|e| format!("Failed to list devices: {}", e))?;
-        let device = devices
-            .get(device_index)
-            .ok_or_else(|| format!("Device index {} not found (only {} devices available)", device_index, devices.len()))?;
+        let devices =
+            Device::list_all(*platform).map_err(|e| format!("Failed to list devices: {}", e))?;
+        let device = devices.get(device_index).ok_or_else(|| {
+            format!(
+                "Device index {} not found (only {} devices available)",
+                device_index,
+                devices.len()
+            )
+        })?;
 
         let context = Context::builder()
             .platform(*platform)
