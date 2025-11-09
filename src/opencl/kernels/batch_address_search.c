@@ -4,7 +4,7 @@
 
 #define NON_HARDENED_MAX_INDEX 0x7FFFFFFF
 #define NON_HARDENED_COUNT ((ulong)(NON_HARDENED_MAX_INDEX) + 1)
-#define MAX_MATCHES 100
+#define MAX_MATCHES 1000
 
 // Branchless compare: returns 1 if a >= b, 0 otherwise
 inline int hash160_gte(const uchar a[20], __global const uchar *b)
@@ -114,13 +114,6 @@ __kernel void batch_address_search(
         // this if is ok because matches are expected to be rare
         if (hash160_gte(hash160, low) && hash160_lte(hash160, high))
         {
-            // Validate values before saving (sanity check)
-            if (b > NON_HARDENED_MAX_INDEX || a > NON_HARDENED_MAX_INDEX || index >= max_depth)
-            {
-                atomic_inc(cache_miss_error); // Reuse error counter for invalid match values
-                return;
-            }
-
             // MATCH! Save atomically
             uint slot = atomic_inc(match_count);
 
