@@ -176,6 +176,7 @@ impl Orchestrator {
             }
             Ok(None) => {
                 // False positive from range matching - not a real match
+                self.logger.log_false_positive(&bench_id, &path);
                 false
             }
             Err(_) => {

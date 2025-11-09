@@ -63,6 +63,13 @@ impl Logger {
         eprintln!("⚠️  Failed to derive address from path");
     }
 
+    pub fn log_false_positive(&self, bench_id: &str, path: &[u32; 6]) {
+        eprintln!(
+            "⚠️  False positive from {} - Path: [{}, {}, {}, {}, {}, {}] (range match but prefix doesn't match)",
+            bench_id, path[0], path[1], path[2], path[3], path[4], path[5]
+        );
+    }
+
     pub fn stop_requested(&self) {
         println!("\n⏸  Stop requested, shutting down workbenches...");
     }
