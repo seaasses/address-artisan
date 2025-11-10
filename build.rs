@@ -42,7 +42,7 @@ fn get_recursive_include_paths_recursion(
             dir.to_str()
                 .unwrap()
                 .replace("src/opencl/headers", "src/opencl/implementations")
-                .replace(".h", ".c"),
+                .replace(".h", ".cl"),
         )));
     }
 
@@ -132,7 +132,7 @@ fn get_header_implementation_source_code(header: SourceCode) -> SourceCode {
             .to_str()
             .unwrap()
             .replace("src/opencl/headers", "src/opencl/implementations")
-            .replace(".h", ".c"),
+            .replace(".h", ".cl"),
     );
 
     get_source_code(path)
@@ -197,7 +197,7 @@ fn main() {
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .replace(".c", ""),
+                .replace(".cl", ""),
         );
         save_string_to_file(compiled_source_code, out_path);
     }
