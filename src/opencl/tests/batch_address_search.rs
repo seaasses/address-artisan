@@ -25,8 +25,12 @@ mod tests {
         cache_values_buffer: Buffer<XPub>,
         range_lows_buffer: Buffer<u8>,
         range_highs_buffer: Buffer<u8>,
-        matches_buffer: Buffer<u8>,
+        matches_hash160_buffer: Buffer<u8>,
+        _matches_b_buffer: Buffer<u32>,        // Needed for kernel args but not read in tests
+        _matches_a_buffer: Buffer<u32>,        // Needed for kernel args but not read in tests
+        _matches_index_buffer: Buffer<u32>,    // Needed for kernel args but not read in tests
         match_count_buffer: Buffer<u32>,
+        _cache_miss_error_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
     }
 
     impl BatchAddressSearch {
@@ -37,8 +41,12 @@ mod tests {
             let cache_values_buffer = Self::new_buffer::<XPub>(&queue, 1000)?;
             let range_lows_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
             let range_highs_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
-            let matches_buffer = Self::new_buffer::<u8>(&queue, 100 * 20)?;
+            let matches_hash160_buffer = Self::new_buffer::<u8>(&queue, 1000 * 20)?;
+            let matches_b_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
+            let matches_a_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
+            let matches_index_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
             let match_count_buffer = Self::new_buffer::<u32>(&queue, 1)?;
+            let cache_miss_error_buffer = Self::new_buffer::<u32>(&queue, 1)?;
 
             let program = Self::build_program(device, context.clone())?;
 
@@ -55,8 +63,12 @@ mod tests {
                 .arg(0u32) // cache_size
                 .arg(0u64) // start_counter
                 .arg(0u32) // max_depth
-                .arg(&matches_buffer)
+                .arg(&matches_hash160_buffer)
+                .arg(&matches_b_buffer)
+                .arg(&matches_a_buffer)
+                .arg(&matches_index_buffer)
                 .arg(&match_count_buffer)
+                .arg(&cache_miss_error_buffer)
                 .build()
                 .map_err(|e| format!("Error creating kernel: {}", e))?;
 
@@ -66,8 +78,12 @@ mod tests {
                 cache_values_buffer,
                 range_lows_buffer,
                 range_highs_buffer,
-                matches_buffer,
+                matches_hash160_buffer,
+                _matches_b_buffer: matches_b_buffer,
+                _matches_a_buffer: matches_a_buffer,
+                _matches_index_buffer: matches_index_buffer,
                 match_count_buffer,
+                _cache_miss_error_buffer: cache_miss_error_buffer,
             })
         }
 
@@ -177,14 +193,14 @@ mod tests {
                 return Ok((vec![], 0));
             }
 
-            let mut matches_flat = vec![0u8; count.min(100) * 20];
-            self.matches_buffer
+            let mut matches_flat = vec![0u8; count.min(1000) * 20];
+            self.matches_hash160_buffer
                 .read(&mut matches_flat)
                 .enq()
                 .map_err(|e| format!("Error reading matches: {}", e))?;
 
             let mut matches = Vec::new();
-            for i in 0..count.min(100) {
+            for i in 0..count.min(1000) {
                 let mut hash = [0u8; 20];
                 hash.copy_from_slice(&matches_flat[i * 20..(i + 1) * 20]);
                 matches.push(hash);
