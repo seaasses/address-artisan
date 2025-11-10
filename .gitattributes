@@ -1,0 +1,18 @@
+# Language detection
+*.rs linguist-language=Rust
+*.cl linguist-language=OpenCL
+*.cl.h linguist-language=OpenCL
+
+# Rust files
+*.rs linguist-detectable=true
+Cargo.toml linguist-language=TOML
+Cargo.lock linguist-generated=true
+
+# Build files
+build.rs linguist-language=Rust
+
+# Documentation
+*.md linguist-documentation=true
+
+# Ensure the source code is properly detected
+src/** linguist-detectable=true
