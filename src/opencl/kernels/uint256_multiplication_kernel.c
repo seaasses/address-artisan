@@ -3,16 +3,16 @@
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 __kernel void uint256_multiplication_kernel(
-    __global unsigned char *input_a,
-    __global unsigned char *input_b,
-    __global unsigned char *result)
+    __global uchar *input_a,
+    __global uchar *input_b,
+    __global uchar *result)
 {
 
-    unsigned char local_a[32];
-    unsigned char local_b[32];
-    unsigned char local_result[64];
+    uchar local_a[32];
+    uchar local_b[32];
+    uchar local_result[64];
 
-    for (unsigned char i = 0; i < 32; i++)
+    for (uchar i = 0; i < 32; i++)
     {
         local_a[i] = input_a[i];
         local_b[i] = input_b[i];
@@ -25,7 +25,7 @@ __kernel void uint256_multiplication_kernel(
 
     uint512_to_bytes(local_class_result, local_result);
 
-    for (unsigned char i = 0; i < 64; i++)
+    for (uchar i = 0; i < 64; i++)
     {
         result[i] = local_result[i];
     }

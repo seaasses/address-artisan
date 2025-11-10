@@ -3,15 +3,15 @@
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 __kernel void ckdpub_kernel(
-    __global unsigned char *chain_code_buffer,
-    __global unsigned char *k_par_x_buffer,
-    __global unsigned char *k_par_y_buffer,
+    __global uchar *chain_code_buffer,
+    __global uchar *k_par_x_buffer,
+    __global uchar *k_par_y_buffer,
     __global unsigned int *index_buffer,
-    __global unsigned char *compressed_key_buffer)
+    __global uchar *compressed_key_buffer)
 {
-    unsigned char chain_code_private[32];
-    unsigned char k_par_x_private[32];
-    unsigned char k_par_y_private[32];
+    uchar chain_code_private[32];
+    uchar k_par_x_private[32];
+    uchar k_par_y_private[32];
 
     for (int i = 0; i < 32; i++) {
         chain_code_private[i] = chain_code_buffer[i];
@@ -28,7 +28,7 @@ __kernel void ckdpub_kernel(
     parent.k_par.x = UINT256_FROM_BYTES(k_par_x_private);
     parent.k_par.y = UINT256_FROM_BYTES(k_par_y_private);
 
-    unsigned char compressed_key_private[33];
+    uchar compressed_key_private[33];
     ckdpub(parent, index, compressed_key_private);
 
     for (int i = 0; i < 33; i++) {

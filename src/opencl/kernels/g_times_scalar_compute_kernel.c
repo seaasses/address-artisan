@@ -4,7 +4,7 @@
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
 __kernel void g_times_scalar_compute_kernel(
-    __global unsigned char *scalar_buffer,
+    __global uchar *scalar_buffer,
     __global int *max_threads,
     __global int *output,
     __global ulong *iteration_offset)
@@ -13,7 +13,7 @@ __kernel void g_times_scalar_compute_kernel(
     ulong offset = *iteration_offset;
 
     // Copy data from global to private memory and convert
-    unsigned char scalar_private[32];
+    uchar scalar_private[32];
     int i;
     for (i = 0; i < 32; i++) {
         scalar_private[i] = scalar_buffer[i];

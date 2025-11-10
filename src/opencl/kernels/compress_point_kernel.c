@@ -2,15 +2,15 @@
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
 __kernel void compress_point_kernel(
-    __global unsigned char *point_x_buffer,
-    __global unsigned char *point_y_buffer,
-    __global unsigned char *compressed_buffer)
+    __global uchar *point_x_buffer,
+    __global uchar *point_y_buffer,
+    __global uchar *compressed_buffer)
 {
     Point point;
 
     // Copy data from global to private memory
-    unsigned char point_x_private[32];
-    unsigned char point_y_private[32];
+    uchar point_x_private[32];
+    uchar point_y_private[32];
 
     for (int i = 0; i < 32; i++) {
         point_x_private[i] = point_x_buffer[i];
@@ -22,7 +22,7 @@ __kernel void compress_point_kernel(
     point.y = UINT256_FROM_BYTES(point_y_private);
 
     // Compress the point to 33 bytes
-    unsigned char compressed_private[33];
+    uchar compressed_private[33];
     COMPRESS_POINT(point, compressed_private);
 
     // Copy result to global memory

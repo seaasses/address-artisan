@@ -2,9 +2,9 @@
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
 __kernel void ckdpub_throughput_benchmark_kernel(
-    __constant unsigned char *chain_code_buffer,
-    __constant unsigned char *k_par_x_buffer,
-    __constant unsigned char *k_par_y_buffer,
+    __constant uchar *chain_code_buffer,
+    __constant uchar *k_par_x_buffer,
+    __constant uchar *k_par_y_buffer,
     unsigned int max_threads,
     __global volatile unsigned int *anti_optimization_counter)
 {
@@ -21,10 +21,10 @@ __kernel void ckdpub_throughput_benchmark_kernel(
     parent.k_par.x = UINT256_FROM_BYTES(k_par_x_buffer);
     parent.k_par.y = UINT256_FROM_BYTES(k_par_y_buffer);
 
-    unsigned char compressed_key[33];
+    uchar compressed_key[33];
     ckdpub(parent, thread_id, compressed_key);
 
-    unsigned char xor_result = 0;
+    uchar xor_result = 0;
     for (int i = 0; i < 33; i++) {
         xor_result ^= compressed_key[i];
     }

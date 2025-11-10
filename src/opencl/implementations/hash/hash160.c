@@ -17,7 +17,7 @@
 
 inline void hash160_33(const uchar *restrict input, uchar *restrict output)
 {
-    unsigned char padded[64];
+    uchar padded[64];
 
     uint W[64];
 

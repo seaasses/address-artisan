@@ -10,7 +10,7 @@
 #define SSIG0(x) (ROTR(x, 1) ^ ROTR(x, 8) ^ SHR(x, 7))
 #define SSIG1(x) (ROTR(x, 19) ^ ROTR(x, 61) ^ SHR(x, 6))
 
-inline void sha512_process_block(const unsigned char *restrict block, ulong *restrict H)
+inline void sha512_process_block(const uchar *restrict block, ulong *restrict H)
 {
     ulong W[80];
     ulong a, b, c, d, e, f, g, h;
@@ -63,7 +63,7 @@ inline void sha512_process_block(const unsigned char *restrict block, ulong *res
     H[7] += h;
 }
 
-inline void sha512_165_bytes(const unsigned char *restrict message, unsigned char *restrict hash)
+inline void sha512_165_bytes(const uchar *restrict message, uchar *restrict hash)
 {
     ulong H[8] = {
         0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
@@ -71,7 +71,7 @@ inline void sha512_165_bytes(const unsigned char *restrict message, unsigned cha
         0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL,
         0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL};
 
-    unsigned char padded[256];
+    uchar padded[256];
 
 // Copy message (165 bytes)
 #pragma unroll
@@ -110,7 +110,7 @@ inline void sha512_192_bytes(const uchar *restrict message, uchar *restrict hash
         0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL,
         0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL};
 
-    unsigned char padded[256];
+    uchar padded[256];
 
 // Copy message (192 bytes)
 #pragma unroll

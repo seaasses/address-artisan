@@ -26,5 +26,5 @@ __constant ulong K[80] = {
     0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL, 0x431d67c49c100d4cULL,
     0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL};
 
-void sha512_165_bytes(const unsigned char *restrict message, unsigned char *restrict hash);
-void sha512_192_bytes(const unsigned char *restrict message, unsigned char *restrict hash);
+void sha512_165_bytes(const uchar *restrict message, uchar *restrict hash);
+void sha512_192_bytes(const uchar *restrict message, uchar *restrict hash);

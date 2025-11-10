@@ -4,6 +4,6 @@
 #define COMPRESS_POINT(point, output)                                                  \
   do                                                                                   \
   {                                                                                    \
-    (output)[0] = (unsigned char)(0x02 | (((unsigned char)((point).y.limbs[3])) & 1)); \
+    (output)[0] = (uchar)(0x02 | (((uchar)((point).y.limbs[3])) & 1)); \
     uint256_to_bytes((point).x, &(output)[1]);                                         \
   } while (0)

@@ -3,19 +3,19 @@
 #include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
 
 __kernel void jacobian_to_affine_kernel(
-    __global unsigned char *jac_x_buffer,
-    __global unsigned char *jac_y_buffer,
-    __global unsigned char *jac_z_buffer,
-    __global unsigned char *aff_x_buffer,
-    __global unsigned char *aff_y_buffer)
+    __global uchar *jac_x_buffer,
+    __global uchar *jac_y_buffer,
+    __global uchar *jac_z_buffer,
+    __global uchar *aff_x_buffer,
+    __global uchar *aff_y_buffer)
 {
     JacobianPoint jac_point;
     Point aff_point;
 
     // Copy data from global to private memory and convert
-    unsigned char jac_x_private[32];
-    unsigned char jac_y_private[32];
-    unsigned char jac_z_private[32];
+    uchar jac_x_private[32];
+    uchar jac_y_private[32];
+    uchar jac_z_private[32];
 
     for (int i = 0; i < 32; i++) {
         jac_x_private[i] = jac_x_buffer[i];
@@ -32,8 +32,8 @@ __kernel void jacobian_to_affine_kernel(
     aff_point = jacobian_to_affine(jac_point);
 
     // Convert result back to bytes and copy to global memory
-    unsigned char aff_x_private[32];
-    unsigned char aff_y_private[32];
+    uchar aff_x_private[32];
+    uchar aff_y_private[32];
     uint256_to_bytes(aff_point.x, aff_x_private);
     uint256_to_bytes(aff_point.y, aff_y_private);
 

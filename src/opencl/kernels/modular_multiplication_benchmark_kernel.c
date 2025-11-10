@@ -2,8 +2,8 @@
 #include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
 
 __kernel void modular_multiplication_benchmark_kernel(
-    __constant unsigned char *a_buffer,
-    __constant unsigned char *b_buffer,
+    __constant uchar *a_buffer,
+    __constant uchar *b_buffer,
     unsigned int max_threads,
     unsigned int iterations,
     __global volatile unsigned int *anti_optimization_counter)

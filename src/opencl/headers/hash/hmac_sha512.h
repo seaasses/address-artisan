@@ -9,4 +9,4 @@
 #define HMAC_IPAD 0x36
 #define HMAC_OPAD 0x5c
 
-void hmac_sha512_key32_msg37(const unsigned char *restrict key, const unsigned char *restrict message, unsigned char *restrict hash);
+void hmac_sha512_key32_msg37(const uchar *restrict key, const uchar *restrict message, uchar *restrict hash);
