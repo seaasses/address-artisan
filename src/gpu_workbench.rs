@@ -150,15 +150,27 @@ impl GpuWorkbench {
             Err(_) => return,
         };
 
+        // Initialize match count buffer to 0 once
+        if let Err(e) = match_count_buffer.cmd().fill(0u32, None).enq() {
+            eprintln!("Failed to initialize match_count: {}", e);
+            return;
+        }
+
         let cache_miss_error_buffer =
             match Buffer::<u32>::builder().queue(queue.clone()).len(1).build() {
                 Ok(buf) => buf,
                 Err(_) => return,
             };
 
-        // Get initial cache buffers for kernel creation
-        let (initial_cache_keys, initial_cache_values, initial_cache_size) =
-            gpu_cache.get_buffers();
+        // Initialize error buffer to 0 once (no need to reset since we stop on error)
+        if let Err(e) = cache_miss_error_buffer.cmd().fill(0u32, None).enq() {
+            eprintln!("Failed to initialize cache_miss_error: {}", e);
+            return;
+        }
+
+        // Get cache buffers for kernel creation (these buffers never change, only their content)
+        // The GpuCache reuses the same Buffer objects throughout its lifetime
+        let (cache_keys_buffer, cache_values_buffer, initial_cache_size) = gpu_cache.get_buffers();
 
         // Create kernel ONCE before the loop
         let kernel = match Kernel::builder()
@@ -166,8 +178,8 @@ impl GpuWorkbench {
             .name("batch_address_search")
             .queue(queue.clone())
             .global_work_size(GPU_WORK_SIZE as usize)
-            .arg(initial_cache_keys) // arg 0 - will update in loop
-            .arg(initial_cache_values) // arg 1 - will update in loop
+            .arg(cache_keys_buffer) // arg 0 - fixed (same buffer object always)
+            .arg(cache_values_buffer) // arg 1 - fixed (same buffer object always)
             .arg(&range_lows_buffer) // arg 2 - fixed
             .arg(&range_highs_buffer) // arg 3 - fixed
             .arg(range_count) // arg 4 - fixed
@@ -189,6 +201,7 @@ impl GpuWorkbench {
         let mut counter = 0u64;
         let mut last_report = Instant::now();
         let mut generated_since_last_report = 0u64;
+        let mut needs_match_count_reset = false; // Track if we need to reset match count
 
         while !stop_signal.load(Ordering::Relaxed) {
             // Clear and reload cache for this batch
@@ -213,34 +226,28 @@ impl GpuWorkbench {
                 break;
             }
 
-            // Reset match counters for this batch
-            if let Err(e) = match_count_buffer.cmd().fill(0u32, None).enq() {
-                eprintln!("Failed to reset match_count: {}", e);
-                break;
-            }
-            if let Err(e) = cache_miss_error_buffer.cmd().fill(0u32, None).enq() {
-                eprintln!("Failed to reset cache_miss_error: {}", e);
-                break;
+            // Only reset match counter if there were matches in the previous iteration
+            if needs_match_count_reset {
+                if let Err(e) = match_count_buffer.cmd().fill(0u32, None).enq() {
+                    eprintln!("Failed to reset match_count: {}", e);
+                    break;
+                }
+
+                // Ensure reset operation completed
+                if let Err(e) = queue.finish() {
+                    eprintln!("Failed to sync match count reset: {}", e);
+                    break;
+                }
+
+                needs_match_count_reset = false;
             }
 
-            // CRITICAL: Ensure reset operations completed
-            if let Err(e) = queue.finish() {
-                eprintln!("Failed to sync buffer resets: {}", e);
-                break;
-            }
+            // Get current cache size (buffers never change, only size)
+            let cache_size = gpu_cache.get_buffers().2;
+            print!("cache_size: {} ", cache_size);
 
-            // Get current cache buffers and update kernel args
-            let (cache_keys_buffer, cache_values_buffer, cache_size) = gpu_cache.get_buffers();
-
-            // Update only the args that change each iteration
-            if let Err(e) = kernel.set_arg(0, cache_keys_buffer) {
-                eprintln!("Failed to set cache_keys arg: {}", e);
-                break;
-            }
-            if let Err(e) = kernel.set_arg(1, cache_values_buffer) {
-                eprintln!("Failed to set cache_values arg: {}", e);
-                break;
-            }
+            // Update only the args that actually change each iteration
+            // (cache buffers are always the same objects, no need to reset them)
             if let Err(e) = kernel.set_arg(5, cache_size as u32) {
                 eprintln!("Failed to set cache_size arg: {}", e);
                 break;
@@ -269,11 +276,10 @@ impl GpuWorkbench {
             }
 
             if cache_miss_error[0] != 0 {
-                eprintln!(
-                    "CACHE MISS ERROR: {} lookups failed! Stopping.",
+                panic!(
+                    "CACHE MISS ERROR: {} lookups failed! This should never happen - cache was not properly preloaded.",
                     cache_miss_error[0]
                 );
-                break;
             }
 
             // Read match count
@@ -286,6 +292,9 @@ impl GpuWorkbench {
             let num_matches = match_count[0].min(MAX_MATCHES as u32) as usize;
 
             if num_matches > 0 {
+                // Mark that we need to reset match count in the next iteration
+                needs_match_count_reset = true;
+
                 // Read matches
                 let mut matches_hash160_data = vec![0u8; num_matches * 20];
                 let mut matches_b_data = vec![0u32; num_matches];
