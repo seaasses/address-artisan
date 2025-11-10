@@ -23,12 +23,13 @@ mod tests {
         kernel: Kernel,
         cache_keys_buffer: Buffer<CacheKey>,
         cache_values_buffer: Buffer<XPub>,
+        cache_size_buffer: Buffer<u32>,
         range_lows_buffer: Buffer<u8>,
         range_highs_buffer: Buffer<u8>,
         matches_hash160_buffer: Buffer<u8>,
-        _matches_b_buffer: Buffer<u32>,        // Needed for kernel args but not read in tests
-        _matches_a_buffer: Buffer<u32>,        // Needed for kernel args but not read in tests
-        _matches_index_buffer: Buffer<u32>,    // Needed for kernel args but not read in tests
+        _matches_b_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
+        _matches_a_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
+        _matches_index_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
         match_count_buffer: Buffer<u32>,
         _cache_miss_error_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
     }
@@ -39,6 +40,7 @@ mod tests {
 
             let cache_keys_buffer = Self::new_buffer::<CacheKey>(&queue, 1000)?;
             let cache_values_buffer = Self::new_buffer::<XPub>(&queue, 1000)?;
+            let cache_size_buffer = Self::new_buffer::<u32>(&queue, 1)?; // Create cache size buffer
             let range_lows_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
             let range_highs_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
             let matches_hash160_buffer = Self::new_buffer::<u8>(&queue, 1000 * 20)?;
@@ -60,7 +62,7 @@ mod tests {
                 .arg(&range_lows_buffer)
                 .arg(&range_highs_buffer)
                 .arg(0u32) // range_count
-                .arg(0u32) // cache_size
+                .arg(&cache_size_buffer) // Now using buffer instead of scalar
                 .arg(0u64) // start_counter
                 .arg(0u32) // max_depth
                 .arg(&matches_hash160_buffer)
@@ -76,6 +78,7 @@ mod tests {
                 kernel,
                 cache_keys_buffer,
                 cache_values_buffer,
+                cache_size_buffer,
                 range_lows_buffer,
                 range_highs_buffer,
                 matches_hash160_buffer,
@@ -116,6 +119,13 @@ mod tests {
                 .write(&values)
                 .enq()
                 .map_err(|e| format!("Error writing cache values: {}", e))?;
+
+            // Update cache size in buffer
+            let cache_size_data = vec![size as u32];
+            self.cache_size_buffer
+                .write(&cache_size_data)
+                .enq()
+                .map_err(|e| format!("Error writing cache size: {}", e))?;
 
             Ok(())
         }
@@ -160,9 +170,14 @@ mod tests {
             self.kernel
                 .set_arg(4, range_count)
                 .map_err(|e| format!("Error setting range_count: {}", e))?;
-            self.kernel
-                .set_arg(5, cache_size)
-                .map_err(|e| format!("Error setting cache_size: {}", e))?;
+
+            // Update cache size in buffer instead of setting kernel arg
+            let cache_size_data = vec![cache_size];
+            self.cache_size_buffer
+                .write(&cache_size_data)
+                .enq()
+                .map_err(|e| format!("Error writing cache_size: {}", e))?;
+
             self.kernel
                 .set_arg(6, start_counter)
                 .map_err(|e| format!("Error setting start_counter: {}", e))?;
@@ -228,8 +243,8 @@ mod tests {
         }
 
         fn get_device_context_and_queue() -> Result<(Device, Context, Queue), String> {
-            let platform = Platform::first()
-                .map_err(|e| format!("Error getting OpenCL platform: {}", e))?;
+            let platform =
+                Platform::first().map_err(|e| format!("Error getting OpenCL platform: {}", e))?;
 
             let device = Device::first(platform)
                 .map_err(|e| format!("Error getting OpenCL device: {}", e))?;
@@ -274,13 +289,15 @@ mod tests {
         search.load_ranges(&prefix).unwrap();
 
         // Execute with minimal params (no cache, should find nothing)
-        search.execute(
-            prefix.ranges.len() as u32,
-            0,  // cache_size = 0
-            0,
-            100, // work_size
-            10000,
-        ).unwrap();
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                0, // cache_size = 0
+                0,
+                100, // work_size
+                10000,
+            )
+            .unwrap();
 
         let (matches, count) = search.read_matches().unwrap();
         assert_eq!(count, 0);
@@ -294,13 +311,9 @@ mod tests {
         let prefix = Prefix::new("1ZZZZZZZZZ");
         search.load_ranges(&prefix).unwrap();
 
-        search.execute(
-            prefix.ranges.len() as u32,
-            0,
-            0,
-            1000,
-            10000,
-        ).unwrap();
+        search
+            .execute(prefix.ranges.len() as u32, 0, 0, 1000, 10000)
+            .unwrap();
 
         let (matches, count) = search.read_matches().unwrap();
         assert_eq!(count, 0);
@@ -332,13 +345,15 @@ mod tests {
 
         // Search in first 1000 addresses (covers indices 0-999 for [0,0])
         let max_depth = 10000;
-        search.execute(
-            prefix.ranges.len() as u32,
-            gpu_cache.size() as u32,
-            0,      // start_counter
-            1000,   // work_size
-            max_depth,
-        ).unwrap();
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                0,    // start_counter
+                1000, // work_size
+                max_depth,
+            )
+            .unwrap();
 
         // Should find some matches with prefix "1"
         let (matches, count) = search.read_matches().unwrap();
@@ -365,7 +380,6 @@ mod tests {
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
 
-
         // Preload cache with [b, a]
         let cache_keys = vec![[b, a]];
         CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, seed0, seed1).unwrap();
@@ -381,16 +395,22 @@ mod tests {
             + (a as u64) * (max_depth as u64)
             + (index as u64);
 
-        search.execute(
-            prefix.ranges.len() as u32,
-            gpu_cache.size() as u32,
-            counter,
-            1,
-            max_depth,
-        ).unwrap();
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                counter,
+                1,
+                max_depth,
+            )
+            .unwrap();
 
         let (matches, count) = search.read_matches().unwrap();
-        assert_eq!(count, 1, "Should find exactly 1 match for prefix '1abc' at index {}", index);
+        assert_eq!(
+            count, 1,
+            "Should find exactly 1 match for prefix '1abc' at index {}",
+            index
+        );
         assert_eq!(matches.len(), 1);
     }
 }

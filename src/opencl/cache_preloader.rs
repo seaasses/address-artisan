@@ -11,9 +11,9 @@ impl CachePreloader {
         deriver: &mut ExtendedPublicKeyDeriver,
         seed0: u32,
         seed1: u32,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         if cache_keys.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
 
         let mut xpubs = Vec::with_capacity(cache_keys.len());
@@ -32,10 +32,8 @@ impl CachePreloader {
             xpubs.push(xpub);
         }
 
-        // Upload to GPU cache
-        cache.add_data(cache_keys, &xpubs)?;
-
-        Ok(())
+        // Replace cache data (GpuCache will only write to GPU if keys changed)
+        cache.replace_data(cache_keys, &xpubs)
     }
 
     fn bytes_to_gpu_xpub(chain_code: &[u8; 32], x_bytes: &[u8; 32], y_bytes: &[u8; 32]) -> XPub {

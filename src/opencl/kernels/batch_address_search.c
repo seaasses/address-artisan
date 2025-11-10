@@ -62,7 +62,7 @@ __kernel void batch_address_search(
     __global const uchar *range_lows,
     __global const uchar *range_highs,
     const uint range_count,
-    const uint cache_size,
+    __global const uint *cache_size_buffer,  // Now a buffer instead of scalar
     const ulong start_counter,
     const uint max_depth,
     __global uchar *matches_hash160,
@@ -74,6 +74,9 @@ __kernel void batch_address_search(
 {
     uint gid = get_global_id(0);
     ulong counter = start_counter + gid;
+
+    // Read cache size from buffer
+    uint cache_size = cache_size_buffer[0];
 
     // Counter -> [b, a, index]
     // c = 0 always (already cached)

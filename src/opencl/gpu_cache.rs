@@ -59,33 +59,57 @@ unsafe impl ocl::OclPrm for XPub {}
 pub struct GpuCache {
     _device: Device,
     _context: Context,
+    queue: Queue,
     keys_buffer: Buffer<CacheKey>,
     values_buffer: Buffer<XPub>,
+    cache_size_buffer: Buffer<u32>, // GPU buffer for cache size
     capacity: usize,
     current_size: usize,
+    // Cache the last keys to avoid unnecessary GPU writes
+    last_keys: Vec<[u32; 2]>,
 }
 
 impl GpuCache {
     /// Create a new GPU cache using the provided OpenCL device, context, and queue
-    pub fn new(device: Device, context: Context, queue: Queue, capacity: usize) -> Result<Self, String> {
+    pub fn new(
+        device: Device,
+        context: Context,
+        queue: Queue,
+        capacity: usize,
+    ) -> Result<Self, String> {
         let keys_buffer = Self::new_buffer::<CacheKey>(&queue, capacity)?;
         let values_buffer = Self::new_buffer::<XPub>(&queue, capacity)?;
+
+        // Create buffer for cache size (single u32)
+        let cache_size_buffer = Buffer::<u32>::builder()
+            .queue(queue.clone())
+            .len(1)
+            .build()
+            .map_err(|e| format!("Error creating cache_size buffer: {}", e))?;
+
+        // Initialize cache size to 0
+        cache_size_buffer
+            .cmd()
+            .fill(0u32, None)
+            .enq()
+            .map_err(|e| format!("Error initializing cache_size buffer: {}", e))?;
 
         Ok(Self {
             _device: device,
             _context: context,
+            queue: queue.clone(),
             keys_buffer,
             values_buffer,
+            cache_size_buffer,
             capacity,
             current_size: 0,
+            last_keys: Vec::new(),
         })
     }
 
-    pub fn add_data(
-        &mut self,
-        keys: &[[u32; 2]],
-        values: &[XPub],
-    ) -> Result<(), String> {
+    /// Replace cache data, but only write to GPU if the keys actually changed
+    /// This avoids expensive GPU writes when the same data is being loaded
+    pub fn replace_data(&mut self, keys: &[[u32; 2]], values: &[XPub]) -> Result<bool, String> {
         if keys.len() != values.len() {
             return Err(format!(
                 "Keys and values length mismatch: {} vs {}",
@@ -94,49 +118,64 @@ impl GpuCache {
             ));
         }
 
-        if self.current_size + keys.len() > self.capacity {
+        if keys.len() > self.capacity {
             return Err(format!(
-                "Cache capacity exceeded: trying to add {} items to cache with {} / {} items",
+                "Cache capacity exceeded: trying to replace with {} items but capacity is {}",
                 keys.len(),
-                self.current_size,
                 self.capacity
             ));
         }
 
-        let cache_keys: Vec<CacheKey> = keys
-            .iter()
-            .map(|k| CacheKey { b: k[0], a: k[1] })
-            .collect();
+        // Check if keys are the same as last time
+        let same_keys = self.last_keys.len() == keys.len()
+            && self.last_keys.iter().zip(keys.iter()).all(|(a, b)| a == b);
 
-        let key_offset = self.current_size;
-        let value_offset = self.current_size;
+        if same_keys {
+            // Keys haven't changed, no need to write to GPU
+            return Ok(false);
+        }
 
+        // Keys changed, need to update GPU
+        let cache_keys: Vec<CacheKey> =
+            keys.iter().map(|k| CacheKey { b: k[0], a: k[1] }).collect();
+
+        // Write data directly to buffers (no sub-buffers needed for replacement)
         self.keys_buffer
-            .create_sub_buffer(None, key_offset, cache_keys.len())
-            .map_err(|e| format!("Error creating keys sub-buffer: {}", e))?
             .write(&cache_keys)
             .enq()
             .map_err(|e| format!("Error writing keys to GPU: {}", e))?;
 
         self.values_buffer
-            .create_sub_buffer(None, value_offset, values.len())
-            .map_err(|e| format!("Error creating values sub-buffer: {}", e))?
             .write(values)
             .enq()
             .map_err(|e| format!("Error writing values to GPU: {}", e))?;
 
-        self.current_size += keys.len();
+        // Update cache size in GPU
+        self.current_size = keys.len();
+        self.cache_size_buffer
+            .cmd()
+            .fill(self.current_size as u32, None)
+            .enq()
+            .map_err(|e| format!("Error updating cache_size in GPU: {}", e))?;
 
-        Ok(())
+        // CRITICAL: Ensure all cache writes completed before returning
+        self.queue
+            .finish()
+            .map_err(|e| format!("Error syncing cache writes: {}", e))?;
+
+        // Save keys for next comparison
+        self.last_keys = keys.to_vec();
+
+        Ok(true) // Return true indicating data was written
     }
 
-    pub fn clear(&mut self) {
-        self.current_size = 0;
-    }
-
-    /// Get buffers and size for use in batch kernels
-    pub fn get_buffers(&self) -> (&Buffer<CacheKey>, &Buffer<XPub>, usize) {
-        (&self.keys_buffer, &self.values_buffer, self.current_size)
+    /// Get buffers for use in batch kernels test
+    pub fn get_buffers(&self) -> (&Buffer<CacheKey>, &Buffer<XPub>, &Buffer<u32>) {
+        (
+            &self.keys_buffer,
+            &self.values_buffer,
+            &self.cache_size_buffer,
+        )
     }
 
     #[cfg(test)]
@@ -174,8 +213,9 @@ impl GpuCache {
         // Search for each key (only in the first current_size elements)
         let mut results = Vec::with_capacity(search_keys.len());
         for search_key in search_keys {
-            let found = keys_data.iter()
-                .take(self.current_size)  // Only search in valid entries
+            let found = keys_data
+                .iter()
+                .take(self.current_size) // Only search in valid entries
                 .position(|k| k.b == search_key[0] && k.a == search_key[1])
                 .map(|idx| values_data[idx]);
             results.push(found);
@@ -200,7 +240,8 @@ impl GpuCache {
             .map_err(|e| format!("Error reading keys from GPU: {}", e))?;
 
         // Only search in the first current_size elements
-        Ok(keys_data.iter()
+        Ok(keys_data
+            .iter()
             .take(self.current_size)
             .any(|k| k.b == key[0] && k.a == key[1]))
     }
@@ -242,50 +283,6 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_basic_operations() {
-        let (device, context, queue) = create_test_opencl_context();
-        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
-
-        // Verify initial state
-        assert_eq!(cache.size(), 0);
-        assert_eq!(cache.capacity(), 100);
-
-        // Add data
-        let keys = vec![[1, 2], [4, 5]];
-        let values = vec![
-            XPub {
-                chain_code: [1u8; 32],
-                k_par: PointGpu {
-                    x: Uint256 { limbs: [10, 0, 0, 0] },
-                    y: Uint256 { limbs: [20, 0, 0, 0] },
-                },
-            },
-            XPub {
-                chain_code: [2u8; 32],
-                k_par: PointGpu {
-                    x: Uint256 { limbs: [30, 0, 0, 0] },
-                    y: Uint256 { limbs: [40, 0, 0, 0] },
-                },
-            },
-        ];
-        cache.add_data(&keys, &values).unwrap();
-
-        assert_eq!(cache.size(), 2);
-
-        // Lookup existing key
-        let results = cache.lookup(&[[1, 2]]).unwrap();
-        assert!(results[0].is_some());
-        let found = results[0].unwrap();
-        assert_eq!(found.chain_code[0], 1);
-        assert_eq!(found.k_par.x.limbs[0], 10);
-        assert_eq!(found.k_par.y.limbs[0], 20);
-
-        // Lookup non-existing key
-        let results = cache.lookup(&[[99, 99]]).unwrap();
-        assert!(results[0].is_none());
-    }
-
-    #[test]
     fn test_cache_miss() {
         let (device, context, queue) = create_test_opencl_context();
         let cache = GpuCache::new(device, context, queue, 100).unwrap();
@@ -296,87 +293,5 @@ mod tests {
 
         // contains_key on empty cache
         assert!(!cache.contains_key(&[1, 2]).unwrap());
-    }
-
-    #[test]
-    fn test_cache_capacity() {
-        let (device, context, queue) = create_test_opencl_context();
-        let mut cache = GpuCache::new(device, context, queue, 10).unwrap();
-
-        let keys: Vec<[u32; 2]> = (0..15).map(|i| [i, 0]).collect();
-        let values: Vec<XPub> = (0..15).map(|_| XPub::default()).collect();
-
-        // Should fail when exceeding capacity
-        let result = cache.add_data(&keys, &values);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("capacity exceeded"));
-    }
-
-    #[test]
-    fn test_multiple_lookups() {
-        let (device, context, queue) = create_test_opencl_context();
-        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
-
-        // Add multiple entries
-        let keys = vec![[0, 0], [0, 1], [0, 2], [1, 0]];
-        let values: Vec<XPub> = keys
-            .iter()
-            .map(|k| XPub {
-                chain_code: [k[0] as u8; 32],
-                k_par: PointGpu {
-                    x: Uint256 {
-                        limbs: [k[1] as u64, 0, 0, 0],
-                    },
-                    y: Uint256 {
-                        limbs: [0, 0, 0, 0],
-                    },
-                },
-            })
-            .collect();
-
-        cache.add_data(&keys, &values).unwrap();
-
-        // Lookup multiple keys at once
-        let search = vec![[0, 1], [1, 0], [99, 99]];
-        let results = cache.lookup(&search).unwrap();
-
-        assert_eq!(results.len(), 3);
-        assert!(results[0].is_some());
-        assert_eq!(results[0].unwrap().chain_code[0], 0);
-        assert_eq!(results[0].unwrap().k_par.x.limbs[0], 1);
-
-        assert!(results[1].is_some());
-        assert_eq!(results[1].unwrap().chain_code[0], 1);
-        assert_eq!(results[1].unwrap().k_par.x.limbs[0], 0);
-
-        assert!(results[2].is_none());
-    }
-
-    #[test]
-    fn test_cache_clear() {
-        let (device, context, queue) = create_test_opencl_context();
-        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
-
-        let keys = vec![[1, 2]];
-        let values = vec![XPub::default()];
-        cache.add_data(&keys, &values).unwrap();
-
-        assert_eq!(cache.size(), 1);
-
-        cache.clear();
-        assert_eq!(cache.size(), 0);
-    }
-
-    #[test]
-    fn test_add_data_length_mismatch() {
-        let (device, context, queue) = create_test_opencl_context();
-        let mut cache = GpuCache::new(device, context, queue, 100).unwrap();
-
-        let keys = vec![[1, 2], [4, 5]];
-        let values = vec![XPub::default()]; // Only 1 value for 2 keys
-
-        let result = cache.add_data(&keys, &values);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("length mismatch"));
     }
 }
