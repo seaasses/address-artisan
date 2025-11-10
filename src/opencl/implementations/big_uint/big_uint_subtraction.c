@@ -5,7 +5,7 @@ inline Uint256WithUnderflow uint256_subtraction_with_underflow_flag(const Uint25
     Uint256WithUnderflow result_with_underflow;
 
     result_with_underflow.result.limbs[3] = a.limbs[3] - b.limbs[3];
-    unsigned int borrow = (a.limbs[3] < b.limbs[3]);
+    uint borrow = (a.limbs[3] < b.limbs[3]);
 
     result_with_underflow.result.limbs[2] = a.limbs[2] - b.limbs[2] - borrow;
     borrow = (a.limbs[2] < b.limbs[2]) | ((a.limbs[2] == b.limbs[2]) & borrow);
@@ -25,7 +25,7 @@ inline Uint256 uint256_subtraction(const Uint256 a, const Uint256 b)
     Uint256 result;
 
     result.limbs[3] = a.limbs[3] - b.limbs[3];
-    unsigned int borrow = (a.limbs[3] < b.limbs[3]);
+    uint borrow = (a.limbs[3] < b.limbs[3]);
 
     result.limbs[2] = a.limbs[2] - b.limbs[2] - borrow;
     borrow = (a.limbs[2] < b.limbs[2]) | ((a.limbs[2] == b.limbs[2]) & borrow);

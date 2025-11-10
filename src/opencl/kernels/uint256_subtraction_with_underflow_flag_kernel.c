@@ -6,7 +6,7 @@ __kernel void uint256_subtraction_with_underflow_flag_kernel(
     __global uchar *input_a,
     __global uchar *input_b,
     __global uchar *result,
-    __global unsigned int *underflow_flag)
+    __global uint *underflow_flag)
 {
 
     uchar local_a[32];

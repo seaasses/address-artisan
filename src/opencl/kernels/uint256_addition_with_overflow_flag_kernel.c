@@ -13,7 +13,7 @@ __kernel void uint256_addition_with_overflow_flag_kernel(
     uchar local_a[32];
     uchar local_b[32];
     uchar local_result[32];
-    unsigned int local_overflow_flag;
+    uint local_overflow_flag;
 
     for (uchar i = 0; i < 32; i++)
     {

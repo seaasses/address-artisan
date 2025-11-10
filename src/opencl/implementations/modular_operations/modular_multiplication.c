@@ -12,7 +12,7 @@ inline Uint256 modular_multiplication(const Uint256 a, const Uint256 b)
     Uint512 tmp_0;
     Uint320 tmp_1;
     Uint320 tmp_2;
-    unsigned int final_carry;
+    uint final_carry;
 
     // MULTIPLICATION = 512 bits. Normal uint multiplication
     tmp_0 = uint256_multiplication(a, b);

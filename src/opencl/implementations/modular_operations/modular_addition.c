@@ -7,7 +7,7 @@ inline Uint256 modular_addition(const Uint256 a, const Uint256 b)
 {
   Uint256WithOverflow addition_result = uint256_addition_with_overflow_flag(a, b);
   Uint256 tmp = addition_result.result;
-  unsigned int overflow_flag = addition_result.overflow;
+  uint overflow_flag = addition_result.overflow;
 
   // cases:
   // 1. less than p : subtract 0

@@ -7,7 +7,7 @@ inline Uint256 modular_subtraction(const Uint256 a, const Uint256 b)
 {
     Uint256WithUnderflow subtraction_result = uint256_subtraction_with_underflow_flag(a, b);
     Uint256 tmp = subtraction_result.result;
-    unsigned int underflow_flag = subtraction_result.underflow;
+    uint underflow_flag = subtraction_result.underflow;
 
     ulong mask_to_sum = -((ulong)underflow_flag);
     const Uint256 to_sum = {.limbs = {

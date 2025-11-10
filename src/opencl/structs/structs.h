@@ -19,13 +19,13 @@ typedef struct
 typedef struct
 {
   Uint256 result;
-  unsigned int overflow;
+  uint overflow;
 } Uint256WithOverflow;
 
 typedef struct
 {
   Uint256 result;
-  unsigned int underflow;
+  uint underflow;
 } Uint256WithUnderflow;
 
 typedef struct

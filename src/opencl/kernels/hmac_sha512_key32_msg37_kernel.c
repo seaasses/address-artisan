@@ -5,10 +5,10 @@ __kernel void hmac_sha512_key32_msg37_kernel(
     __global const uchar *input_message,
     __global uchar *output_hash)
 {
-    const unsigned int gid = get_global_id(0);
-    const unsigned int key_offset = gid * HMAC_SHA512_KEY_SIZE;
-    const unsigned int message_offset = gid * HMAC_SHA512_MESSAGE_SIZE;
-    const unsigned int hash_offset = gid * HMAC_SHA512_HASH_SIZE;
+    const uint gid = get_global_id(0);
+    const uint key_offset = gid * HMAC_SHA512_KEY_SIZE;
+    const uint message_offset = gid * HMAC_SHA512_MESSAGE_SIZE;
+    const uint hash_offset = gid * HMAC_SHA512_HASH_SIZE;
 
     uchar local_key[HMAC_SHA512_KEY_SIZE];
     uchar local_message[HMAC_SHA512_MESSAGE_SIZE];

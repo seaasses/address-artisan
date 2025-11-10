@@ -2,6 +2,6 @@
 
 void ckdpub(
     const XPub parent,
-    unsigned int index,
+    uint index,
     uchar *restrict result
 );

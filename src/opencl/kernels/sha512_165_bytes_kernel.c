@@ -4,9 +4,9 @@ __kernel void sha512_165_bytes_kernel(
     __global const uchar *input_message,
     __global uchar *output_hash)
 {
-    const unsigned int gid = get_global_id(0);
-    const unsigned int message_offset = gid * SHA512_165_BYTES_MESSAGE_SIZE;
-    const unsigned int hash_offset = gid * SHA512_HASH_SIZE;
+    const uint gid = get_global_id(0);
+    const uint message_offset = gid * SHA512_165_BYTES_MESSAGE_SIZE;
+    const uint hash_offset = gid * SHA512_HASH_SIZE;
 
     uchar local_message[SHA512_165_BYTES_MESSAGE_SIZE];
     uchar local_hash[SHA512_HASH_SIZE];

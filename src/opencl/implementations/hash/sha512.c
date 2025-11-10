@@ -15,7 +15,7 @@ inline void sha512_process_block(const uchar *restrict block, ulong *restrict H)
     ulong W[80];
     ulong a, b, c, d, e, f, g, h;
     ulong T1, T2;
-    unsigned int t;
+    uint t;
 
 #pragma unroll
     for (t = 0; t < 16; t++)
@@ -75,7 +75,7 @@ inline void sha512_165_bytes(const uchar *restrict message, uchar *restrict hash
 
 // Copy message (165 bytes)
 #pragma unroll
-    for (unsigned int i = 0; i < 165; i++)
+    for (uint i = 0; i < 165; i++)
     {
         padded[i] = message[i];
     }
@@ -96,7 +96,7 @@ inline void sha512_165_bytes(const uchar *restrict message, uchar *restrict hash
     sha512_process_block(padded + 128, H);
 
     // NO unroll - no performance benefit
-    for (unsigned int i = 0; i < 8; i++)
+    for (uint i = 0; i < 8; i++)
     {
         ULONG_TO_BYTES(H[i], hash + (i << 3));
     }
@@ -114,7 +114,7 @@ inline void sha512_192_bytes(const uchar *restrict message, uchar *restrict hash
 
 // Copy message (192 bytes)
 #pragma unroll
-    for (unsigned int i = 0; i < 192; i++)
+    for (uint i = 0; i < 192; i++)
     {
         padded[i] = message[i];
     }
@@ -136,7 +136,7 @@ inline void sha512_192_bytes(const uchar *restrict message, uchar *restrict hash
     sha512_process_block(padded + 128, H);
 
     // NO unroll - no performance benefit
-    for (unsigned int i = 0; i < 8; i++)
+    for (uint i = 0; i < 8; i++)
     {
         ULONG_TO_BYTES(H[i], hash + (i << 3));
     }

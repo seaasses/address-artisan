@@ -6,7 +6,7 @@ __kernel void ckdpub_kernel(
     __global uchar *chain_code_buffer,
     __global uchar *k_par_x_buffer,
     __global uchar *k_par_y_buffer,
-    __global unsigned int *index_buffer,
+    __global uint *index_buffer,
     __global uchar *compressed_key_buffer)
 {
     uchar chain_code_private[32];
@@ -19,7 +19,7 @@ __kernel void ckdpub_kernel(
         k_par_y_private[i] = k_par_y_buffer[i];
     }
 
-    unsigned int index = index_buffer[0];
+    uint index = index_buffer[0];
 
     XPub parent;
     for (int i = 0; i < 32; i++) {

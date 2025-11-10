@@ -11,7 +11,7 @@ __kernel void uint320_uint256_addition_kernel(
     uchar local_a[40];
     uchar local_b[32];
     uchar local_result[40];
-    unsigned int local_overflow_flag;
+    uint local_overflow_flag;
 
     for (uchar i = 0; i < 40; i++)
     {

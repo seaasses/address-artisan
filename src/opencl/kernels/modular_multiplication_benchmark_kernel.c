@@ -4,11 +4,11 @@
 __kernel void modular_multiplication_benchmark_kernel(
     __constant uchar *a_buffer,
     __constant uchar *b_buffer,
-    unsigned int max_threads,
-    unsigned int iterations,
-    __global volatile unsigned int *anti_optimization_counter)
+    uint max_threads,
+    uint iterations,
+    __global volatile uint *anti_optimization_counter)
 {
-    unsigned int thread_id = get_global_id(0);
+    uint thread_id = get_global_id(0);
 
     // Early exit for threads beyond max_threads
     if (thread_id >= max_threads) {
@@ -21,7 +21,7 @@ __kernel void modular_multiplication_benchmark_kernel(
 
     // Perform iterations of modular multiplication
     Uint256 result = a;
-    for (unsigned int i = 0; i < iterations; i++) {
+    for (uint i = 0; i < iterations; i++) {
         result = modular_multiplication(result, b);
     }
 

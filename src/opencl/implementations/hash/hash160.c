@@ -28,7 +28,7 @@ inline void hash160_33(const uchar *restrict input, uchar *restrict output)
         0x1f83d9ab, 0x5be0cd19};
 
 #pragma unroll
-    for (unsigned int i = 0; i < 33; i++)
+    for (uint i = 0; i < 33; i++)
     {
         padded[i] = input[i];
     }
@@ -46,7 +46,7 @@ inline void hash160_33(const uchar *restrict input, uchar *restrict output)
 
     uint a, b, c, d, e, f, g, h;
     uint T1, T2;
-    unsigned int t;
+    uint t;
 
 #pragma unroll
     for (t = 0; t < 16; t++)
@@ -92,7 +92,7 @@ inline void hash160_33(const uchar *restrict input, uchar *restrict output)
     H_sha[6] += g;
     H_sha[7] += h;
 
-    for (unsigned int i = 0; i < 8; i++)
+    for (uint i = 0; i < 8; i++)
     {
         UINT_TO_BYTES_BE(H_sha[i], padded + (i << 2));
     }

@@ -5,10 +5,10 @@ __kernel void ckdpub_throughput_benchmark_kernel(
     __constant uchar *chain_code_buffer,
     __constant uchar *k_par_x_buffer,
     __constant uchar *k_par_y_buffer,
-    unsigned int max_threads,
-    __global volatile unsigned int *anti_optimization_counter)
+    uint max_threads,
+    __global volatile uint *anti_optimization_counter)
 {
-    unsigned int thread_id = get_global_id(0);
+    uint thread_id = get_global_id(0);
 
     if (thread_id >= max_threads) {
         return;
