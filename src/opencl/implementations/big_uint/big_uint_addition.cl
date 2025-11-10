@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/big_uint_addition.h"
+#include "src/opencl/headers/big_uint/big_uint_addition.cl.h"
 
 inline Uint256WithOverflow uint256_addition_with_overflow_flag(const Uint256 a, const Uint256 b)
 {

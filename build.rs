@@ -42,7 +42,7 @@ fn get_recursive_include_paths_recursion(
             dir.to_str()
                 .unwrap()
                 .replace("src/opencl/headers", "src/opencl/implementations")
-                .replace(".h", ".cl"),
+                .replace(".cl.h", ".cl"),
         )));
     }
 
@@ -109,7 +109,7 @@ fn get_source_code(path: PathBuf) -> SourceCode {
     };
 
     let content = fs::read_to_string(path.clone())
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Failed to read file: {} - Error: {}", path_str, e))
         .lines()
         .filter(|line| !line.starts_with("#include"))
         .collect::<Vec<&str>>()
@@ -132,7 +132,7 @@ fn get_header_implementation_source_code(header: SourceCode) -> SourceCode {
             .to_str()
             .unwrap()
             .replace("src/opencl/headers", "src/opencl/implementations")
-            .replace(".h", ".cl"),
+            .replace(".cl.h", ".cl"),
     );
 
     get_source_code(path)

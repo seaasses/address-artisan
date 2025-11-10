@@ -1,5 +1,5 @@
-#include "src/opencl/headers/big_uint/big_uint_multiplication.h"
-#include "src/opencl/headers/big_uint/ulong_operations.h"
+#include "src/opencl/headers/big_uint/big_uint_multiplication.cl.h"
+#include "src/opencl/headers/big_uint/ulong_operations.cl.h"
 
 inline void add_component_to_limb(ulong a_limb, ulong b_limb,
                                   ulong *carry_high, ulong *carry_low, ulong *result_limb)

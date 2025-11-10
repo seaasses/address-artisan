@@ -1,5 +1,5 @@
-#include "src/opencl/headers/secp256k1/compress_point.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/headers/secp256k1/compress_point.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
 
 __kernel void compress_point_kernel(
     __global uchar *point_x_buffer,

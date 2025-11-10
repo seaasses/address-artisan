@@ -1,4 +1,4 @@
-#include "src/opencl/headers/cache/cache_lookup.h"
+#include "src/opencl/headers/cache/cache_lookup.cl.h"
 
 __kernel void cache_lookup(
     __global const CacheKey* cache_keys,

@@ -1,12 +1,12 @@
-#include "src/opencl/structs/structs.h"
-#include "src/opencl/headers/secp256k1/ckdpub.h"
-#include "src/opencl/headers/secp256k1/compress_point.h"
-#include "src/opencl/headers/hash/hmac_sha512.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
-#include "src/opencl/headers/secp256k1/g_times_scalar.h"
-#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
-#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
+#include "src/opencl/structs/structs.cl.h"
+#include "src/opencl/headers/secp256k1/ckdpub.cl.h"
+#include "src/opencl/headers/secp256k1/compress_point.cl.h"
+#include "src/opencl/headers/hash/hmac_sha512.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
+#include "src/opencl/headers/secp256k1/g_times_scalar.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_to_affine.cl.h"
 
 inline void ckdpub(
     const XPub parent,

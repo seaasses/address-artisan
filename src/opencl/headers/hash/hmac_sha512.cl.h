@@ -1,5 +1,5 @@
-#include "src/opencl/structs/structs.h"
-#include "src/opencl/headers/hash/sha512.h"
+#include "src/opencl/structs/structs.cl.h"
+#include "src/opencl/headers/hash/sha512.cl.h"
 
 #define HMAC_SHA512_KEY_SIZE 32
 #define HMAC_SHA512_MESSAGE_SIZE 37

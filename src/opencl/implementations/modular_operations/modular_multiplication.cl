@@ -1,10 +1,10 @@
-#include "src/opencl/headers/modular_operations/modular_multiplication.h"
-#include "src/opencl/definitions/secp256k1.h"
-#include "src/opencl/headers/big_uint/big_uint_multiplication.h"
-#include "src/opencl/headers/big_uint/big_uint_subtraction.h"
-#include "src/opencl/headers/big_uint/ulong_operations.h"
-#include "src/opencl/headers/big_uint/big_uint_addition.h"
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_multiplication.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_subtraction.cl.h"
+#include "src/opencl/headers/big_uint/ulong_operations.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_addition.cl.h"
+#include "src/opencl/structs/structs.cl.h"
 
 inline Uint256 modular_multiplication(const Uint256 a, const Uint256 b)
 {

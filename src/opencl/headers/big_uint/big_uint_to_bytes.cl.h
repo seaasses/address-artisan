@@ -1,4 +1,4 @@
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/structs/structs.cl.h"
 
 void uint256_to_bytes(const Uint256 a, uchar *result);
 

@@ -1,6 +1,6 @@
-#include "src/opencl/headers/modular_operations/modular_multiplication.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 __kernel void modular_multiplication_kernel(
     __global uchar *a_buffer,

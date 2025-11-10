@@ -1,4 +1,4 @@
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/structs/structs.cl.h"
 
 XPub cache_lookup_value(
     __global const CacheKey* cache_keys,

@@ -1,7 +1,7 @@
-#include "src/opencl/headers/modular_operations/modular_subtraction.h"
-#include "src/opencl/definitions/secp256k1.h"
-#include "src/opencl/headers/big_uint/big_uint_addition.h"
-#include "src/opencl/headers/big_uint/big_uint_subtraction.h"
+#include "src/opencl/headers/modular_operations/modular_subtraction.cl.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_addition.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_subtraction.cl.h"
 
 inline Uint256 modular_subtraction(const Uint256 a, const Uint256 b)
 {

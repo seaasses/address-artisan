@@ -1,4 +1,4 @@
-#include "src/opencl/headers/cache/cache_lookup.h"
+#include "src/opencl/headers/cache/cache_lookup.cl.h"
 
 inline XPub cache_lookup_value(
     __global const CacheKey *cache_keys,

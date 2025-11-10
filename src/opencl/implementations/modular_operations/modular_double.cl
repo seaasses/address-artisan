@@ -1,7 +1,7 @@
-#include "src/opencl/headers/modular_operations/modular_double.h"
-#include "src/opencl/headers/big_uint/big_uint_shift.h"
-#include "src/opencl/headers/big_uint/big_uint_subtraction.h"
-#include "src/opencl/definitions/secp256k1.h"
+#include "src/opencl/headers/modular_operations/modular_double.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_shift.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_subtraction.cl.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
 
 inline Uint256 modular_double(const Uint256 a)
 {
