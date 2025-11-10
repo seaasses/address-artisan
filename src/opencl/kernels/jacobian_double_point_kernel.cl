@@ -1,6 +1,6 @@
-#include "src/opencl/headers/secp256k1/jacobian_double_point.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/secp256k1/jacobian_double_point.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 __kernel void jacobian_double_point_kernel(
     __global uchar *point_x_buffer,

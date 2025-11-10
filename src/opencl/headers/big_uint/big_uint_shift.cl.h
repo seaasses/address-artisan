@@ -1,4 +1,4 @@
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/structs/structs.cl.h"
 
 Uint256 uint256_shift_left(const Uint256 x);
 

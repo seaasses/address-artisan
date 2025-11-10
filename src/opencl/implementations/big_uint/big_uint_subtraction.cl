@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/big_uint_subtraction.h"
+#include "src/opencl/headers/big_uint/big_uint_subtraction.cl.h"
 
 inline Uint256WithUnderflow uint256_subtraction_with_underflow_flag(const Uint256 a, const Uint256 b)
 {

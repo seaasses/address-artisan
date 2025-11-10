@@ -1,4 +1,4 @@
-#include "src/opencl/headers/hash/hash160.h"
+#include "src/opencl/headers/hash/hash160.cl.h"
 
 __kernel void hash160_33_bytes_kernel(
     __global const uchar *input_buffer,

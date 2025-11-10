@@ -1,7 +1,7 @@
-#include "src/opencl/headers/hash/sha512.h"
-#include "src/opencl/headers/hash/hash_common.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/hash/sha512.cl.h"
+#include "src/opencl/headers/hash/hash_common.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 // SHA512-specific sigma functions
 #define BSIG0(x) (ROTR(x, 28) ^ ROTR(x, 34) ^ ROTR(x, 39))

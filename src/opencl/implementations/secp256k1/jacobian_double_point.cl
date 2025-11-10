@@ -1,9 +1,9 @@
-#include "src/opencl/definitions/secp256k1.h"
-#include "src/opencl/headers/modular_operations/modular_addition.h"
-#include "src/opencl/headers/modular_operations/modular_subtraction.h"
-#include "src/opencl/headers/modular_operations/modular_multiplication.h"
-#include "src/opencl/headers/modular_operations/modular_double.h"
-#include "src/opencl/headers/secp256k1/jacobian_double_point.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
+#include "src/opencl/headers/modular_operations/modular_addition.cl.h"
+#include "src/opencl/headers/modular_operations/modular_subtraction.cl.h"
+#include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
+#include "src/opencl/headers/modular_operations/modular_double.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_double_point.cl.h"
 
 inline JacobianPoint jacobian_double_point(const JacobianPoint point)
 {

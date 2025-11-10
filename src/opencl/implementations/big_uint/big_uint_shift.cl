@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/big_uint_shift.h"
+#include "src/opencl/headers/big_uint/big_uint_shift.cl.h"
 
 inline Uint256 uint256_shift_left(const Uint256 x)
 {

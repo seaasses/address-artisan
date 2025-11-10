@@ -1,4 +1,4 @@
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/structs/structs.cl.h"
 
 #define SHA512_165_BYTES_MESSAGE_SIZE 165
 #define SHA512_192_BYTES_MESSAGE_SIZE 192

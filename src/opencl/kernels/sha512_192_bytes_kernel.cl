@@ -1,4 +1,4 @@
-#include "src/opencl/headers/hash/sha512.h"
+#include "src/opencl/headers/hash/sha512.cl.h"
 
 __kernel void sha512_192_bytes_kernel(
     __global const uchar *input_message,

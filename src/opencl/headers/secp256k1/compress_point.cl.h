@@ -1,5 +1,5 @@
-#include "src/opencl/structs/structs.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/structs/structs.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 #define COMPRESS_POINT(point, output)                                                  \
   do                                                                                   \

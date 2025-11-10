@@ -1,6 +1,6 @@
-#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 __kernel void jacobian_point_affine_point_addition_kernel(
     __global uchar *jac_a_x_buffer,

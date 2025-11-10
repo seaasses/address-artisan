@@ -1,8 +1,8 @@
-#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
-#include "src/opencl/structs/structs.h"
-#include "src/opencl/headers/modular_operations/modular_multiplication.h"
-#include "src/opencl/headers/modular_operations/modular_inverse.h"
-#include "src/opencl/definitions/secp256k1.h"
+#include "src/opencl/headers/secp256k1/jacobian_to_affine.cl.h"
+#include "src/opencl/structs/structs.cl.h"
+#include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
+#include "src/opencl/headers/modular_operations/modular_inverse.cl.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
 
 inline Point jacobian_to_affine(const JacobianPoint point_jac)
 {

@@ -1,4 +1,4 @@
-#include "src/opencl/structs/structs.h"
+#include "src/opencl/structs/structs.cl.h"
 
 void ckdpub(
     const XPub parent,

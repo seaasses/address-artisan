@@ -1,7 +1,7 @@
-#include "src/opencl/definitions/secp256k1.h"
-#include "src/opencl/headers/secp256k1/g_times_scalar.h"
-#include "src/opencl/headers/secp256k1/jacobian_double_point.h"
-#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.h"
+#include "src/opencl/definitions/secp256k1.cl.h"
+#include "src/opencl/headers/secp256k1/g_times_scalar.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_double_point.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.cl.h"
 
 // Precomputed points for g_times_scalar
 __constant Point g_times[256] = {

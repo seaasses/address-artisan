@@ -1,5 +1,5 @@
-#include "src/opencl/headers/hash/hmac_sha512.h"
-#include "src/opencl/headers/hash/sha512.h"
+#include "src/opencl/headers/hash/hmac_sha512.cl.h"
+#include "src/opencl/headers/hash/sha512.cl.h"
 
 inline void hmac_sha512_key32_msg37(const uchar *restrict key, const uchar *restrict message, uchar *restrict hash)
 {

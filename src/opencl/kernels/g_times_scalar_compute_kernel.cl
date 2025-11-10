@@ -1,7 +1,7 @@
-#include "src/opencl/structs/structs.h"
-#include "src/opencl/headers/secp256k1/g_times_scalar.h"
-#include "src/opencl/headers/secp256k1/jacobian_to_affine.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
+#include "src/opencl/structs/structs.cl.h"
+#include "src/opencl/headers/secp256k1/g_times_scalar.cl.h"
+#include "src/opencl/headers/secp256k1/jacobian_to_affine.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
 
 __kernel void g_times_scalar_compute_kernel(
     __global uchar *scalar_buffer,

@@ -1,4 +1,4 @@
-#include "src/opencl/headers/hash/hmac_sha512.h"
+#include "src/opencl/headers/hash/hmac_sha512.cl.h"
 
 __kernel void hmac_sha512_key32_msg37_kernel(
     __global const uchar *input_key,

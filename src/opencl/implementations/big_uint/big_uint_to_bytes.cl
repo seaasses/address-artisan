@@ -1,4 +1,4 @@
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 inline void uint256_to_bytes(const Uint256 a, uchar *result)
 {

@@ -1,6 +1,6 @@
-#include "src/opencl/headers/cache/cache_lookup.h"
-#include "src/opencl/headers/secp256k1/ckdpub.h"
-#include "src/opencl/headers/hash/hash160.h"
+#include "src/opencl/headers/cache/cache_lookup.cl.h"
+#include "src/opencl/headers/secp256k1/ckdpub.cl.h"
+#include "src/opencl/headers/hash/hash160.cl.h"
 
 #define NON_HARDENED_MAX_INDEX 0x7FFFFFFF
 #define NON_HARDENED_COUNT ((ulong)(NON_HARDENED_MAX_INDEX) + 1)

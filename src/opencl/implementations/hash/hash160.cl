@@ -1,7 +1,7 @@
-#include "src/opencl/headers/hash/hash160.h"
-#include "src/opencl/headers/hash/hash_common.h"
-#include "src/opencl/headers/big_uint/big_uint_from_bytes.h"
-#include "src/opencl/headers/big_uint/big_uint_to_bytes.h"
+#include "src/opencl/headers/hash/hash160.cl.h"
+#include "src/opencl/headers/hash/hash_common.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_from_bytes.cl.h"
+#include "src/opencl/headers/big_uint/big_uint_to_bytes.cl.h"
 
 #define HASH160_BSIG0(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
 #define HASH160_BSIG1(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))

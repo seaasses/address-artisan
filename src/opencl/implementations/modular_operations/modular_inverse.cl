@@ -1,5 +1,5 @@
-#include "src/opencl/headers/modular_operations/modular_inverse.h"
-#include "src/opencl/headers/modular_operations/modular_multiplication.h"
+#include "src/opencl/headers/modular_operations/modular_inverse.cl.h"
+#include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
 
 inline Uint256 modular_inverse(const Uint256 a)
 {

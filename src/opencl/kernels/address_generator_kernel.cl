@@ -1,5 +1,5 @@
-#include "src/opencl/headers/secp256k1/ckdpub.h"
-#include "src/opencl/headers/hash/hash160.h"
+#include "src/opencl/headers/secp256k1/ckdpub.cl.h"
+#include "src/opencl/headers/hash/hash160.cl.h"
 
 __kernel void address_generator_kernel(
     __global uchar *chain_code_buffer,
