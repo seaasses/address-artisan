@@ -1,4 +1,5 @@
 use crate::device_info::DeviceInfo;
+use ocl::{Device, Platform};
 use sysinfo::System;
 
 pub struct DeviceManager;
@@ -7,6 +8,7 @@ impl DeviceManager {
     pub fn detect_available_devices() -> Vec<DeviceInfo> {
         let mut devices = Vec::new();
 
+        // Detect CPU
         let cpu_name = Self::detect_cpu_name();
         let cpu_threads = Self::detect_cpu_threads();
 
@@ -15,7 +17,99 @@ impl DeviceManager {
             threads: cpu_threads,
         });
 
+        // Detect GPUs
+        devices.extend(Self::detect_gpus());
+
         devices
+    }
+
+    fn detect_gpus() -> Vec<DeviceInfo> {
+        let mut gpus = Vec::new();
+
+        // Get all platforms - Platform::list() returns Vec<Platform> directly
+        let platforms = Platform::list();
+
+        for (platform_index, platform) in platforms.iter().enumerate() {
+            if let Ok(platform_devices) = Device::list_all(*platform) {
+                for (device_index, device) in platform_devices.iter().enumerate() {
+                    if let Ok(device_type) = device.info(ocl::enums::DeviceInfo::Type) {
+                        // Only include GPU devices
+                        if device_type.to_string().contains("GPU") {
+                            let name = device
+                                .name()
+                                .unwrap_or_else(|_| format!("GPU_{}", device_index))
+                                .replace(" ", "_");
+
+                            // Detect if GPU is onboard/integrated
+                            let is_onboard = Self::is_onboard_gpu(device);
+
+                            gpus.push(DeviceInfo::GPU {
+                                name,
+                                device_index,
+                                platform_index,
+                                is_onboard,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        gpus
+    }
+
+    fn is_onboard_gpu(device: &Device) -> bool {
+        // Method 1: Check HostUnifiedMemory - integrated GPUs share memory with CPU
+        if let Ok(unified) = device.info(ocl::enums::DeviceInfo::HostUnifiedMemory) {
+            if unified.to_string() == "true" || unified.to_string() == "1" {
+                return true;
+            }
+        }
+
+        // Method 2: Check global memory size - integrated typically has less
+        if let Ok(mem) = device.info(ocl::enums::DeviceInfo::GlobalMemSize) {
+            if let Ok(mem_str) = mem.to_string().parse::<u64>() {
+                // Less than 2GB is typically integrated
+                if mem_str < 2_147_483_648 {
+                    return true;
+                }
+            }
+        }
+
+        // Method 3: Check device name for common integrated GPU vendors
+        if let Ok(name) = device.name() {
+            let name_lower = name.to_lowercase();
+            // Intel integrated GPUs
+            if name_lower.contains("intel") &&
+               (name_lower.contains("hd") ||
+                name_lower.contains("uhd") ||
+                name_lower.contains("iris") ||
+                name_lower.contains("integrated")) {
+                return true;
+            }
+            // AMD integrated GPUs (APU)
+            if name_lower.contains("amd") &&
+               (name_lower.contains("radeon") &&
+                (name_lower.contains("graphics") || name_lower.contains("vega"))) {
+                return true;
+            }
+        }
+
+        // Method 4: Check vendor - Intel GPUs without "Arc" are typically integrated
+        if let Ok(vendor) = device.vendor() {
+            let vendor_lower = vendor.to_lowercase();
+            if vendor_lower.contains("intel") {
+                if let Ok(name) = device.name() {
+                    let name_lower = name.to_lowercase();
+                    // Discrete Intel GPUs would have "arc"
+                    if !name_lower.contains("arc") {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     fn detect_cpu_threads() -> u32 {
@@ -53,12 +147,17 @@ mod tests {
     fn test_detect_available_devices_returns_cpu() {
         let devices = DeviceManager::detect_available_devices();
 
-        assert_eq!(devices.len(), 1);
+        assert!(devices.len() >= 1, "Should detect at least one device");
+
+        // First device should always be CPU
         match &devices[0] {
             DeviceInfo::CPU { name, threads } => {
                 assert!(!name.is_empty());
                 assert_ne!(name, "");
                 assert!(*threads > 0);
+            }
+            DeviceInfo::GPU { .. } => {
+                panic!("First device should be CPU, not GPU");
             }
         }
     }

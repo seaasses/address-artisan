@@ -7,8 +7,10 @@ mod events;
 mod extended_public_key;
 mod extended_public_key_deriver;
 mod extended_public_key_path_walker;
+mod gpu_workbench;
 mod ground_truth_validator;
 mod logger;
+mod opencl;
 mod orchestrator;
 mod prefix;
 mod workbench;
@@ -43,25 +45,58 @@ fn main() {
     })
     .expect("Error setting Ctrl+C handler");
 
-    let mut devices = DeviceManager::detect_available_devices();
+    let mut all_devices = DeviceManager::detect_available_devices();
 
+    // Apply custom CPU threads if specified
     if cli.cpu_threads != 0 {
-        devices = devices
+        all_devices = all_devices
             .into_iter()
-            .map(|device| device.with_threads(cli.cpu_threads))
+            .map(|device| {
+                if matches!(device, device_info::DeviceInfo::CPU { .. }) {
+                    device.with_threads(cli.cpu_threads)
+                } else {
+                    device
+                }
+            })
             .collect();
     }
 
-    let actual_threads = devices
-        .first()
-        .and_then(|d| d.threads())
-        .unwrap_or(cli.cpu_threads);
+    // Filter devices based on --gpu and --gpu-only flags
+    all_devices = all_devices
+        .into_iter()
+        .filter(|device| {
+            match device {
+                device_info::DeviceInfo::GPU { is_onboard, .. } => {
+                    // Keep GPUs if --gpu or --gpu-only is set AND it's not onboard
+                    (cli.gpu || cli.gpu_only) && !is_onboard
+                },
+                device_info::DeviceInfo::CPU { .. } => {
+                    // Keep CPU only if --gpu-only is NOT set
+                    !cli.gpu_only
+                }
+            }
+        })
+        .collect();
+
+    // Calculate total threads (for logging purposes)
+    let total_cpu_threads: u32 = all_devices
+        .iter()
+        .filter_map(|d| d.threads())
+        .sum();
 
     let logger = Logger::new();
-    logger.start(&cli.prefix, cli.max_depth, actual_threads);
+    logger.start(&cli.prefix, cli.max_depth, total_cpu_threads);
     println!();
 
-    let mut orchestrator = Orchestrator::new(xpub, prefix, cli.max_depth, stop_signal, ground_truth_validator, logger);
+    let mut orchestrator = Orchestrator::new(
+        xpub,
+        prefix,
+        cli.max_depth,
+        stop_signal,
+        ground_truth_validator,
+        logger,
+    );
 
-    orchestrator.run(devices);
+    orchestrator.run(all_devices);
 }
+

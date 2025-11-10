@@ -1,3 +1,7 @@
+# THIS BRANCH
+
+This branch is an experimental branch to get the Artisan working on the GPU using OpenCL. To use the working CPU version, go to the [main branch](https://github.com/seaasses/address-artisan/tree/main).
+
 # Address Artisan
 
 Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation.

@@ -28,6 +28,19 @@ pub struct Cli {
         value_parser = Cli::validate_cpu_threads
     )]
     pub cpu_threads: u32,
+    #[arg(
+        short = 'g',
+        long = "gpu",
+        help = "Enable GPU processing (excludes integrated/onboard GPUs)",
+        default_value = "false"
+    )]
+    pub gpu: bool,
+    #[arg(
+        long = "gpu-only",
+        help = "Use only GPU (no CPU, excludes integrated/onboard GPUs)",
+        default_value = "false"
+    )]
+    pub gpu_only: bool,
 }
 
 impl Cli {
