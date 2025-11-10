@@ -256,7 +256,7 @@ impl GpuWorkbench {
                 break;
             }
 
-            // Wait for kernel completion before timing
+            // Wait for kernel completion
             if let Err(e) = queue.finish() {
                 eprintln!("Failed to finish queue: {}", e);
                 break;
