@@ -8,7 +8,12 @@ use crate::workbench_config::WorkbenchConfig;
 use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
+
+// Global flag to coordinate kernel compilation
+// Only one GPU compiles at a time to avoid driver issues
+static KERNEL_COMPILING: AtomicBool = AtomicBool::new(false);
 
 // GPU processing constants
 const GPU_WORK_SIZE: u64 = 524_288;
@@ -382,11 +387,28 @@ impl GpuWorkbench {
     fn build_kernel_program(device: Device, context: Context) -> Result<Program, String> {
         let batch_search_src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
 
-        Program::builder()
+        // Wait for any other GPU that might be compiling
+        while KERNEL_COMPILING.compare_exchange_weak(
+            false,
+            true,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+        ).is_err() {
+            // Another GPU is compiling, wait a bit
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        // We have the "lock", compile the kernel
+        let result = Program::builder()
             .devices(device)
             .src(batch_search_src)
             .build(&context)
-            .map_err(|e| format!("Failed to build program: {}", e))
+            .map_err(|e| format!("Failed to build program: {}", e));
+
+        // Release the "lock"
+        KERNEL_COMPILING.store(false, Ordering::Release);
+
+        result
     }
 
     fn prepare_range_buffers(prefix: &crate::prefix::Prefix) -> (Vec<u8>, Vec<u8>) {
