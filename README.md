@@ -1,10 +1,8 @@
 # Address Artisan
 
-Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation.
+Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation and is:
 
-This software is inspired by [Senzu](https://github.com/kaiwolfram/senzu) and aims to be:
-
-- 🔒 **Secure**: Generate vanity addresses even for hardware wallets! 🤯
+- 🔒 **Secure**: Generates vanity addresses even for hardware wallets! 🤯
 - ⚡ **Fast**: Built in Rust/OpenCL with fast public key derivation, prefix matching and GPU support. 🚀
 - 😎 **Cool**: "1There1sNoSpoon" is much cooler than "bc1qtheresn0sp00n". P2PKH wins! 🎉
 
