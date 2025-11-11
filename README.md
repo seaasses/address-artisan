@@ -148,11 +148,11 @@ The complete derivation path for this address is `m/10495330'/0'/0'/1949567566/2
 
 ### Import the Address in the Wallet
 
-1. Create a new P2PKH wallet using the same seed phrase or hardware wallet, but this time use the derivation path returned by the tool.
+1. Create a new P2PKH wallet using the same seed phrase or hardware wallet, but this time use the derivation path returned.
 
 ![Vanity wallet derivation path](./assets/vanity_wallet_derivation_path.png)
 
-In this example, use: `m/10495330'/0'/0'/1949567566/243133792`
+In this example: `m/10495330'/0'/0'/1949567566/243133792/0/175`
 
 2. Since software wallets use a default [gap limit](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#address-gap-limit) of 20 addresses, this needs to be adjusted in the Advanced settings. The gap limit should be set to a value higher than the address index.
 
