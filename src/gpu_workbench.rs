@@ -53,7 +53,7 @@ impl GpuWorkbench {
     ) {
         let start_time = Instant::now();
 
-        // Initialize OpenCL context and queue FIRST
+        // Initialize OpenCL context and queue
         let (device, context, queue) = match Self::init_opencl(device_index, platform_index) {
             Ok(result) => result,
             Err(e) => {
@@ -62,7 +62,7 @@ impl GpuWorkbench {
             }
         };
 
-        // Initialize GPU cache using the same device/context/queue
+        // Initialize GPU cache
         let mut gpu_cache =
             match GpuCache::new(device, context.clone(), queue.clone(), CACHE_CAPACITY) {
                 Ok(cache) => cache,
@@ -74,7 +74,7 @@ impl GpuWorkbench {
 
         let mut deriver = ExtendedPublicKeyDeriver::new(&config.xpub);
 
-        // Build kernel program (EXPENSIVE - do it once!)
+        // Build kernel program
         let program = match Self::build_kernel_program(device, context.clone()) {
             Ok(prog) => prog,
             Err(e) => {
@@ -82,6 +82,9 @@ impl GpuWorkbench {
                 return;
             }
         };
+
+        // Send Started event after successful kernel compilation
+        event_sender.started(Instant::now());
 
         // Prepare range buffers from prefix
         let (range_lows_data, range_highs_data) = Self::prepare_range_buffers(&config.prefix);
@@ -175,8 +178,6 @@ impl GpuWorkbench {
         }
 
         // Get cache buffers for kernel creation (these buffers never change, only their content)
-        // The GpuCache reuses the same Buffer objects throughout its lifetime
-        // Now includes cache_size_buffer which is managed by GpuCache
         let (cache_keys_buffer, cache_values_buffer, cache_size_buffer) = gpu_cache.get_buffers();
 
         // Create kernel ONCE before the loop
