@@ -85,9 +85,7 @@ fn main() {
     if !available_gpus.is_empty() {
         println!("Available GPUs:");
         for (index, gpu) in &available_gpus {
-            if let device_info::DeviceInfo::GPU { name, .. } = gpu {
-                println!("  GPU {}: {}", index, name);
-            }
+            println!("  GPU {}: {}", index, gpu.name());
         }
         println!();
     }
