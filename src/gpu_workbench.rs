@@ -88,7 +88,6 @@ impl GpuWorkbench {
             }
         };
 
-        // Send Started event after successful kernel compilation
         event_sender.started(Instant::now());
 
         // Prepare range buffers from prefix
