@@ -208,7 +208,7 @@ pub fn run_workbench(
 ) {
     let start_time = Instant::now();
 
-    event_sender.started(start_time);
+    // Started event is now sent by each workbench implementation
 
     workbench.start();
 
