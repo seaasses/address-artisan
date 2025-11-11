@@ -31,10 +31,12 @@ pub struct Cli {
     #[arg(
         short = 'g',
         long = "gpu",
-        help = "Enable GPU processing (excludes integrated/onboard GPUs)",
-        default_value = "false"
+        help = "Enable GPU processing (excludes integrated/onboard GPUs). Can optionally specify GPU IDs: --gpu 0,1 or --gpu 0 1",
+        num_args = 0..,
+        value_delimiter = ',',
+        value_parser = Cli::validate_gpu_id
     )]
-    pub gpu: bool,
+    pub gpu: Option<Vec<usize>>,
     #[arg(
         long = "gpu-only",
         help = "Use only GPU (no CPU, excludes integrated/onboard GPUs)",
@@ -108,6 +110,19 @@ impl Cli {
             .map_err(|e: std::num::ParseIntError| e.to_string())?;
 
         Ok(threads_int)
+    }
+
+    fn validate_gpu_id(id: &str) -> Result<usize, String> {
+        let id_int: usize = id
+            .parse()
+            .map_err(|e: std::num::ParseIntError| format!("Invalid GPU ID '{}': {}", id, e))?;
+
+        // GPU IDs should be reasonable (e.g., less than 100)
+        if id_int >= 100 {
+            return Err(format!("GPU ID {} seems unreasonably high", id_int));
+        }
+
+        Ok(id_int)
     }
 }
 
@@ -256,6 +271,37 @@ mod tests {
     fn test_validate_cpu_threads_invalid() {
         let threads = "abc";
         let result = Cli::validate_cpu_threads(threads);
+        assert!(result.is_err());
+    }
+
+    // gpu_id tests
+    #[test]
+    fn test_validate_gpu_id_valid() {
+        let id = "0";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_validate_gpu_id_valid_multiple_digits() {
+        let id = "3";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 3);
+    }
+
+    #[test]
+    fn test_validate_gpu_id_invalid_too_high() {
+        let id = "100";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_gpu_id_invalid_string() {
+        let id = "abc";
+        let result = Cli::validate_gpu_id(id);
         assert!(result.is_err());
     }
 }

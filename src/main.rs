@@ -61,14 +61,64 @@ fn main() {
             .collect();
     }
 
+    // First, collect all non-onboard GPUs with global indexing
+    let mut gpu_global_index = 0;
+    let available_gpus: Vec<(usize, device_info::DeviceInfo)> = all_devices
+        .iter()
+        .filter_map(|device| {
+            match device {
+                gpu_device @ device_info::DeviceInfo::GPU { is_onboard, .. } => {
+                    if !is_onboard {
+                        let index = gpu_global_index;
+                        gpu_global_index += 1;
+                        Some((index, gpu_device.clone()))
+                    } else {
+                        None
+                    }
+                },
+                _ => None
+            }
+        })
+        .collect();
+
+    // Print available GPUs for user reference
+    if !available_gpus.is_empty() {
+        println!("Available GPUs:");
+        for (index, gpu) in &available_gpus {
+            if let device_info::DeviceInfo::GPU { name, .. } = gpu {
+                println!("  GPU {}: {}", index, name);
+            }
+        }
+        println!();
+    }
+
     // Filter devices based on --gpu and --gpu-only flags
     all_devices = all_devices
         .into_iter()
         .filter(|device| {
             match device {
                 device_info::DeviceInfo::GPU { is_onboard, .. } => {
-                    // Keep GPUs if --gpu or --gpu-only is set AND it's not onboard
-                    (cli.gpu || cli.gpu_only) && !is_onboard
+                    if *is_onboard {
+                        // Never include onboard GPUs
+                        false
+                    } else if cli.gpu_only {
+                        // --gpu-only: include all non-onboard GPUs
+                        true
+                    } else if let Some(ref gpu_ids) = cli.gpu {
+                        // --gpu with specific IDs or empty (all GPUs)
+                        if gpu_ids.is_empty() {
+                            // --gpu without IDs: use all non-onboard GPUs
+                            true
+                        } else {
+                            // Check if this GPU's global index is in the requested list
+                            available_gpus.iter().any(|(idx, gpu_info)| {
+                                gpu_info == device && gpu_ids.contains(idx)
+                            })
+                        }
+                    } else {
+                        // No --gpu flag: don't include GPUs
+                        false
+                    }
                 },
                 device_info::DeviceInfo::CPU { .. } => {
                     // Keep CPU only if --gpu-only is NOT set

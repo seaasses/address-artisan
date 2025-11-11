@@ -114,7 +114,16 @@ impl Orchestrator {
         let event_tx = self.event_tx.clone();
         let stop_signal = Arc::clone(&self.stop_signal);
 
-        let bench_name = device.name().to_string();
+        // Create bench_name with device_index for GPUs
+        let bench_name = match &device {
+            DeviceInfo::GPU { name, device_index, .. } => {
+                format!("{}_{}", device_index, name)
+            },
+            DeviceInfo::CPU { name, .. } => {
+                name.to_string()
+            }
+        };
+
         let thread_name = format!("{}-bench", bench_name);
         thread::Builder::new()
             .name(thread_name.clone())
