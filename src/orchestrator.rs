@@ -116,11 +116,11 @@ impl Orchestrator {
 
         // Create bench_name with device_index for GPUs
         let bench_name = match &device {
-            DeviceInfo::GPU { name, device_index, .. } => {
-                format!("{}_{}", device_index, name)
+            DeviceInfo::GPU { device_index, .. } => {
+                format!("{}_{}", device_index, device.name())
             },
-            DeviceInfo::CPU { name, .. } => {
-                name.to_string()
+            DeviceInfo::CPU { .. } => {
+                device.name().to_string()
             }
         };
 
