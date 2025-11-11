@@ -101,9 +101,6 @@ fn main() {
                     if *is_onboard {
                         // Never include onboard GPUs
                         false
-                    } else if cli.gpu_only {
-                        // --gpu-only: include all non-onboard GPUs
-                        true
                     } else if let Some(ref gpu_ids) = cli.gpu {
                         // --gpu with specific IDs or empty (all GPUs)
                         if gpu_ids.is_empty() {
@@ -115,6 +112,9 @@ fn main() {
                                 gpu_info == device && gpu_ids.contains(idx)
                             })
                         }
+                    } else if cli.gpu_only {
+                        // --gpu-only without specific --gpu IDs: include all non-onboard GPUs
+                        true
                     } else {
                         // No --gpu flag: don't include GPUs
                         false
