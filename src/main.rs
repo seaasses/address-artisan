@@ -3,6 +3,7 @@ mod constants;
 mod cpu_workbench;
 mod device_info;
 mod device_manager;
+mod device_selector;
 mod events;
 mod extended_public_key;
 mod extended_public_key_deriver;
@@ -18,7 +19,7 @@ mod workbench_config;
 mod workbench_factory;
 
 use cli::Cli;
-use device_manager::DeviceManager;
+use device_selector::{DeviceConfig, DeviceSelector};
 use extended_public_key::ExtendedPubKey;
 use ground_truth_validator::GroundTruthValidator;
 use logger::Logger;
@@ -45,121 +46,18 @@ fn main() {
     })
     .expect("Error setting Ctrl+C handler");
 
-    let mut all_devices = DeviceManager::detect_available_devices();
-
-    // Apply custom CPU threads if specified
-    if cli.cpu_threads != 0 {
-        all_devices = all_devices
-            .into_iter()
-            .map(|device| {
-                if matches!(device, device_info::DeviceInfo::CPU { .. }) {
-                    device.with_threads(cli.cpu_threads)
-                } else {
-                    device
-                }
-            })
-            .collect();
-    }
-
-    // First, collect all non-onboard GPUs with global indexing
-    let mut gpu_global_index = 0;
-    let available_gpus: Vec<(usize, device_info::DeviceInfo)> = all_devices
-        .iter()
-        .filter_map(|device| {
-            match device {
-                gpu_device @ device_info::DeviceInfo::GPU { is_onboard, .. } => {
-                    if !is_onboard {
-                        let index = gpu_global_index;
-                        gpu_global_index += 1;
-                        Some((index, gpu_device.clone()))
-                    } else {
-                        None
-                    }
-                },
-                _ => None
-            }
-        })
-        .collect();
-
-    // Print available GPUs for user reference
-    if !available_gpus.is_empty() {
-        println!("Available GPUs:");
-        for (index, gpu) in &available_gpus {
-            println!("  GPU {}: {}", index, gpu.name());
-        }
-        println!();
-    }
-
-    // Validate GPU availability and requested GPU IDs
-    if let Some(ref gpu_ids) = cli.gpu {
-        if !gpu_ids.is_empty() {
-            // Check if all requested GPU IDs are valid
-            let max_gpu_index = if available_gpus.is_empty() {
-                0
-            } else {
-                available_gpus.len() - 1
-            };
-
-            for requested_id in gpu_ids {
-                if *requested_id >= available_gpus.len() {
-                    eprintln!("Error: GPU {} does not exist.", requested_id);
-                    if available_gpus.is_empty() {
-                        eprintln!("No GPUs available on this system.");
-                    } else {
-                        eprintln!("Available GPU IDs are 0 to {}.", max_gpu_index);
-                    }
-                    std::process::exit(1);
-                }
-            }
-        } else if available_gpus.is_empty() {
-            // --gpu flag without IDs means use all GPUs, but none are available
-            eprintln!("Error: --gpu flag was used but no GPUs are available on this system.");
+    // Use DeviceSelector to handle all device selection logic
+    let device_config = DeviceConfig::from(&cli);
+    let selected_devices = match DeviceSelector::select_devices(device_config) {
+        Ok(devices) => devices,
+        Err(error_msg) => {
+            eprintln!("{}", error_msg);
             std::process::exit(1);
         }
-    } else if cli.gpu_only && available_gpus.is_empty() {
-        // --gpu-only flag but no GPUs available
-        eprintln!("Error: --gpu-only flag was used but no GPUs are available on this system.");
-        std::process::exit(1);
-    }
-
-    // Filter devices based on --gpu and --gpu-only flags
-    all_devices = all_devices
-        .into_iter()
-        .filter(|device| {
-            match device {
-                device_info::DeviceInfo::GPU { is_onboard, .. } => {
-                    if *is_onboard {
-                        // Never include onboard GPUs
-                        false
-                    } else if let Some(ref gpu_ids) = cli.gpu {
-                        // --gpu with specific IDs or empty (all GPUs)
-                        if gpu_ids.is_empty() {
-                            // --gpu without IDs: use all non-onboard GPUs
-                            true
-                        } else {
-                            // Check if this GPU's global index is in the requested list
-                            available_gpus.iter().any(|(idx, gpu_info)| {
-                                gpu_info == device && gpu_ids.contains(idx)
-                            })
-                        }
-                    } else if cli.gpu_only {
-                        // --gpu-only without specific --gpu IDs: include all non-onboard GPUs
-                        true
-                    } else {
-                        // No --gpu flag: don't include GPUs
-                        false
-                    }
-                },
-                device_info::DeviceInfo::CPU { .. } => {
-                    // Keep CPU only if --gpu-only is NOT set
-                    !cli.gpu_only
-                }
-            }
-        })
-        .collect();
+    };
 
     // Calculate total threads (for logging purposes)
-    let total_cpu_threads: u32 = all_devices
+    let total_cpu_threads: u32 = selected_devices
         .iter()
         .filter_map(|d| d.threads())
         .sum();
@@ -177,6 +75,6 @@ fn main() {
         logger,
     );
 
-    orchestrator.run(all_devices);
+    orchestrator.run(selected_devices);
 }
 
