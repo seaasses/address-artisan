@@ -184,11 +184,6 @@ impl GpuCache {
     }
 
     #[cfg(test)]
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    #[cfg(test)]
     pub fn lookup(&self, search_keys: &[[u32; 2]]) -> Result<Vec<Option<XPub>>, String> {
         // If cache is empty, return None for all search keys
         if self.current_size == 0 {
