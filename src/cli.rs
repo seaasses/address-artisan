@@ -47,7 +47,24 @@ pub struct Cli {
 
 impl Cli {
     pub fn parse_args() -> Self {
-        Self::parse()
+        let cli = Self::parse();
+        if let Err(msg) = cli.validate_conflicting_options() {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+        cli
+    }
+
+    fn validate_conflicting_options(&self) -> Result<(), String> {
+        // Check for conflicting --gpu-only and -t/--cpu-threads
+        if self.gpu_only && self.cpu_threads != 0 {
+            return Err(
+                "Error: --gpu-only and -t/--cpu-threads cannot be used together.\n       \
+                --gpu-only means no CPU processing, so CPU threads are not applicable."
+                    .to_string(),
+            );
+        }
+        Ok(())
     }
 
     fn validate_max_depth(max_depth: &str) -> Result<u32, String> {
@@ -303,5 +320,54 @@ mod tests {
         let id = "abc";
         let result = Cli::validate_gpu_id(id);
         assert!(result.is_err());
+    }
+
+    // Tests for conflicting options validation
+    #[test]
+    fn test_validate_conflicting_options_gpu_only_with_cpu_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: true,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("--gpu-only and -t/--cpu-threads cannot be used together"));
+    }
+
+    #[test]
+    fn test_validate_conflicting_options_gpu_only_with_zero_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 0, // 0 means auto-detect, which is valid with gpu_only
+            gpu: None,
+            gpu_only: true,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_conflicting_options_no_gpu_only_with_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: false,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_ok());
     }
 }
