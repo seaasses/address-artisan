@@ -90,6 +90,38 @@ fn main() {
         println!();
     }
 
+    // Validate GPU availability and requested GPU IDs
+    if let Some(ref gpu_ids) = cli.gpu {
+        if !gpu_ids.is_empty() {
+            // Check if all requested GPU IDs are valid
+            let max_gpu_index = if available_gpus.is_empty() {
+                0
+            } else {
+                available_gpus.len() - 1
+            };
+
+            for requested_id in gpu_ids {
+                if *requested_id >= available_gpus.len() {
+                    eprintln!("Error: GPU {} does not exist.", requested_id);
+                    if available_gpus.is_empty() {
+                        eprintln!("No GPUs available on this system.");
+                    } else {
+                        eprintln!("Available GPU IDs are 0 to {}.", max_gpu_index);
+                    }
+                    std::process::exit(1);
+                }
+            }
+        } else if available_gpus.is_empty() {
+            // --gpu flag without IDs means use all GPUs, but none are available
+            eprintln!("Error: --gpu flag was used but no GPUs are available on this system.");
+            std::process::exit(1);
+        }
+    } else if cli.gpu_only && available_gpus.is_empty() {
+        // --gpu-only flag but no GPUs available
+        eprintln!("Error: --gpu-only flag was used but no GPUs are available on this system.");
+        std::process::exit(1);
+    }
+
     // Filter devices based on --gpu and --gpu-only flags
     all_devices = all_devices
         .into_iter()
