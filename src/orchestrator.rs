@@ -114,7 +114,16 @@ impl Orchestrator {
         let event_tx = self.event_tx.clone();
         let stop_signal = Arc::clone(&self.stop_signal);
 
-        let bench_name = device.name().to_string();
+        // Create bench_name with device_index for GPUs
+        let bench_name = match &device {
+            DeviceInfo::GPU { device_index, .. } => {
+                format!("{}_{}", device_index, device.name())
+            },
+            DeviceInfo::CPU { .. } => {
+                device.name().to_string()
+            }
+        };
+
         let thread_name = format!("{}-bench", bench_name);
         thread::Builder::new()
             .name(thread_name.clone())
@@ -199,7 +208,7 @@ pub fn run_workbench(
 ) {
     let start_time = Instant::now();
 
-    event_sender.started(start_time);
+    // Started event is now sent by each workbench implementation
 
     workbench.start();
 

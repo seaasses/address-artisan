@@ -10,13 +10,13 @@ Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](htt
 
 You can install the tool using:
 
-```
+```bash
 cargo install address-artisan
 ```
 
 Or clone the repository and build it:
 
-```
+```bash
 cargo build --release
 ```
 
@@ -28,14 +28,44 @@ The tool requires 2 mandatory arguments (`xpub` and `prefix`) and accepts severa
 - `--prefix` (`-p`): Desired address prefix (must start with "1")
 - `--max-depth` (`-m`): Maximum depth of the last derivation path (default: 1000). A larger max-depth means better utilization of the key space and cache. However, an address may get buried in a large gap, and since [account discovery](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#user-content-Account_discovery) is designed to be sequential, it may take time for the wallet to find it after increasing the gap limit. Testing suggests 100,000 is an optimal value, causing only a 3-second wallet freeze during setup.
 - `--cpu-threads` (`-t`): Number of CPU threads to use (default: 0 = auto-detect physical cores)
-- `--gpu` (`-g`): Enable GPU processing (excludes integrated/onboard GPUs)
-- `--gpu-only`: Use only GPU for processing (no CPU, excludes integrated/onboard GPUs)
+- `--gpu` (`-g`): Enable GPU processing (excludes integrated/onboard GPUs). Can optionally specify GPU IDs: `--gpu 0,1` or `--gpu 0 1`. Without IDs, all available GPUs are used
+- `--gpu-only`: Use only GPU for processing (no CPU, excludes integrated/onboard GPUs). Can be combined with `--gpu` to specify which GPUs to use
 
 For detailed information, use the help command:
 
-```
+```bash
 address-artisan --help
 ```
+
+### Device Selection Examples
+
+```bash
+# CPU only (auto-detect cores)
+address-artisan -x <xpub> -p <prefix>
+
+# CPU with 8 threads
+address-artisan -x <xpub> -p <prefix> -t 8
+
+# Use all available GPUs + CPU
+address-artisan -x <xpub> -p <prefix> --gpu
+
+# Use GPU 0 + CPU
+address-artisan -x <xpub> -p <prefix> --gpu 0
+
+# Use GPU 0 and GPU 2 + CPU
+address-artisan -x <xpub> -p <prefix> --gpu 0,2
+
+# Use all GPUs, no CPU
+address-artisan -x <xpub> -p <prefix> --gpu-only
+
+# Use only GPU 1, no CPU
+address-artisan -x <xpub> -p <prefix> --gpu 1 --gpu-only
+
+# Use GPUs 0 and 1, plus CPU with 4 threads
+address-artisan -x <xpub> -p <prefix> --gpu 0 1 -t 4
+```
+
+**Note:** If you specify an invalid GPU ID, the program will display the available GPUs on your system. Integrated/onboard GPUs are automatically excluded.
 
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 

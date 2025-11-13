@@ -8,7 +8,12 @@ use crate::workbench_config::WorkbenchConfig;
 use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
+
+// Global flag to coordinate kernel compilation
+// Only one GPU compiles at a time to avoid driver issues
+static KERNEL_COMPILING: AtomicBool = AtomicBool::new(false);
 
 // GPU processing constants
 const GPU_WORK_SIZE: u64 = 524_288;
@@ -53,7 +58,7 @@ impl GpuWorkbench {
     ) {
         let start_time = Instant::now();
 
-        // Initialize OpenCL context and queue FIRST
+        // Initialize OpenCL context and queue
         let (device, context, queue) = match Self::init_opencl(device_index, platform_index) {
             Ok(result) => result,
             Err(e) => {
@@ -62,7 +67,7 @@ impl GpuWorkbench {
             }
         };
 
-        // Initialize GPU cache using the same device/context/queue
+        // Initialize GPU cache
         let mut gpu_cache =
             match GpuCache::new(device, context.clone(), queue.clone(), CACHE_CAPACITY) {
                 Ok(cache) => cache,
@@ -74,7 +79,7 @@ impl GpuWorkbench {
 
         let mut deriver = ExtendedPublicKeyDeriver::new(&config.xpub);
 
-        // Build kernel program (EXPENSIVE - do it once!)
+        // Build kernel program
         let program = match Self::build_kernel_program(device, context.clone()) {
             Ok(prog) => prog,
             Err(e) => {
@@ -82,6 +87,8 @@ impl GpuWorkbench {
                 return;
             }
         };
+
+        event_sender.started(Instant::now());
 
         // Prepare range buffers from prefix
         let (range_lows_data, range_highs_data) = Self::prepare_range_buffers(&config.prefix);
@@ -175,8 +182,6 @@ impl GpuWorkbench {
         }
 
         // Get cache buffers for kernel creation (these buffers never change, only their content)
-        // The GpuCache reuses the same Buffer objects throughout its lifetime
-        // Now includes cache_size_buffer which is managed by GpuCache
         let (cache_keys_buffer, cache_values_buffer, cache_size_buffer) = gpu_cache.get_buffers();
 
         // Create kernel ONCE before the loop
@@ -381,11 +386,28 @@ impl GpuWorkbench {
     fn build_kernel_program(device: Device, context: Context) -> Result<Program, String> {
         let batch_search_src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
 
-        Program::builder()
+        // Wait for any other GPU that might be compiling
+        while KERNEL_COMPILING.compare_exchange_weak(
+            false,
+            true,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+        ).is_err() {
+            // Another GPU is compiling, wait a bit
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        // We have the "lock", compile the kernel
+        let result = Program::builder()
             .devices(device)
             .src(batch_search_src)
             .build(&context)
-            .map_err(|e| format!("Failed to build program: {}", e))
+            .map_err(|e| format!("Failed to build program: {}", e));
+
+        // Release the "lock"
+        KERNEL_COMPILING.store(false, Ordering::Release);
+
+        result
     }
 
     fn prepare_range_buffers(prefix: &crate::prefix::Prefix) -> (Vec<u8>, Vec<u8>) {

@@ -48,6 +48,9 @@ impl CPUWorkbench {
 
 impl Workbench for CPUWorkbench {
     fn start(&self) {
+        // Send Started event immediately for CPU workbench
+        self.event_sender.started(Instant::now());
+
         let mut handles = self.worker_handles.lock().unwrap();
 
         for _ in 0..self.num_threads {

@@ -31,10 +31,12 @@ pub struct Cli {
     #[arg(
         short = 'g',
         long = "gpu",
-        help = "Enable GPU processing (excludes integrated/onboard GPUs)",
-        default_value = "false"
+        help = "Enable GPU processing (excludes integrated/onboard GPUs). Can optionally specify GPU IDs: --gpu 0,1 or --gpu 0 1",
+        num_args = 0..,
+        value_delimiter = ',',
+        value_parser = Cli::validate_gpu_id
     )]
-    pub gpu: bool,
+    pub gpu: Option<Vec<usize>>,
     #[arg(
         long = "gpu-only",
         help = "Use only GPU (no CPU, excludes integrated/onboard GPUs)",
@@ -45,7 +47,24 @@ pub struct Cli {
 
 impl Cli {
     pub fn parse_args() -> Self {
-        Self::parse()
+        let cli = Self::parse();
+        if let Err(msg) = cli.validate_conflicting_options() {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+        cli
+    }
+
+    fn validate_conflicting_options(&self) -> Result<(), String> {
+        // Check for conflicting --gpu-only and -t/--cpu-threads
+        if self.gpu_only && self.cpu_threads != 0 {
+            return Err(
+                "Error: --gpu-only and -t/--cpu-threads cannot be used together.\n       \
+                --gpu-only means no CPU processing, so CPU threads are not applicable."
+                    .to_string(),
+            );
+        }
+        Ok(())
     }
 
     fn validate_max_depth(max_depth: &str) -> Result<u32, String> {
@@ -108,6 +127,19 @@ impl Cli {
             .map_err(|e: std::num::ParseIntError| e.to_string())?;
 
         Ok(threads_int)
+    }
+
+    fn validate_gpu_id(id: &str) -> Result<usize, String> {
+        let id_int: usize = id
+            .parse()
+            .map_err(|e: std::num::ParseIntError| format!("Invalid GPU ID '{}': {}", id, e))?;
+
+        // GPU IDs should be reasonable (e.g., less than 100)
+        if id_int >= 100 {
+            return Err(format!("GPU ID {} seems unreasonably high", id_int));
+        }
+
+        Ok(id_int)
     }
 }
 
@@ -257,5 +289,85 @@ mod tests {
         let threads = "abc";
         let result = Cli::validate_cpu_threads(threads);
         assert!(result.is_err());
+    }
+
+    // gpu_id tests
+    #[test]
+    fn test_validate_gpu_id_valid() {
+        let id = "0";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_validate_gpu_id_valid_multiple_digits() {
+        let id = "3";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 3);
+    }
+
+    #[test]
+    fn test_validate_gpu_id_invalid_too_high() {
+        let id = "100";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_gpu_id_invalid_string() {
+        let id = "abc";
+        let result = Cli::validate_gpu_id(id);
+        assert!(result.is_err());
+    }
+
+    // Tests for conflicting options validation
+    #[test]
+    fn test_validate_conflicting_options_gpu_only_with_cpu_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: true,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("--gpu-only and -t/--cpu-threads cannot be used together"));
+    }
+
+    #[test]
+    fn test_validate_conflicting_options_gpu_only_with_zero_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 0, // 0 means auto-detect, which is valid with gpu_only
+            gpu: None,
+            gpu_only: true,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_conflicting_options_no_gpu_only_with_threads() {
+        let cli = Cli {
+            prefix: "1A".to_string(),
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: false,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_ok());
     }
 }

@@ -3,6 +3,7 @@ mod constants;
 mod cpu_workbench;
 mod device_info;
 mod device_manager;
+mod device_selector;
 mod events;
 mod extended_public_key;
 mod extended_public_key_deriver;
@@ -18,7 +19,7 @@ mod workbench_config;
 mod workbench_factory;
 
 use cli::Cli;
-use device_manager::DeviceManager;
+use device_selector::{DeviceConfig, DeviceSelector};
 use extended_public_key::ExtendedPubKey;
 use ground_truth_validator::GroundTruthValidator;
 use logger::Logger;
@@ -45,41 +46,18 @@ fn main() {
     })
     .expect("Error setting Ctrl+C handler");
 
-    let mut all_devices = DeviceManager::detect_available_devices();
-
-    // Apply custom CPU threads if specified
-    if cli.cpu_threads != 0 {
-        all_devices = all_devices
-            .into_iter()
-            .map(|device| {
-                if matches!(device, device_info::DeviceInfo::CPU { .. }) {
-                    device.with_threads(cli.cpu_threads)
-                } else {
-                    device
-                }
-            })
-            .collect();
-    }
-
-    // Filter devices based on --gpu and --gpu-only flags
-    all_devices = all_devices
-        .into_iter()
-        .filter(|device| {
-            match device {
-                device_info::DeviceInfo::GPU { is_onboard, .. } => {
-                    // Keep GPUs if --gpu or --gpu-only is set AND it's not onboard
-                    (cli.gpu || cli.gpu_only) && !is_onboard
-                },
-                device_info::DeviceInfo::CPU { .. } => {
-                    // Keep CPU only if --gpu-only is NOT set
-                    !cli.gpu_only
-                }
-            }
-        })
-        .collect();
+    // Use DeviceSelector to handle all device selection logic
+    let device_config = DeviceConfig::from(&cli);
+    let selected_devices = match DeviceSelector::select_devices(device_config) {
+        Ok(devices) => devices,
+        Err(error_msg) => {
+            eprintln!("{}", error_msg);
+            std::process::exit(1);
+        }
+    };
 
     // Calculate total threads (for logging purposes)
-    let total_cpu_threads: u32 = all_devices
+    let total_cpu_threads: u32 = selected_devices
         .iter()
         .filter_map(|d| d.threads())
         .sum();
@@ -97,6 +75,6 @@ fn main() {
         logger,
     );
 
-    orchestrator.run(all_devices);
+    orchestrator.run(selected_devices);
 }
 
