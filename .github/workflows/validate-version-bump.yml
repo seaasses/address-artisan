@@ -1,0 +1,283 @@
+name: Validate Version Bump
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+    paths:
+      - 'Cargo.toml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check what files changed
+        id: changes
+        run: |
+          # Lista TODOS os arquivos modificados na PR
+          git diff --name-only origin/${{ github.base_ref }}..HEAD > changed_files.txt
+
+          # Conta arquivos modificados
+          FILE_COUNT=$(cat changed_files.txt | wc -l)
+          echo "file_count=$FILE_COUNT" >> $GITHUB_OUTPUT
+
+          # Verifica se Cargo.toml mudou
+          if grep -q "^Cargo.toml$" changed_files.txt; then
+            echo "cargo_toml_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "cargo_toml_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Files changed in this PR:"
+          cat changed_files.txt | sed 's/^/  - /'
+
+      - name: Check version change
+        if: steps.changes.outputs.cargo_toml_changed == 'true'
+        id: version
+        run: |
+          # Pega versão antiga (antes da PR)
+          git checkout origin/${{ github.base_ref }} 2>/dev/null
+          OLD_VERSION=$(grep "^version" Cargo.toml | sed -n 's/version = "\(.*\)"/\1/p')
+
+          # Pega versão nova (na PR)
+          git checkout HEAD 2>/dev/null
+          NEW_VERSION=$(grep "^version" Cargo.toml | sed -n 's/version = "\(.*\)"/\1/p')
+
+          echo "Old version: $OLD_VERSION"
+          echo "New version: $NEW_VERSION"
+
+          if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "old=$OLD_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Enforce release PR rules
+        if: steps.version.outputs.changed == 'true'
+        id: enforce_rules
+        run: |
+          # Se versão mudou, APENAS Cargo.toml pode ter mudado
+          if [ "${{ steps.changes.outputs.file_count }}" != "1" ]; then
+            echo "invalid=true" >> $GITHUB_OUTPUT
+            echo "::error::Version bump PRs must ONLY modify Cargo.toml"
+            echo "❌ ERROR: This PR changes the version but also modifies other files."
+            echo ""
+            echo "Files changed in this PR:"
+            cat changed_files.txt | sed 's/^/  - /'
+            echo ""
+            echo "Please create a separate PR with only the version bump in Cargo.toml"
+          else
+            echo "invalid=false" >> $GITHUB_OUTPUT
+            echo "✅ Valid release PR structure"
+          fi
+
+      - name: Comment error on invalid PR
+        if: steps.version.outputs.changed == 'true' && steps.enforce_rules.outputs.invalid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const changedFiles = `${{ steps.changes.outputs.changed_files }}`;
+            const fileList = changedFiles.split('\n').filter(f => f).map(f => `- ${f}`).join('\n');
+
+            const body = `## ❌ Invalid Release PR
+
+            This PR changes the version from \`${{ steps.version.outputs.old }}\` to \`${{ steps.version.outputs.new }}\` but also modifies other files.
+
+            ### Problem:
+            Release PRs must **ONLY** modify \`Cargo.toml\` to ensure clean release commits.
+
+            ### Files changed in this PR:
+            ${fileList}
+
+            ### How to fix:
+            1. Create a separate PR with your code changes (all files except Cargo.toml)
+            2. After that PR is merged, create a new PR that ONLY updates the version in Cargo.toml
+
+            ### Why this rule exists:
+            - Keeps release commits clean and focused
+            - Makes it easy to identify what code is in each release
+            - Prevents accidental code changes in release commits
+            - Ensures release notes accurately reflect what was already merged
+
+            **This PR cannot be merged until it only modifies Cargo.toml.**`;
+
+            // Verifica se já existe um comentário de erro para não duplicar
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const errorComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('❌ Invalid Release PR')
+            );
+
+            if (errorComment) {
+              // Atualiza comentário existente
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: errorComment.id,
+                body: body
+              });
+            } else {
+              // Cria novo comentário
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+      - name: Fail if invalid
+        if: steps.version.outputs.changed == 'true' && steps.enforce_rules.outputs.invalid == 'true'
+        run: |
+          echo "❌ This PR cannot be merged because it modifies files other than Cargo.toml"
+          exit 1
+
+      - name: Validate semantic version increase
+        if: steps.version.outputs.changed == 'true' && steps.enforce_rules.outputs.invalid != 'true'
+        run: |
+          OLD="${{ steps.version.outputs.old }}"
+          NEW="${{ steps.version.outputs.new }}"
+
+          # Função para comparar versões semânticas
+          version_gt() {
+            # Separa major.minor.patch
+            IFS='.' read -r -a old_parts <<< "$1"
+            IFS='.' read -r -a new_parts <<< "$2"
+
+            # Garante que temos 3 partes
+            old_parts[0]=${old_parts[0]:-0}
+            old_parts[1]=${old_parts[1]:-0}
+            old_parts[2]=${old_parts[2]:-0}
+            new_parts[0]=${new_parts[0]:-0}
+            new_parts[1]=${new_parts[1]:-0}
+            new_parts[2]=${new_parts[2]:-0}
+
+            # Compara major
+            if [ "${new_parts[0]}" -gt "${old_parts[0]}" ]; then
+              return 0  # Nova é maior
+            elif [ "${new_parts[0]}" -lt "${old_parts[0]}" ]; then
+              return 1  # Nova é menor (erro!)
+            fi
+
+            # Major igual, compara minor
+            if [ "${new_parts[1]}" -gt "${old_parts[1]}" ]; then
+              return 0  # Nova é maior
+            elif [ "${new_parts[1]}" -lt "${old_parts[1]}" ]; then
+              return 1  # Nova é menor (erro!)
+            fi
+
+            # Minor igual, compara patch
+            if [ "${new_parts[2]}" -gt "${old_parts[2]}" ]; then
+              return 0  # Nova é maior
+            elif [ "${new_parts[2]}" -le "${old_parts[2]}" ]; then
+              return 1  # Nova é menor ou igual (erro!)
+            fi
+          }
+
+          if ! version_gt "$OLD" "$NEW"; then
+            echo "::error::Version must be greater than $OLD"
+            echo "❌ ERROR: Version must increase!"
+            echo "   Current: $OLD"
+            echo "   Proposed: $NEW"
+            echo ""
+
+            # Sugere versões válidas
+            IFS='.' read -r -a old_parts <<< "$OLD"
+            echo "Valid version bumps from $OLD would be:"
+            echo "  - Patch: ${old_parts[0]}.${old_parts[1]}.$((${old_parts[2]} + 1))"
+            echo "  - Minor: ${old_parts[0]}.$((${old_parts[1]} + 1)).0"
+            echo "  - Major: $((${old_parts[0]} + 1)).0.0"
+            exit 1
+          fi
+
+          # Identifica tipo de bump
+          IFS='.' read -r -a old_parts <<< "$OLD"
+          IFS='.' read -r -a new_parts <<< "$NEW"
+
+          if [ "${new_parts[0]}" -gt "${old_parts[0]}" ]; then
+            echo "✅ Major version bump: $OLD → $NEW"
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+          elif [ "${new_parts[1]}" -gt "${old_parts[1]}" ]; then
+            echo "✅ Minor version bump: $OLD → $NEW"
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Patch version bump: $OLD → $NEW"
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add labels to PR
+        if: steps.version.outputs.changed == 'true' && steps.enforce_rules.outputs.invalid != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Adiciona labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['release', 'version-bump']
+            });
+
+      - name: Comment on PR with release info
+        if: steps.version.outputs.changed == 'true' && steps.enforce_rules.outputs.invalid != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## 🚀 Release PR Detected
+
+            **Version bump:** \`${{ steps.version.outputs.old }}\` → \`${{ steps.version.outputs.new }}\`
+            **Bump type:** ${{ steps.version.outputs.bump_type }}
+
+            ✅ **This PR is valid for release:**
+            - Only Cargo.toml is modified
+            - Version number increases correctly
+
+            ### When this PR is merged:
+            1. Tag \`v${{ steps.version.outputs.new }}\` will be created
+            2. GitHub Release will be created using this PR's description
+            3. Binaries will be built for Linux, Windows, and macOS
+            4. Package will be published to crates.io
+
+            ⚠️ **Important:** Make sure your PR description contains complete release notes, as it will be used as the GitHub Release description!`;
+
+            // Verifica se já existe um comentário similar para não duplicar
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('🚀 Release PR Detected')
+            );
+
+            if (botComment) {
+              // Atualiza comentário existente
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              // Cria novo comentário
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }

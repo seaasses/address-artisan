@@ -1,0 +1,96 @@
+name: Auto Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create-release:
+    # Só executa se a PR foi mergeada E tem a label 'release'
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep "^version" Cargo.toml | sed -n 's/version = "\(.*\)"/\1/p')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag v${{ steps.version.outputs.version }} already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag v${{ steps.version.outputs.version }} does not exist yet"
+          fi
+
+      - name: Configure Git
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git tag -a "v${{ steps.version.outputs.version }}" \
+               -m "Release v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+          echo "✅ Tag v${{ steps.version.outputs.version }} created and pushed"
+
+      - name: Create GitHub Release
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: ${{ github.event.pull_request.body }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+
+      - name: Trigger build workflow
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          event-type: release-created
+          client-payload: '{"version": "${{ steps.version.outputs.version }}", "tag": "v${{ steps.version.outputs.version }}"}'
+
+      - name: Comment success on merged PR
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## ✅ Release v${{ steps.version.outputs.version }} Created Successfully!
+
+            - **Tag:** \`v${{ steps.version.outputs.version }}\`
+            - **Release Page:** https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+            The build and publish workflow has been triggered and will:
+            1. Build binaries for all platforms
+            2. Attach them to the release
+            3. Publish to crates.io
+
+            You can monitor the progress in the [Actions tab](https://github.com/${{ github.repository }}/actions).`
+            });
