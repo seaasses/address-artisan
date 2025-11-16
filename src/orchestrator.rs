@@ -176,7 +176,7 @@ impl Orchestrator {
         // Validate and get address in one derivation to avoid double derivation
         match self
             .ground_truth_validator
-            .validate_and_get_address(self.prefix.as_str(), &path)
+            .validate_and_get_address(&self.prefix, &path)
         {
             Ok(Some(address)) => {
                 // Match confirmed - log it
@@ -231,7 +231,7 @@ mod tests {
     fn create_test_orchestrator() -> (Orchestrator, Arc<AtomicBool>) {
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let stop_signal = Arc::new(AtomicBool::new(false));
         let ground_truth_validator = GroundTruthValidator::new(xpub_str).unwrap();
         let logger = Logger::new();

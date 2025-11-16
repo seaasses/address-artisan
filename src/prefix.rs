@@ -13,20 +13,60 @@ impl Hash160Range {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AddressType {
+    P2PKH,
+    P2WPKH,
+}
+
 #[derive(Clone, Debug)]
 pub struct Prefix {
     pub prefix_str: String,
+    pub address_type: AddressType,
     pub ranges: Vec<Hash160Range>,
 }
 
 impl Prefix {
-    pub fn new(prefix_str: &str) -> Self {
-        let ranges = Self::get_ranges(prefix_str);
-
-        Self {
-            prefix_str: prefix_str.to_string(),
-            ranges,
+    pub fn new(prefix_str: &str) -> Result<Self, String> {
+        if prefix_str.is_empty() {
+            return Err("Prefix cannot be empty".to_string());
         }
+
+        // Detect address type automatically and validate
+        let address_type = if prefix_str.starts_with("bc1q") {
+            // Validate bech32 characters
+            const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+            let bech32_part = &prefix_str[4..];
+            for c in bech32_part.chars() {
+                if !BECH32_CHARSET.contains(c) {
+                    return Err(format!("Invalid bech32 character: '{}'", c));
+                }
+            }
+            AddressType::P2WPKH
+        } else if prefix_str.starts_with("1") {
+            // Validate base58 characters
+            const VALID_BASE58_CHARS: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+            for c in prefix_str.chars() {
+                if !VALID_BASE58_CHARS.contains(c) {
+                    return Err(format!("Invalid base58 character: '{}'", c));
+                }
+            }
+            AddressType::P2PKH
+        } else {
+            return Err("Prefix must start with '1' (P2PKH) or 'bc1q' (P2WPKH)".to_string());
+        };
+
+        // Calculate ranges based on address type
+        let ranges = match address_type {
+            AddressType::P2PKH => Self::get_p2pkh_ranges(prefix_str),
+            AddressType::P2WPKH => Self::get_p2wpkh_ranges(prefix_str),
+        };
+
+        Ok(Self {
+            prefix_str: prefix_str.to_string(),
+            address_type,
+            ranges,
+        })
     }
 
     pub fn as_str(&self) -> &str {
@@ -39,7 +79,7 @@ impl Prefix {
             .any(|range| pubkey_hash >= &range.low && pubkey_hash <= &range.high)
     }
 
-    fn get_ranges(prefix: &str) -> Vec<Hash160Range> {
+    fn get_p2pkh_ranges(prefix: &str) -> Vec<Hash160Range> {
         let mut non_ones = prefix;
         let mut ones_count = 0;
         while non_ones.starts_with('1') {
@@ -162,6 +202,57 @@ impl Prefix {
         result.copy_from_slice(&full_bytes[1..21]);
         result
     }
+
+    fn get_p2wpkh_ranges(prefix: &str) -> Vec<Hash160Range> {
+        // bech32 charset for encoding/decoding
+        const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+        // Remove 'bc1q' prefix to get the actual bech32 string
+        let bech32_prefix = if let Some(stripped) = prefix.strip_prefix("bc1q") {
+            stripped
+        } else {
+            return Vec::new(); // Invalid prefix
+        };
+
+        if bech32_prefix.is_empty() {
+            return vec![Hash160Range::new([0u8; 20], [0xff; 20])];
+        }
+
+        let bech32_to_int = |s: &str| -> Option<BigUint> {
+            let mut value = BigUint::zero();
+            let base = BigUint::from(32u32);
+            for ch in s.chars() {
+                let idx = BECH32_CHARSET.find(ch)?;
+                value = value * &base + BigUint::from(idx);
+            }
+            Some(value)
+        };
+
+
+        // Calculate minimum and maximum by padding with 'q' (0) and 'l' (31)
+        let remaining_len = 32 - bech32_prefix.len();
+        let minimum_str = format!("{}{}", bech32_prefix, "q".repeat(remaining_len));
+        let maximum_str = format!("{}{}", bech32_prefix, "l".repeat(remaining_len));
+
+        let minimum_int = bech32_to_int(&minimum_str).unwrap_or_else(BigUint::zero);
+        let maximum_int = bech32_to_int(&maximum_str).unwrap_or_else(BigUint::zero);
+
+        // Convert to hash160 ranges (20 bytes)
+        let low = Self::biguint_to_20_bytes(&minimum_int);
+        let high = Self::biguint_to_20_bytes(&maximum_int);
+
+        vec![Hash160Range::new(low, high)]
+    }
+
+    fn biguint_to_20_bytes(num: &BigUint) -> [u8; 20] {
+        let bytes = num.to_bytes_be();
+        let mut result = [0u8; 20];
+
+        let offset = 20 - bytes.len();
+        result[offset..].copy_from_slice(&bytes);
+
+        result
+    }
 }
 
 #[cfg(test)]
@@ -170,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_prefix_1() {
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         assert_eq!(prefix.ranges.len(), 1);
 
         let expected_low = [
@@ -188,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_prefix_1a_uppercase() {
-        let prefix = Prefix::new("1A");
+        let prefix = Prefix::new("1A").unwrap();
         assert_eq!(prefix.ranges.len(), 2);
 
         // Range 1
@@ -220,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_prefix_1a() {
-        let prefix = Prefix::new("1a");
+        let prefix = Prefix::new("1a").unwrap();
         assert_eq!(prefix.ranges.len(), 1);
 
         let expected_low = [
@@ -238,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_prefix_1ab() {
-        let prefix = Prefix::new("1ab");
+        let prefix = Prefix::new("1ab").unwrap();
         assert_eq!(prefix.ranges.len(), 1);
 
         let expected_low = [
@@ -256,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_prefix_1seaasses_uppercase() {
-        let prefix = Prefix::new("1SEAASSES");
+        let prefix = Prefix::new("1SEAASSES").unwrap();
         assert_eq!(prefix.ranges.len(), 1);
 
         let expected_low = [
@@ -270,5 +361,111 @@ mod tests {
 
         assert_eq!(prefix.ranges[0].low, expected_low);
         assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    // P2WPKH tests
+    #[test]
+    fn test_address_type_detection_p2pkh() {
+        let prefix = Prefix::new("1abc").unwrap();
+        assert_eq!(prefix.address_type, AddressType::P2PKH);
+    }
+
+    #[test]
+    fn test_address_type_detection_p2wpkh() {
+        let prefix = Prefix::new("bc1qaaa").unwrap();
+        assert_eq!(prefix.address_type, AddressType::P2WPKH);
+    }
+
+    #[test]
+    fn test_p2wpkh_prefix_all_addresses() {
+        let prefix = Prefix::new("bc1q").unwrap();
+        assert_eq!(prefix.address_type, AddressType::P2WPKH);
+        assert_eq!(prefix.ranges.len(), 1);
+
+        let expected_low = [0x00; 20];
+        let expected_high = [0xff; 20];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    #[test]
+    fn test_p2wpkh_prefix_aaa() {
+        let prefix = Prefix::new("bc1qaaa").unwrap();
+        assert_eq!(prefix.address_type, AddressType::P2WPKH);
+        assert_eq!(prefix.ranges.len(), 1);
+
+        // From Python test vectors
+        let expected_low = [
+            0xef, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let expected_high = [
+            0xef, 0x7b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        ];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    #[test]
+    fn test_p2wpkh_prefix_xyz() {
+        let prefix = Prefix::new("bc1qxyz").unwrap();
+        assert_eq!(prefix.address_type, AddressType::P2WPKH);
+        assert_eq!(prefix.ranges.len(), 1);
+
+        // From Python test vectors
+        let expected_low = [
+            0x31, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let expected_high = [
+            0x31, 0x05, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        ];
+
+        assert_eq!(prefix.ranges[0].low, expected_low);
+        assert_eq!(prefix.ranges[0].high, expected_high);
+    }
+
+    // Validation tests
+    #[test]
+    fn test_invalid_prefix_empty() {
+        let result = Prefix::new("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("cannot be empty"));
+    }
+
+    #[test]
+    fn test_invalid_prefix_wrong_start() {
+        let result = Prefix::new("3abc");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must start with"));
+    }
+
+    #[test]
+    fn test_invalid_p2pkh_character() {
+        let result = Prefix::new("1abc0");  // '0' is not valid in base58
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid base58 character"));
+    }
+
+    #[test]
+    fn test_invalid_p2wpkh_character() {
+        let result = Prefix::new("bc1qabc");  // 'b' and 'c' are not valid in bech32
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid bech32 character"));
+    }
+
+    #[test]
+    fn test_p2wpkh_valid_charset() {
+        // All these should be valid bech32 characters
+        let valid_chars = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+        for ch in valid_chars.chars() {
+            let prefix_str = format!("bc1q{}", ch);
+            let result = Prefix::new(&prefix_str);
+            assert!(result.is_ok(), "Character '{}' should be valid in bech32", ch);
+        }
     }
 }

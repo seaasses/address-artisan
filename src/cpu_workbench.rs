@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_cpu_working_bench_creation() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 4);
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn test_total_generated() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (bench, _) = create_test_bench(config, 4);
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_threads_actually_process_addresses() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_wait_actually_waits_for_threads() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn test_cpu_workbench_sends_started_event_on_start() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
@@ -286,7 +286,7 @@ mod tests {
         use std::sync::mpsc;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (tx, rx) = mpsc::channel();
@@ -316,7 +316,7 @@ mod tests {
         use std::sync::mpsc;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (tx, _rx) = mpsc::channel();
@@ -353,7 +353,7 @@ mod tests {
         use std::sync::mpsc;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
 
         let (tx, rx) = mpsc::channel();

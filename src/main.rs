@@ -24,14 +24,13 @@ use extended_public_key::ExtendedPubKey;
 use ground_truth_validator::GroundTruthValidator;
 use logger::Logger;
 use orchestrator::Orchestrator;
-use prefix::Prefix;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 fn main() {
     let cli = Cli::parse_args();
 
-    let prefix = Prefix::new(&cli.prefix);
+    let prefix = cli.prefix.clone();
     let xpub = ExtendedPubKey::from_str(&cli.xpub).unwrap();
     let ground_truth_validator = GroundTruthValidator::new(&cli.xpub)
         .expect("Failed to create ground truth validator");
@@ -63,7 +62,7 @@ fn main() {
         .sum();
 
     let logger = Logger::new();
-    logger.start(&cli.prefix, cli.max_depth, total_cpu_threads);
+    logger.start(prefix.as_str(), cli.max_depth, total_cpu_threads);
     println!();
 
     let mut orchestrator = Orchestrator::new(

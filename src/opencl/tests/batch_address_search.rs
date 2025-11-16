@@ -273,7 +273,7 @@ mod tests {
         let cache_keys = vec![[0, 0]];
         CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, 0, 0).unwrap();
 
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         assert!(prefix.ranges.len() > 0);
 
         // For now just verify setup works
@@ -285,7 +285,7 @@ mod tests {
     fn test_batch_address_search_kernel_execution() {
         let mut search = BatchAddressSearch::new().unwrap();
 
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         search.load_ranges(&prefix).unwrap();
 
         // Execute with minimal params (no cache, should find nothing)
@@ -308,7 +308,7 @@ mod tests {
     fn test_batch_address_search_impossible_prefix() {
         let mut search = BatchAddressSearch::new().unwrap();
 
-        let prefix = Prefix::new("1ZZZZZZZZZ");
+        let prefix = Prefix::new("1ZZZZZZZZZ").unwrap();
         search.load_ranges(&prefix).unwrap();
 
         search
@@ -340,7 +340,7 @@ mod tests {
         search.load_cache(&gpu_cache).unwrap();
 
         // Use broad prefix "1" (matches most addresses)
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
         search.load_ranges(&prefix).unwrap();
 
         // Search in first 1000 addresses (covers indices 0-999 for [0,0])
@@ -387,7 +387,7 @@ mod tests {
         let mut search = BatchAddressSearch::new().unwrap();
         search.load_cache(&gpu_cache).unwrap();
 
-        let prefix = Prefix::new("1abc");
+        let prefix = Prefix::new("1abc").unwrap();
         search.load_ranges(&prefix).unwrap();
 
         let non_hardened_count = 0x7FFFFFFFu64 + 1;
