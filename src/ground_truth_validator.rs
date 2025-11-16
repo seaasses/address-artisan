@@ -1,6 +1,7 @@
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
 use bitcoin::secp256k1::{self, Secp256k1};
-use bitcoin::{Address, NetworkKind, PublicKey};
+use bitcoin::{Address, CompressedPublicKey, Network, NetworkKind, PublicKey};
+use crate::prefix::{AddressType, Prefix};
 
 pub struct GroundTruthValidator {
     xpub: Xpub,
@@ -21,29 +22,39 @@ impl GroundTruthValidator {
     }
 
     #[cfg(test)]
-    pub fn validate_address(&self, prefix: &str, path: &[u32; 6]) -> Result<bool, String> {
+    pub fn validate_address(&self, prefix: &Prefix, path: &[u32; 6]) -> Result<bool, String> {
         let derived_key = self.derive_key(path)?;
 
-        let address = self.pubkey_to_p2pkh_address(&derived_key)?;
+        let address = match prefix.address_type {
+            AddressType::P2PKH => self.pubkey_to_p2pkh_address(&derived_key)?,
+            AddressType::P2WPKH => self.pubkey_to_p2wpkh_address(&derived_key)?,
+        };
 
-        Ok(address.starts_with(prefix))
+        Ok(address.starts_with(prefix.as_str()))
     }
 
     #[cfg(test)]
-    pub fn get_address(&self, path: &[u32; 6]) -> Result<String, String> {
+    pub fn get_address(&self, path: &[u32; 6], address_type: AddressType) -> Result<String, String> {
         let derived_key = self.derive_key(path)?;
-        self.pubkey_to_p2pkh_address(&derived_key)
+        match address_type {
+            AddressType::P2PKH => self.pubkey_to_p2pkh_address(&derived_key),
+            AddressType::P2WPKH => self.pubkey_to_p2wpkh_address(&derived_key),
+        }
     }
 
     pub fn validate_and_get_address(
         &self,
-        prefix: &str,
+        prefix: &Prefix,
         path: &[u32; 6],
     ) -> Result<Option<String>, String> {
         let derived_key = self.derive_key(path)?;
-        let address = self.pubkey_to_p2pkh_address(&derived_key)?;
 
-        if address.starts_with(prefix) {
+        let address = match prefix.address_type {
+            AddressType::P2PKH => self.pubkey_to_p2pkh_address(&derived_key)?,
+            AddressType::P2WPKH => self.pubkey_to_p2wpkh_address(&derived_key)?,
+        };
+
+        if address.starts_with(prefix.as_str()) {
             Ok(Some(address))
         } else {
             Ok(None)
@@ -76,6 +87,17 @@ impl GroundTruthValidator {
 
         Ok(address.to_string())
     }
+
+    fn pubkey_to_p2wpkh_address(
+        &self,
+        pubkey: &bitcoin::secp256k1::PublicKey,
+    ) -> Result<String, String> {
+        let compressed_pubkey = CompressedPublicKey(*pubkey);
+
+        let address = Address::p2wpkh(&compressed_pubkey, Network::Bitcoin);
+
+        Ok(address.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -100,7 +122,7 @@ mod tests {
     fn test_address_path_1000_2000_0_0_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 0, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "16EhLAUerc8rnmdHvBh1ABjEsddTom3FyZ");
     }
 
@@ -108,7 +130,7 @@ mod tests {
     fn test_address_path_1000_2000_0_0_0_1() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 0, 0, 1];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "12x9m2JaDDWZ2Pf7t97hVjymA1uHRqEd7C");
     }
 
@@ -116,7 +138,7 @@ mod tests {
     fn test_address_path_1000_2000_0_0_0_100() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 0, 0, 100];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "1K1g6s5LHneq2Km9rs8fGfGc2xpfsVRQ82");
     }
 
@@ -124,7 +146,7 @@ mod tests {
     fn test_address_path_1000_2000_0_1_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 1, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "14hMRf1rnTgwwdEcPYUJMq5PYWh2owCo4x");
     }
 
@@ -132,7 +154,7 @@ mod tests {
     fn test_address_path_1000_2000_1_0_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 1, 0, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "1J57PqrPQSKP85Gd8eYRSwHS65FtorCZwB");
     }
 
@@ -140,7 +162,7 @@ mod tests {
     fn test_address_path_1000_2000_0_0_0_9999() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 0, 0, 9999];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "1ND9xQjQWC7U2xmhapTWFSEsfsDozqkp4z");
     }
 
@@ -148,7 +170,7 @@ mod tests {
     fn test_address_path_1000_2000_0_100_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 100, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "17zbeS1wPdtncwSZCtZRptPz9MRY7ZGt9H");
     }
 
@@ -156,7 +178,7 @@ mod tests {
     fn test_address_path_1000_2000_0_1000_0_50() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [1000, 2000, 0, 1000, 0, 50];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "17DojH5JeQtfFbyG4yuiCmuwQrhdR8UfN3");
     }
 
@@ -164,7 +186,7 @@ mod tests {
     fn test_address_path_5000_6000_0_0_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [5000, 6000, 0, 0, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "1LAVfqDqtFfjUSQUhZsE7TxWrQpgHRsGVF");
     }
 
@@ -172,7 +194,7 @@ mod tests {
     fn test_address_path_9999_9999_0_0_0_0() {
         let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
         let path = [9999, 9999, 0, 0, 0, 0];
-        let address = validator.get_address(&path).unwrap();
+        let address = validator.get_address(&path, AddressType::P2PKH).unwrap();
         assert_eq!(address, "12Wq6aUM2jiJQWV3gSCGogWuAyYZR2otoH");
     }
 
@@ -184,12 +206,140 @@ mod tests {
         let path = [1000, 2000, 0, 0, 0, 0];
 
         // Should match "1", "16", "16E", etc.
-        assert!(validator.validate_address("1", &path).unwrap());
-        assert!(validator.validate_address("16", &path).unwrap());
-        assert!(validator.validate_address("16E", &path).unwrap());
+        let prefix1 = Prefix::new("1").unwrap();
+        let prefix16 = Prefix::new("16").unwrap();
+        let prefix16e = Prefix::new("16E").unwrap();
+        assert!(validator.validate_address(&prefix1, &path).unwrap());
+        assert!(validator.validate_address(&prefix16, &path).unwrap());
+        assert!(validator.validate_address(&prefix16e, &path).unwrap());
 
         // Should NOT match other prefixes
-        assert!(!validator.validate_address("17", &path).unwrap());
-        assert!(!validator.validate_address("12", &path).unwrap());
+        let prefix17 = Prefix::new("17").unwrap();
+        let prefix12 = Prefix::new("12").unwrap();
+        assert!(!validator.validate_address(&prefix17, &path).unwrap());
+        assert!(!validator.validate_address(&prefix12, &path).unwrap());
+    }
+
+    // P2WPKH address generation tests
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_0_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_0_0_1() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 1];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qz4n9pwdcwzc9kczc7e6vk3cpxr2mfn8r9m6jzu");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_0_0_100() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 100];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qckfwwupesemaulllr9jrmllhxyymku2tajj6g7");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_1_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 1, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1q9z9ppkny85mndyc968hcudsmgjzqlaern0mq2d");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_1_0_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 1, 0, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qhdqj8dyvwe3t2lt2qha073cgkyuseretjv6sjx");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_0_0_9999() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 9999];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qazn3hj8rscl7lxteumr65vjwnezr670j42l93a");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_100_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 100, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qfj6k9y9utp96yh4wt9ggqnhs7wxhukc4pr3304");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_1000_2000_0_1000_0_50() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 1000, 0, 50];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qgs7vp65du9cpeu5p242kuntaakuqsptghdzv02");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_5000_6000_0_0_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [5000, 6000, 0, 0, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1q6gmppn3l84jlfetqvpe8crnf9jzdt5tmekrspf");
+    }
+
+    #[test]
+    fn test_p2wpkh_address_path_9999_9999_0_0_0_0() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [9999, 9999, 0, 0, 0, 0];
+        let address = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+        assert_eq!(address, "bc1qzzw9vkhkn5p3da5vpfat7c0e70wvxvrx79ehqw");
+    }
+
+    // Test validate_and_get_address with P2WPKH
+    #[test]
+    fn test_validate_and_get_address_p2wpkh_matching() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 0];
+        // bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4
+
+        let prefix_bc1q = Prefix::new("bc1q").unwrap();
+        let prefix_bc1q89 = Prefix::new("bc1q89").unwrap();
+
+        // Should match
+        let result = validator.validate_and_get_address(&prefix_bc1q, &path).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4");
+
+        let result2 = validator.validate_and_get_address(&prefix_bc1q89, &path).unwrap();
+        assert!(result2.is_some());
+        assert_eq!(result2.unwrap(), "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4");
+
+        // Should NOT match
+        let prefix_bc1qzz = Prefix::new("bc1qzz").unwrap();
+        let result3 = validator.validate_and_get_address(&prefix_bc1qzz, &path).unwrap();
+        assert!(result3.is_none());
+    }
+
+    // Test that P2PKH and P2WPKH addresses are different for same path
+    #[test]
+    fn test_p2pkh_vs_p2wpkh_different_addresses() {
+        let validator = GroundTruthValidator::new(TEST_XPUB).unwrap();
+        let path = [1000, 2000, 0, 0, 0, 0];
+
+        let p2pkh = validator.get_address(&path, AddressType::P2PKH).unwrap();
+        let p2wpkh = validator.get_address(&path, AddressType::P2WPKH).unwrap();
+
+        // Should be different
+        assert_ne!(p2pkh, p2wpkh);
+        // P2PKH starts with 1
+        assert!(p2pkh.starts_with("1"));
+        // P2WPKH starts with bc1
+        assert!(p2wpkh.starts_with("bc1"));
     }
 }
