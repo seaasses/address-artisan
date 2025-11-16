@@ -55,7 +55,7 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
 
         WorkbenchConfig::new(xpub, prefix, 0x80000000, 1000, 1000);
     }
@@ -67,7 +67,7 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
 
         WorkbenchConfig::new(xpub, prefix, 1000, 0x80000000, 1000);
     }
@@ -79,7 +79,7 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
 
         WorkbenchConfig::new(xpub, prefix, 1000, 1000, 0x80000000);
     }
@@ -90,7 +90,7 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1");
+        let prefix = Prefix::new("1").unwrap();
 
         let config = WorkbenchConfig::new(xpub, prefix, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.seed0, NON_HARDENED_MAX_INDEX);
