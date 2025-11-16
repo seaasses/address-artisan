@@ -1,15 +1,16 @@
 use clap::Parser;
+use crate::prefix::Prefix;
 
 #[derive(Parser)]
 #[command(
     version,
     about,
-    long_about = "A tool for generating vanity P2PKH Bitcoin addresses."
+    long_about = "A tool for generating vanity Bitcoin addresses (P2PKH and P2WPKH)."
 )]
 
 pub struct Cli {
-    #[arg(short = 'p', long = "prefix", help = "Prefix for the address", value_parser = Cli::validate_prefix)]
-    pub prefix: String,
+    #[arg(short = 'p', long = "prefix", help = "Prefix for the address (P2PKH: '1abc...' or P2WPKH: 'bc1qaaa...')", value_parser = Cli::validate_prefix)]
+    pub prefix: Prefix,
     #[arg(short = 'x', long = "xpub", help = "Xpub", value_parser = Cli::validate_xpub)]
     pub xpub: String,
     #[arg(
@@ -83,24 +84,8 @@ impl Cli {
         Ok(max_depth_int)
     }
 
-    fn validate_prefix(prefix: &str) -> Result<String, String> {
-        let valid_base58_chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-        if prefix.is_empty() {
-            return Err("Prefix cannot be empty".to_string());
-        }
-
-        for c in prefix.chars() {
-            if !valid_base58_chars.contains(c) {
-                return Err(format!("Invalid character: {}", c));
-            }
-        }
-
-        if !prefix.starts_with("1") {
-            return Err("Prefix must start with 1".to_string());
-        }
-
-        Ok(prefix.to_string())
+    fn validate_prefix(prefix: &str) -> Result<Prefix, String> {
+        Prefix::new(prefix)
     }
 
     fn validate_xpub(xpub: &str) -> Result<String, String> {
@@ -181,6 +166,30 @@ mod tests {
         let prefix = "123456789ABClE";
         let result = Cli::validate_prefix(prefix);
         assert!(result.is_err());
+    }
+
+    // P2WPKH prefix tests
+    #[test]
+    fn test_validate_prefix_p2wpkh_valid() {
+        let prefix = "bc1qaaa";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_ok());
+        let prefix_obj = result.unwrap();
+        assert_eq!(prefix_obj.address_type, crate::prefix::AddressType::P2WPKH);
+    }
+
+    #[test]
+    fn test_validate_prefix_p2wpkh_invalid_char() {
+        let prefix = "bc1qabc";  // 'b' and 'c' not valid in bech32
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_prefix_p2wpkh_all() {
+        let prefix = "bc1q";
+        let result = Cli::validate_prefix(prefix);
+        assert!(result.is_ok());
     }
 
     // xpub tests
@@ -326,7 +335,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_gpu_only_with_cpu_threads() {
         let cli = Cli {
-            prefix: "1A".to_string(),
+            prefix: Prefix::new("1A").unwrap(),
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 4,
@@ -344,7 +353,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_gpu_only_with_zero_threads() {
         let cli = Cli {
-            prefix: "1A".to_string(),
+            prefix: Prefix::new("1A").unwrap(),
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 0, // 0 means auto-detect, which is valid with gpu_only
@@ -359,7 +368,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_no_gpu_only_with_threads() {
         let cli = Cli {
-            prefix: "1A".to_string(),
+            prefix: Prefix::new("1A").unwrap(),
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 4,
