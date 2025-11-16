@@ -1,10 +1,10 @@
 # Address Artisan
 
-Address Artisan is a vanity Bitcoin P2PKH address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation and is:
+Address Artisan is a vanity Bitcoin address generator based on [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) xpub key derivation and is:
 
 - 🔒 **Secure**: Generates vanity addresses even for hardware wallets! 🤯
 - ⚡ **Fast**: Built in Rust/OpenCL with fast public key derivation, prefix matching and GPU support. 🚀
-- 😎 **Cool**: "1There1sNoSpoon" is much cooler than "bc1qtheresn0sp00n". P2PKH wins! 🎉
+- 🎯 **Versatile**: Supports both "Legacy" (P2PKH) and Native SegWit (P2WPKH). Your address, your style! 🎉
 
 ## Get the Address Artisan
 
@@ -25,7 +25,7 @@ cargo build --release
 The tool requires 2 mandatory arguments (`xpub` and `prefix`) and accepts several optional arguments:
 
 - `--xpub` (`-x`): Extended public key (obtainable from almost any Bitcoin wallet)
-- `--prefix` (`-p`): Desired address prefix (must start with "1")
+- `--prefix` (`-p`): Desired address prefix (must start with "1" or "bc1q")
 - `--max-depth` (`-m`): Maximum depth of the last derivation path (default: 1000). A larger max-depth means better utilization of the key space and cache. However, an address may get buried in a large gap, and since [account discovery](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#user-content-Account_discovery) is designed to be sequential, it may take time for the wallet to find it after increasing the gap limit. Testing suggests 100,000 is an optimal value, causing only a 3-second wallet freeze during setup.
 - `--cpu-threads` (`-t`): Number of CPU threads to use (default: 0 = auto-detect physical cores)
 - `--gpu` (`-g`): Enable GPU processing (excludes integrated/onboard GPUs). Can optionally specify GPU IDs: `--gpu 0,1` or `--gpu 0 1`. Without IDs, all available GPUs are used
@@ -93,8 +93,8 @@ Where:
 - `m`: Master key
 - `purpose'`: Purpose identifier following [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki) (e.g., 44' for P2PKH)
 - `coin_type'`: Coin identifier, following [SLIP44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md). 0' (0x80000000) for Bitcoin
-- `account'`: Account number for funds organization - greater than 0' (0x80000000)
-- `change`: Boolean flag - 0 (0x00) for receive addresses, 1 (0x01) for change addresses
+- `account'`: Account number for funds organization - greater than or equal to 0' (0x80000000)
+- `change`: Like a boolean flag - 0 (0x00) for receive addresses, 1 (0x01) for change addresses
 - `address_index`: Address index
 
 This tool brute-forces a path of the form:
@@ -119,15 +119,13 @@ The following example demonstrates the complete process of generating and using 
 
 ### Get the xpub
 
-First, a working wallet that supports the P2PKH script type needs to be set up.
+First, a working wallet needs to be set up.
 
-If a P2PKH wallet already exists (which is unlikely since most modern wallets default to SegWit), it's recommended to create a new one with a custom derivation path. There's no need to generate a new seed phrase or reset the hardware wallet - using a different derivation path allows keeping existing wallet funds completely separate.
+It's recommended to create a new wallet with a custom derivation path using a dedicated purpose for vanity addresses. There's no need to generate a new seed phrase or reset the hardware wallet - using a different derivation path allows keeping existing wallet funds completely separate.
 
-1. When creating a new wallet, make sure to select _P2PKH_ from the script type dropdown:
+1. Create a new wallet
 
-![Change to P2PKH](./assets/change_to_p2pkh.png)
-
-After selecting P2PKH, proceed with the wallet creation:
+Create a new wallet using either your seed phrase/private key or your hardware wallet.
 
 ![New wallet](./assets/new_p2pkh_wallet.png)
 
@@ -178,13 +176,15 @@ The complete derivation path for this address is `m/10495330'/0'/0'/1949567566/2
 
 ### Import the Address in the Wallet
 
-1. Create a new P2PKH wallet using the same seed phrase or hardware wallet, but this time use the derivation path returned.
+1. Create a new wallet using the same seed phrase or hardware wallet. Make sure to choose the correct script type that matches your prefix: Native SegWit (P2WPKH) for addresses starting with "bc1q", or "Legacy" (P2PKH) for addresses starting with "1".
+
+![Vanity wallet choose script type](./assets/vanity_wallet_choose_script_type.png)
+
+2. On the next screen, use the derivation path returned by the tool. In this example: `m/10495330'/0'/0'/1949567566/243133792/0/175`
 
 ![Vanity wallet derivation path](./assets/vanity_wallet_derivation_path.png)
 
-In this example: `m/10495330'/0'/0'/1949567566/243133792/0/175`
-
-2. Since software wallets use a default [gap limit](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#address-gap-limit) of 20 addresses, this needs to be adjusted in the Advanced settings. The gap limit should be set to a value higher than the address index.
+3. Since software wallets use a default [gap limit](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#address-gap-limit) of 20 addresses, this needs to be adjusted in the Advanced settings. The gap limit should be set to a value higher than the address index.
 
 ![Change gap limit](./assets/vanity_wallet_gap_limit.png)
 
