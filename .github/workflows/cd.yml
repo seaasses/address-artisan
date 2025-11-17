@@ -1,0 +1,49 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: ["main", "playground"]
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    name: Create Release Tag
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check version and create tag
+        run: |
+          # Compare with previous commit
+          BASE_REF="HEAD^"
+
+          # Extract current version from Cargo.toml
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
+
+          # Extract previous version from Cargo.toml
+          PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+
+          # If version changed, create tag
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "🚀 Creating release tag for version $CURRENT_VERSION"
+
+            TAG_NAME="v$CURRENT_VERSION"
+
+            # Create and push tag
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+
+            echo "✅ Tag $TAG_NAME created and pushed"
+          else
+            echo "ℹ️  No version change detected, skipping tag creation"
+          fi

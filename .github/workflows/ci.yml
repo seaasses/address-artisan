@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   pull_request:
@@ -75,7 +75,7 @@ jobs:
               exit 1
             fi
 
-            # Check number of commits in the PR (use head SHA, not merge commit)
+            # Check number of commits in the PR
             NUM_COMMITS=$(git rev-list --count $BASE_REF..$HEAD_REF)
 
             if [ $NUM_COMMITS -ne 1 ]; then
@@ -93,7 +93,7 @@ jobs:
             CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
             NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
-            # If more than 1 file was modified (besides Cargo.toml)
+            # If more than 1 file was modified
             if [ $NUM_CHANGED -gt 1 ]; then
               echo ""
               echo "❌ ERROR: Version bump must only modify Cargo.toml"
@@ -205,43 +205,3 @@ jobs:
 
       - name: Build
         run: cargo build --verbose --release
-
-  create-tag:
-    name: Create Release Tag
-    needs: [format, clippy, test, build]
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Check for version change and create tag
-        run: |
-          # Compare with previous commit
-          BASE_REF="HEAD^"
-
-          # Extract current version from Cargo.toml
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
-
-          # Extract previous version from Cargo.toml
-          PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
-
-          # If version changed, create tag
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "🚀 Creating release tag for version $CURRENT_VERSION"
-
-            TAG_NAME="v$CURRENT_VERSION"
-
-            # Create and push tag
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-            git push origin "$TAG_NAME"
-
-            echo "✅ Tag $TAG_NAME created and pushed"
-          else
-            echo "ℹ️  No version change detected, skipping tag creation"
-          fi
