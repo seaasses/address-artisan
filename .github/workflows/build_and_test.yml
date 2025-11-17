@@ -33,12 +33,9 @@ jobs:
           # Extract previous version from Cargo.toml
           PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
 
-          echo "Previous version: $PREVIOUS_VERSION"
-          echo "Current version: $CURRENT_VERSION"
-
           # If version changed
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "⚠️  Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "⚠️  Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
 
             # Parse version numbers
             PREV_MAJOR=$(echo $PREVIOUS_VERSION | cut -d. -f1)
@@ -48,9 +45,6 @@ jobs:
             CURR_MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
             CURR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
             CURR_PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
-
-            echo "Previous: $PREV_MAJOR.$PREV_MINOR.$PREV_PATCH"
-            echo "Current:  $CURR_MAJOR.$CURR_MINOR.$CURR_PATCH"
 
             # Validate semver bump
             VALID_BUMP=false
@@ -70,11 +64,13 @@ jobs:
             fi
 
             if [ "$VALID_BUMP" = false ]; then
-              echo "❌ ERROR: Invalid version bump!"
-              echo "Valid bumps from $PREVIOUS_VERSION are:"
-              echo "  - MAJOR: $((PREV_MAJOR + 1)).0.0"
-              echo "  - MINOR: $PREV_MAJOR.$((PREV_MINOR + 1)).0"
-              echo "  - PATCH: $PREV_MAJOR.$PREV_MINOR.$((PREV_PATCH + 1))"
+              echo ""
+              echo "❌ ERROR: Invalid version bump from $PREVIOUS_VERSION to $CURRENT_VERSION"
+              echo ""
+              echo "Valid options:"
+              echo "  • MAJOR: $((PREV_MAJOR + 1)).0.0"
+              echo "  • MINOR: $PREV_MAJOR.$((PREV_MINOR + 1)).0"
+              echo "  • PATCH: $PREV_MAJOR.$PREV_MINOR.$((PREV_PATCH + 1))"
               exit 1
             fi
 
@@ -82,28 +78,27 @@ jobs:
             CHANGED_FILES=$(git diff --name-only $BASE_REF HEAD)
             NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
-            echo "Changed files:"
-            echo "$CHANGED_FILES"
-
             # If more than 1 file was modified (besides Cargo.toml)
             if [ $NUM_CHANGED -gt 1 ]; then
-              echo "❌ ERROR: Version changed but other files were also modified!"
-              echo "When bumping the version, ONLY Cargo.toml should be modified."
               echo ""
-              echo "Files modified:"
+              echo "❌ ERROR: Version bump must only modify Cargo.toml"
+              echo ""
+              echo "Files modified in this PR:"
               echo "$CHANGED_FILES"
               exit 1
             fi
 
             # Check if the only modified file is Cargo.toml
             if [ "$CHANGED_FILES" != "Cargo.toml" ]; then
-              echo "❌ ERROR: Version changed but Cargo.toml is not the only modified file!"
+              echo ""
+              echo "❌ ERROR: Version changed but Cargo.toml is not the only modified file"
+              echo ""
               echo "Files modified:"
               echo "$CHANGED_FILES"
               exit 1
             fi
 
-            echo "✅ Version bump is clean - only Cargo.toml was modified"
+            echo "✅ Only Cargo.toml modified - ready to release"
           else
             echo "✅ No version change detected"
           fi
