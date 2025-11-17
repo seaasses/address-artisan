@@ -116,7 +116,7 @@ jobs:
             fi
 
             # All validations passed - export version
-            echo "✅ All validations passed
+            echo "✅ All validations passed"
             echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "✅ No version change detected"
