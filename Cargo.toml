@@ -1,6 +1,6 @@
 [package]
 name = "address-artisan"
-version = "0.1.3"
+version = "0.2.1"
 description = "A tool for generating vanity P2PKH Bitcoin addresses."
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
 readme = "README.md"
