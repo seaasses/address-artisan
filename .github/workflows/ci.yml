@@ -74,6 +74,20 @@ jobs:
               exit 1
             fi
 
+            # Check number of commits in the PR
+            NUM_COMMITS=$(git rev-list --count $BASE_REF..HEAD)
+
+            if [ $NUM_COMMITS -ne 1 ]; then
+              echo ""
+              echo "❌ ERROR: Version bump PR must contain exactly 1 commit"
+              echo ""
+              echo "This PR has $NUM_COMMITS commits"
+              echo "Please squash all commits into a single commit for version bumps"
+              exit 1
+            fi
+
+            echo "✅ PR has exactly 1 commit"
+
             # List all modified files in the PR
             CHANGED_FILES=$(git diff --name-only $BASE_REF HEAD)
             NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
