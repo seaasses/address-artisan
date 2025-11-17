@@ -26,7 +26,7 @@ fn get_file_include_paths(dir: PathBuf) -> Vec<PathBuf> {
         .lines()
         .filter(|line| line.starts_with("#include"))
         .map(|line| line.split(" ").nth(1).unwrap().trim_matches('"'))
-        .map(|path| PathBuf::from(path))
+        .map(PathBuf::from)
         .collect();
 
     includes
@@ -52,7 +52,7 @@ fn get_recursive_include_paths_recursion(
         .filter(|path| !already_included.contains(path))
         .collect();
 
-    if all_to_include.len() == 0 {
+    if all_to_include.is_empty() {
         return vec![];
     }
 
