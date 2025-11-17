@@ -56,6 +56,26 @@ unsafe impl ocl::OclPrm for Uint256 {}
 unsafe impl ocl::OclPrm for PointGpu {}
 unsafe impl ocl::OclPrm for XPub {}
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Hash160RangeGpu {
+    pub low: [u8; 20],
+    pub high: [u8; 20],
+    pub prefix_id: u8,
+}
+
+impl Default for Hash160RangeGpu {
+    fn default() -> Self {
+        Self {
+            low: [0u8; 20],
+            high: [0u8; 20],
+            prefix_id: 0,
+        }
+    }
+}
+
+unsafe impl ocl::OclPrm for Hash160RangeGpu {}
+
 pub struct GpuCache {
     _device: Device,
     _context: Context,
