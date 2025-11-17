@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    branches: ["main", "playground"]
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check for version change and release
+        run: |
+          # Compare with previous commit
+          BASE_REF="HEAD^"
+
+          # Extract current version from Cargo.toml
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
+
+          # Extract previous version from Cargo.toml
+          PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+
+          # If version changed, create release
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "🚀 Releasing version $CURRENT_VERSION"
+
+            TAG_NAME="v$CURRENT_VERSION"
+
+            # Create and push tag
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+
+            echo "✅ Tag $TAG_NAME created and pushed"
+
+            # Simulate cargo publish (will be replaced with actual publish later)
+            echo "📦 Would publish to crates.io here:"
+            echo "cargo publish --token \$CARGO_REGISTRY_TOKEN"
+
+          else
+            echo "ℹ️  No version change detected, skipping release"
+          fi
