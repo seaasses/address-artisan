@@ -26,7 +26,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Check if version changed
+      - name: Read release data from artifact
         id: check
         run: |
           VERSION=$(cat version.txt | tr -d '[:space:]')
@@ -37,6 +37,12 @@ jobs:
             echo "version=" >> $GITHUB_OUTPUT
           else
             echo "🚀 CI detected version change to: $VERSION"
+            PR_NUMBER=$(cat pr_number.txt | tr -d '[:space:]')
+
+            if [ -n "$PR_NUMBER" ]; then
+              echo "📋 Release notes from PR #$PR_NUMBER"
+            fi
+
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
@@ -46,20 +52,34 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Create and push tag
+      - name: Create tag and GitHub Release
         if: steps.check.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.check.outputs.version }}"
           TAG_NAME="v$VERSION"
 
-          echo "🚀 Creating release tag $TAG_NAME"
+          # Read PR info from artifact (exported by CI)
+          PR_BODY=$(cat pr_body.txt)
+          PR_TITLE=$(cat pr_title.txt)
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          git push origin "$TAG_NAME"
+          # Use PR body as release notes, or default message
+          if [ -z "$PR_BODY" ]; then
+            RELEASE_NOTES="Release $TAG_NAME"
+          else
+            RELEASE_NOTES="$PR_BODY"
+          fi
 
-          echo "✅ Tag $TAG_NAME created and pushed"
+          echo "🚀 Creating release $TAG_NAME"
+
+          # Create GitHub Release (this also creates the tag)
+          gh release create "$TAG_NAME" \
+            --title "Release $TAG_NAME" \
+            --notes "$RELEASE_NOTES" \
+            --target ${{ github.event.workflow_run.head_sha }}
+
+          echo "✅ Release $TAG_NAME created"
 
   publish:
     name: Publish to crates.io

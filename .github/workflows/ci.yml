@@ -123,22 +123,47 @@ jobs:
             echo "new_version=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Export version
+      - name: Export release data
         run: |
           VERSION="${{ steps.version_check.outputs.new_version }}"
+
           if [ -n "$VERSION" ]; then
             echo "$VERSION" > version.txt
-            echo "📦 Exporting version $VERSION for CD workflow"
+
+            # Export PR info for release notes (only available in PR context)
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              PR_BODY='${{ github.event.pull_request.body }}'
+              PR_TITLE='${{ github.event.pull_request.title }}'
+              PR_NUMBER='${{ github.event.pull_request.number }}'
+
+              echo "$PR_BODY" > pr_body.txt
+              echo "$PR_TITLE" > pr_title.txt
+              echo "$PR_NUMBER" > pr_number.txt
+
+              echo "📦 Exporting version $VERSION with PR #$PR_NUMBER info"
+            else
+              echo "📦 Exporting version $VERSION (no PR context)"
+              echo "" > pr_body.txt
+              echo "" > pr_title.txt
+              echo "" > pr_number.txt
+            fi
           else
             echo "" > version.txt
+            echo "" > pr_body.txt
+            echo "" > pr_title.txt
+            echo "" > pr_number.txt
             echo "📦 No version change - exporting empty artifact"
           fi
 
-      - name: Upload version artifact
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-version
-          path: version.txt
+          path: |
+            version.txt
+            pr_body.txt
+            pr_title.txt
+            pr_number.txt
           retention-days: 1
 
   format:
