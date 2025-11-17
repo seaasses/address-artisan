@@ -4,6 +4,9 @@ on:
   push:
     branches: ["main", "playground"]
 
+permissions:
+  contents: write
+
 jobs:
   release:
     name: Create Release
