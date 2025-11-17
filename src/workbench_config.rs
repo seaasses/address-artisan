@@ -19,8 +19,14 @@ impl WorkbenchConfig {
         seed1: u32,
         max_depth: u32,
     ) -> Self {
-        assert!(seed0 <= NON_HARDENED_MAX_INDEX, "seed0 must be <= 0x7FFFFFFF");
-        assert!(seed1 <= NON_HARDENED_MAX_INDEX, "seed1 must be <= 0x7FFFFFFF");
+        assert!(
+            seed0 <= NON_HARDENED_MAX_INDEX,
+            "seed0 must be <= 0x7FFFFFFF"
+        );
+        assert!(
+            seed1 <= NON_HARDENED_MAX_INDEX,
+            "seed1 must be <= 0x7FFFFFFF"
+        );
         assert!(
             max_depth <= NON_HARDENED_MAX_INDEX,
             "max_depth must be <= 0x7FFFFFFF"
@@ -92,7 +98,13 @@ mod tests {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefixes = vec![Prefix::new("1").unwrap()];
 
-        let config = WorkbenchConfig::new(xpub, prefixes, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX);
+        let config = WorkbenchConfig::new(
+            xpub,
+            prefixes,
+            NON_HARDENED_MAX_INDEX,
+            NON_HARDENED_MAX_INDEX,
+            NON_HARDENED_MAX_INDEX,
+        );
         assert_eq!(config.seed0, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.seed1, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.max_depth, NON_HARDENED_MAX_INDEX);

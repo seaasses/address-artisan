@@ -106,11 +106,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -127,11 +123,18 @@ mod tests {
             Ok(data)
         }
 
-        fn convert(&mut self, jac_x: Vec<u8>, jac_y: Vec<u8>, jac_z: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), String> {
+        fn convert(
+            &mut self,
+            jac_x: Vec<u8>,
+            jac_y: Vec<u8>,
+            jac_z: Vec<u8>,
+        ) -> Result<(Vec<u8>, Vec<u8>), String> {
             if jac_x.len() != 32 || jac_y.len() != 32 || jac_z.len() != 32 {
                 return Err(format!(
                     "All inputs must be 32 bytes long, got: x={}, y={}, z={}",
-                    jac_x.len(), jac_y.len(), jac_z.len()
+                    jac_x.len(),
+                    jac_y.len(),
+                    jac_z.len()
                 ));
             }
 

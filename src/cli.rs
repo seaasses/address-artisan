@@ -1,5 +1,5 @@
-use clap::Parser;
 use crate::prefix::Prefix;
+use clap::Parser;
 
 #[derive(Parser)]
 #[command(
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_validate_prefix_p2wpkh_invalid_char() {
-        let prefix = "bc1qabc";  // 'b' and 'c' not valid in bech32
+        let prefix = "bc1qabc"; // 'b' and 'c' not valid in bech32
         let result = Cli::validate_prefix(prefix);
         assert!(result.is_err());
     }
@@ -428,7 +428,9 @@ mod tests {
 
         let result = cli.validate_conflicting_options();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("At least one prefix must be provided"));
+        assert!(result
+            .unwrap_err()
+            .contains("At least one prefix must be provided"));
     }
 
     #[test]

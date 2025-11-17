@@ -49,8 +49,10 @@ impl CacheRangeAnalyzer {
                      This suggests max_depth is too large or batch_size is absurdly huge. \
                      first=[{}, {}], last=[{}, {}]",
                     MAX_REASONABLE_KEYS / 1_000_000,
-                    first[0], first[1],
-                    last[0], last[1]
+                    first[0],
+                    first[1],
+                    last[0],
+                    last[1]
                 );
             }
         }
@@ -184,8 +186,16 @@ mod tests {
         let keys = CacheRangeAnalyzer::analyze_counter_range(0, 10, 1);
 
         let expected = vec![
-            [0, 0], [0, 1], [0, 2], [0, 3], [0, 4],
-            [0, 5], [0, 6], [0, 7], [0, 8], [0, 9]
+            [0, 0],
+            [0, 1],
+            [0, 2],
+            [0, 3],
+            [0, 4],
+            [0, 5],
+            [0, 6],
+            [0, 7],
+            [0, 8],
+            [0, 9],
         ];
 
         assert_eq!(keys.len(), 10, "Should have exactly 10 cache keys");
@@ -197,10 +207,16 @@ mod tests {
         let keys = CacheRangeAnalyzer::analyze_counter_range(2147483638, 10, 1);
 
         let expected = vec![
-            [0, 2147483638], [0, 2147483639], [0, 2147483640],
-            [0, 2147483641], [0, 2147483642], [0, 2147483643],
-            [0, 2147483644], [0, 2147483645], [0, 2147483646],
-            [0, 2147483647]
+            [0, 2147483638],
+            [0, 2147483639],
+            [0, 2147483640],
+            [0, 2147483641],
+            [0, 2147483642],
+            [0, 2147483643],
+            [0, 2147483644],
+            [0, 2147483645],
+            [0, 2147483646],
+            [0, 2147483647],
         ];
 
         assert_eq!(keys.len(), 10, "Should have exactly 10 cache keys");
@@ -212,10 +228,17 @@ mod tests {
         let keys = CacheRangeAnalyzer::analyze_counter_range(2147483638, 11, 1);
 
         let expected = vec![
-            [0, 2147483638], [0, 2147483639], [0, 2147483640],
-            [0, 2147483641], [0, 2147483642], [0, 2147483643],
-            [0, 2147483644], [0, 2147483645], [0, 2147483646],
-            [0, 2147483647], [1, 0]
+            [0, 2147483638],
+            [0, 2147483639],
+            [0, 2147483640],
+            [0, 2147483641],
+            [0, 2147483642],
+            [0, 2147483643],
+            [0, 2147483644],
+            [0, 2147483645],
+            [0, 2147483646],
+            [0, 2147483647],
+            [1, 0],
         ];
 
         assert_eq!(keys.len(), 11, "Should have exactly 11 cache keys");
@@ -235,10 +258,16 @@ mod tests {
         let keys = CacheRangeAnalyzer::analyze_counter_range(1152921504606846966, 1000, 123);
 
         let expected = vec![
-            [4364804, 349184332], [4364804, 349184333], [4364804, 349184334],
-            [4364804, 349184335], [4364804, 349184336], [4364804, 349184337],
-            [4364804, 349184338], [4364804, 349184339], [4364804, 349184340],
-            [4364804, 349184341]
+            [4364804, 349184332],
+            [4364804, 349184333],
+            [4364804, 349184334],
+            [4364804, 349184335],
+            [4364804, 349184336],
+            [4364804, 349184337],
+            [4364804, 349184338],
+            [4364804, 349184339],
+            [4364804, 349184340],
+            [4364804, 349184341],
         ];
 
         assert_eq!(keys.len(), 10, "Should have exactly 10 cache keys");
@@ -264,9 +293,15 @@ mod tests {
         let keys = CacheRangeAnalyzer::analyze_counter_range(1325598705305344, 1000000, 123456);
 
         let expected = vec![
-            [4, 2147483640], [4, 2147483641], [4, 2147483642],
-            [4, 2147483643], [4, 2147483644], [4, 2147483645],
-            [4, 2147483646], [4, 2147483647], [5, 0]
+            [4, 2147483640],
+            [4, 2147483641],
+            [4, 2147483642],
+            [4, 2147483643],
+            [4, 2147483644],
+            [4, 2147483645],
+            [4, 2147483646],
+            [4, 2147483647],
+            [5, 0],
         ];
 
         assert_eq!(keys.len(), 9, "Should have exactly 9 cache keys");
@@ -295,6 +330,10 @@ mod tests {
 
         // Small max_depth increases number of keys needed
         let keys5 = CacheRangeAnalyzer::analyze_counter_range(0, 100, 1);
-        assert_eq!(keys5.len(), 100, "max_depth=1 should produce 100 keys for 100 counters");
+        assert_eq!(
+            keys5.len(),
+            100,
+            "max_depth=1 should produce 100 keys for 100 counters"
+        );
     }
 }

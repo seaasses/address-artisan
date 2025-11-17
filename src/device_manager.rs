@@ -80,17 +80,19 @@ impl DeviceManager {
         if let Ok(name) = device.name() {
             let name_lower = name.to_lowercase();
             // Intel integrated GPUs
-            if name_lower.contains("intel") &&
-               (name_lower.contains("hd") ||
-                name_lower.contains("uhd") ||
-                name_lower.contains("iris") ||
-                name_lower.contains("integrated")) {
+            if name_lower.contains("intel")
+                && (name_lower.contains("hd")
+                    || name_lower.contains("uhd")
+                    || name_lower.contains("iris")
+                    || name_lower.contains("integrated"))
+            {
                 return true;
             }
             // AMD integrated GPUs (APU)
-            if name_lower.contains("amd") &&
-               (name_lower.contains("radeon") &&
-                (name_lower.contains("graphics") || name_lower.contains("vega"))) {
+            if name_lower.contains("amd")
+                && (name_lower.contains("radeon")
+                    && (name_lower.contains("graphics") || name_lower.contains("vega")))
+            {
                 return true;
             }
         }

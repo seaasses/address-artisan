@@ -32,8 +32,8 @@ fn main() {
 
     let prefixes = cli.prefixes.clone();
     let xpub = ExtendedPubKey::from_str(&cli.xpub).unwrap();
-    let ground_truth_validator = GroundTruthValidator::new(&cli.xpub)
-        .expect("Failed to create ground truth validator");
+    let ground_truth_validator =
+        GroundTruthValidator::new(&cli.xpub).expect("Failed to create ground truth validator");
 
     let stop_signal = Arc::new(AtomicBool::new(false));
     let stop_signal_clone = Arc::clone(&stop_signal);
@@ -56,10 +56,7 @@ fn main() {
     };
 
     // Calculate total threads (for logging purposes)
-    let total_cpu_threads: u32 = selected_devices
-        .iter()
-        .filter_map(|d| d.threads())
-        .sum();
+    let total_cpu_threads: u32 = selected_devices.iter().filter_map(|d| d.threads()).sum();
 
     let logger = Logger::new();
     // Format prefixes for display: "1A, 1B, 1C"
@@ -82,4 +79,3 @@ fn main() {
 
     orchestrator.run(selected_devices);
 }
-

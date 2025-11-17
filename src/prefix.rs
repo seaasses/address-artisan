@@ -44,7 +44,8 @@ impl Prefix {
             AddressType::P2WPKH
         } else if prefix_str.starts_with("1") {
             // Validate base58 characters
-            const VALID_BASE58_CHARS: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+            const VALID_BASE58_CHARS: &str =
+                "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
             for c in prefix_str.chars() {
                 if !VALID_BASE58_CHARS.contains(c) {
                     return Err(format!("Invalid base58 character: '{}'", c));
@@ -227,7 +228,6 @@ impl Prefix {
             Some(value)
         };
 
-
         // Calculate minimum and maximum by padding with 'q' (0) and 'l' (31)
         let remaining_len = 32 - bech32_prefix.len();
         let minimum_str = format!("{}{}", bech32_prefix, "q".repeat(remaining_len));
@@ -396,12 +396,12 @@ mod tests {
 
         // From Python test vectors
         let expected_low = [
-            0xef, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xef, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let expected_high = [
-            0xef, 0x7b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xef, 0x7b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ];
 
         assert_eq!(prefix.ranges[0].low, expected_low);
@@ -416,12 +416,12 @@ mod tests {
 
         // From Python test vectors
         let expected_low = [
-            0x31, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x31, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let expected_high = [
-            0x31, 0x05, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0x31, 0x05, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ];
 
         assert_eq!(prefix.ranges[0].low, expected_low);
@@ -445,14 +445,14 @@ mod tests {
 
     #[test]
     fn test_invalid_p2pkh_character() {
-        let result = Prefix::new("1abc0");  // '0' is not valid in base58
+        let result = Prefix::new("1abc0"); // '0' is not valid in base58
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid base58 character"));
     }
 
     #[test]
     fn test_invalid_p2wpkh_character() {
-        let result = Prefix::new("bc1qabc");  // 'b' and 'c' are not valid in bech32
+        let result = Prefix::new("bc1qabc"); // 'b' and 'c' are not valid in bech32
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid bech32 character"));
     }
@@ -464,7 +464,11 @@ mod tests {
         for ch in valid_chars.chars() {
             let prefix_str = format!("bc1q{}", ch);
             let result = Prefix::new(&prefix_str);
-            assert!(result.is_ok(), "Character '{}' should be valid in bech32", ch);
+            assert!(
+                result.is_ok(),
+                "Character '{}' should be valid in bech32",
+                ch
+            );
         }
     }
 }

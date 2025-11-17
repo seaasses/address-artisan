@@ -23,7 +23,11 @@ impl WorkbenchFactory {
                 event_sender,
                 stop_signal,
             )),
-            DeviceInfo::Gpu { device_index, platform_index, .. } => Box::new(GpuWorkbench::new(
+            DeviceInfo::Gpu {
+                device_index,
+                platform_index,
+                ..
+            } => Box::new(GpuWorkbench::new(
                 config,
                 event_sender,
                 stop_signal,

@@ -1,7 +1,7 @@
+use crate::prefix::{AddressType, Prefix};
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
 use bitcoin::secp256k1::{self, Secp256k1};
 use bitcoin::{Address, CompressedPublicKey, Network, NetworkKind, PublicKey};
-use crate::prefix::{AddressType, Prefix};
 
 pub struct GroundTruthValidator {
     xpub: Xpub,
@@ -34,7 +34,11 @@ impl GroundTruthValidator {
     }
 
     #[cfg(test)]
-    pub fn get_address(&self, path: &[u32; 6], address_type: AddressType) -> Result<String, String> {
+    pub fn get_address(
+        &self,
+        path: &[u32; 6],
+        address_type: AddressType,
+    ) -> Result<String, String> {
         let derived_key = self.derive_key(path)?;
         match address_type {
             AddressType::P2PKH => self.pubkey_to_p2pkh_address(&derived_key),
@@ -312,17 +316,29 @@ mod tests {
         let prefix_bc1q89 = Prefix::new("bc1q89").unwrap();
 
         // Should match
-        let result = validator.validate_and_get_address(&prefix_bc1q, &path).unwrap();
+        let result = validator
+            .validate_and_get_address(&prefix_bc1q, &path)
+            .unwrap();
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4");
+        assert_eq!(
+            result.unwrap(),
+            "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4"
+        );
 
-        let result2 = validator.validate_and_get_address(&prefix_bc1q89, &path).unwrap();
+        let result2 = validator
+            .validate_and_get_address(&prefix_bc1q89, &path)
+            .unwrap();
         assert!(result2.is_some());
-        assert_eq!(result2.unwrap(), "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4");
+        assert_eq!(
+            result2.unwrap(),
+            "bc1q89hm8k39a388dju9fysuk6dsm6eerzj860sxx4"
+        );
 
         // Should NOT match
         let prefix_bc1qzz = Prefix::new("bc1qzz").unwrap();
-        let result3 = validator.validate_and_get_address(&prefix_bc1qzz, &path).unwrap();
+        let result3 = validator
+            .validate_and_get_address(&prefix_bc1qzz, &path)
+            .unwrap();
         assert!(result3.is_none());
     }
 

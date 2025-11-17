@@ -105,11 +105,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -125,7 +121,11 @@ mod tests {
             Ok(data)
         }
 
-        fn addition_with_overflow_flag(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<(Vec<u8>, bool), String> {
+        fn addition_with_overflow_flag(
+            &mut self,
+            a: Vec<u8>,
+            b: Vec<u8>,
+        ) -> Result<(Vec<u8>, bool), String> {
             if a.len() != 32 || b.len() != 32 {
                 return Err(format!(
                     "Input vectors must be 32 bytes long, got a: {}, b: {}",

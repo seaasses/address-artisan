@@ -317,7 +317,10 @@ impl GpuWorkbench {
                 }
 
                 let mut matches_prefix_id_data = vec![0u8; num_matches];
-                if let Err(e) = matches_prefix_id_buffer.read(&mut matches_prefix_id_data).enq() {
+                if let Err(e) = matches_prefix_id_buffer
+                    .read(&mut matches_prefix_id_data)
+                    .enq()
+                {
                     eprintln!("Failed to read prefix_id: {}", e);
                     break;
                 }
@@ -393,12 +396,10 @@ impl GpuWorkbench {
         let batch_search_src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
 
         // Wait for any other GPU that might be compiling
-        while KERNEL_COMPILING.compare_exchange_weak(
-            false,
-            true,
-            Ordering::Acquire,
-            Ordering::Relaxed,
-        ).is_err() {
+        while KERNEL_COMPILING
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
             // Another GPU is compiling, wait a bit
             thread::sleep(Duration::from_millis(100));
         }
@@ -416,7 +417,9 @@ impl GpuWorkbench {
         result
     }
 
-    fn prepare_gpu_ranges(prefixes: &[crate::prefix::Prefix]) -> Vec<crate::opencl::gpu_cache::Hash160RangeGpu> {
+    fn prepare_gpu_ranges(
+        prefixes: &[crate::prefix::Prefix],
+    ) -> Vec<crate::opencl::gpu_cache::Hash160RangeGpu> {
         let mut gpu_ranges = Vec::new();
 
         for (prefix_id, prefix) in prefixes.iter().enumerate() {

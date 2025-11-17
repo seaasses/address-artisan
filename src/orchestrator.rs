@@ -82,7 +82,11 @@ impl Orchestrator {
                     );
                 }
 
-                WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } => {
+                WorkbenchEvent::PotentialMatch {
+                    bench_id,
+                    path,
+                    prefix_id,
+                } => {
                     if self.handle_potential_match(bench_id, path, prefix_id) {
                         self.logger.stop_requested();
                         self.stop_signal.store(true, Ordering::Relaxed);
@@ -118,10 +122,8 @@ impl Orchestrator {
         let bench_name = match &device {
             DeviceInfo::Gpu { device_index, .. } => {
                 format!("{}_{}", device_index, device.name())
-            },
-            DeviceInfo::Cpu { .. } => {
-                device.name().to_string()
             }
+            DeviceInfo::Cpu { .. } => device.name().to_string(),
         };
 
         let thread_name = format!("{}-bench", bench_name);

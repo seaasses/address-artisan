@@ -92,7 +92,10 @@ mod tests {
 
         let event = rx.recv().unwrap();
         match event {
-            WorkbenchEvent::Started { bench_id, timestamp } => {
+            WorkbenchEvent::Started {
+                bench_id,
+                timestamp,
+            } => {
                 assert_eq!(bench_id, "test-bench");
                 assert_eq!(timestamp, now);
             }
@@ -109,7 +112,10 @@ mod tests {
 
         let event = rx.recv().unwrap();
         match event {
-            WorkbenchEvent::Progress { bench_id, addresses_generated } => {
+            WorkbenchEvent::Progress {
+                bench_id,
+                addresses_generated,
+            } => {
                 assert_eq!(bench_id, "test-bench");
                 assert_eq!(addresses_generated, 1000);
             }
@@ -127,7 +133,11 @@ mod tests {
 
         let event = rx.recv().unwrap();
         match event {
-            WorkbenchEvent::PotentialMatch { bench_id, path: received_path, prefix_id } => {
+            WorkbenchEvent::PotentialMatch {
+                bench_id,
+                path: received_path,
+                prefix_id,
+            } => {
                 assert_eq!(bench_id, "test-bench");
                 assert_eq!(received_path, path);
                 assert_eq!(prefix_id, 0);
@@ -146,7 +156,11 @@ mod tests {
 
         let event = rx.recv().unwrap();
         match event {
-            WorkbenchEvent::Stopped { bench_id, total_generated, elapsed } => {
+            WorkbenchEvent::Stopped {
+                bench_id,
+                total_generated,
+                elapsed,
+            } => {
                 assert_eq!(bench_id, "test-bench");
                 assert_eq!(total_generated, 5000);
                 assert_eq!(elapsed, duration);
@@ -175,19 +189,27 @@ mod tests {
             _ => panic!("Expected Started"),
         }
         match &events[1] {
-            WorkbenchEvent::Progress { addresses_generated, .. } => assert_eq!(*addresses_generated, 100),
+            WorkbenchEvent::Progress {
+                addresses_generated,
+                ..
+            } => assert_eq!(*addresses_generated, 100),
             _ => panic!("Expected Progress"),
         }
         match &events[2] {
-            WorkbenchEvent::Progress { addresses_generated, .. } => assert_eq!(*addresses_generated, 200),
+            WorkbenchEvent::Progress {
+                addresses_generated,
+                ..
+            } => assert_eq!(*addresses_generated, 200),
             _ => panic!("Expected Progress"),
         }
         match &events[3] {
-            WorkbenchEvent::PotentialMatch { .. } => {},
+            WorkbenchEvent::PotentialMatch { .. } => {}
             _ => panic!("Expected PotentialMatch"),
         }
         match &events[4] {
-            WorkbenchEvent::Stopped { total_generated, .. } => assert_eq!(*total_generated, 300),
+            WorkbenchEvent::Stopped {
+                total_generated, ..
+            } => assert_eq!(*total_generated, 300),
             _ => panic!("Expected Stopped"),
         }
     }
@@ -228,4 +250,3 @@ mod tests {
         sender.stopped(100, Duration::from_secs(1));
     }
 }
-

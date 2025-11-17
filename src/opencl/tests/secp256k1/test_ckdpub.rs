@@ -118,11 +118,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_u8_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_u8_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -130,11 +126,7 @@ mod tests {
             Ok(())
         }
 
-        fn write_u32_buffer(
-            &mut self,
-            buffer: &Buffer<u32>,
-            data: Vec<u32>,
-        ) -> Result<(), String> {
+        fn write_u32_buffer(&mut self, buffer: &Buffer<u32>, data: Vec<u32>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -142,11 +134,7 @@ mod tests {
             Ok(())
         }
 
-        fn read_u8_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            len: usize,
-        ) -> Result<Vec<u8>, String> {
+        fn read_u8_buffer(&mut self, buffer: &Buffer<u8>, len: usize) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; len];
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
@@ -245,7 +233,10 @@ mod tests {
             .derive_child(chain_code, k_par_x, k_par_y, index)
             .unwrap();
 
-        assert_eq!(compressed_key, expected_compressed_key, "Compressed key mismatch");
+        assert_eq!(
+            compressed_key, expected_compressed_key,
+            "Compressed key mismatch"
+        );
     }
 
     #[test]

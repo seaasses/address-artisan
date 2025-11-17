@@ -79,7 +79,10 @@ mod tests {
         }
 
         fn build_program(device: Device, context: Context) -> Result<Program, String> {
-            let src = include_str!(concat!(env!("OUT_DIR"), "/jacobian_point_affine_point_addition_kernel"));
+            let src = include_str!(concat!(
+                env!("OUT_DIR"),
+                "/jacobian_point_affine_point_addition_kernel"
+            ));
 
             let program = match Program::builder().src(src).devices(device).build(&context) {
                 Ok(program) => program,
@@ -120,11 +123,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -141,8 +140,20 @@ mod tests {
             Ok(data)
         }
 
-        fn addition(&mut self, jac_a_x: Vec<u8>, jac_a_y: Vec<u8>, jac_a_z: Vec<u8>, aff_b_x: Vec<u8>, aff_b_y: Vec<u8>) -> PointResult {
-            if jac_a_x.len() != 32 || jac_a_y.len() != 32 || jac_a_z.len() != 32 || aff_b_x.len() != 32 || aff_b_y.len() != 32 {
+        fn addition(
+            &mut self,
+            jac_a_x: Vec<u8>,
+            jac_a_y: Vec<u8>,
+            jac_a_z: Vec<u8>,
+            aff_b_x: Vec<u8>,
+            aff_b_y: Vec<u8>,
+        ) -> PointResult {
+            if jac_a_x.len() != 32
+                || jac_a_y.len() != 32
+                || jac_a_z.len() != 32
+                || aff_b_x.len() != 32
+                || aff_b_y.len() != 32
+            {
                 return Err(format!(
                     "All inputs must be 32 bytes long, got: jac_a_x={}, jac_a_y={}, jac_a_z={}, aff_b_x={}, aff_b_y={}",
                     jac_a_x.len(), jac_a_y.len(), jac_a_z.len(), aff_b_x.len(), aff_b_y.len()
@@ -203,7 +214,9 @@ mod tests {
             0x00, 0x00, 0x00, 0x02,
         ];
 
-        let (result_x, result_y, result_z) = ocl.addition(jac_a_x, jac_a_y, jac_a_z, aff_b_x, aff_b_y).unwrap();
+        let (result_x, result_y, result_z) = ocl
+            .addition(jac_a_x, jac_a_y, jac_a_z, aff_b_x, aff_b_y)
+            .unwrap();
 
         // Just check that we get some result (exact values would need proper elliptic curve math)
         assert_eq!(result_x.len(), 32);

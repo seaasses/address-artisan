@@ -52,24 +52,25 @@ impl DeviceSelector {
         let mut gpu_global_index = 0;
         devices
             .iter()
-            .filter_map(|device| {
-                match device {
-                    gpu_device @ DeviceInfo::Gpu { is_onboard, .. } => {
-                        if !is_onboard {
-                            let index = gpu_global_index;
-                            gpu_global_index += 1;
-                            Some((index, gpu_device.clone()))
-                        } else {
-                            None
-                        }
-                    },
-                    _ => None
+            .filter_map(|device| match device {
+                gpu_device @ DeviceInfo::Gpu { is_onboard, .. } => {
+                    if !is_onboard {
+                        let index = gpu_global_index;
+                        gpu_global_index += 1;
+                        Some((index, gpu_device.clone()))
+                    } else {
+                        None
+                    }
                 }
+                _ => None,
             })
             .collect()
     }
 
-    fn validate_gpu_availability(config: &DeviceConfig, available_gpus: &[(usize, DeviceInfo)]) -> Result<(), String> {
+    fn validate_gpu_availability(
+        config: &DeviceConfig,
+        available_gpus: &[(usize, DeviceInfo)],
+    ) -> Result<(), String> {
         // Validate specific GPU IDs if provided
         if let Some(ref gpu_ids) = config.gpu_ids {
             if !gpu_ids.is_empty() {
@@ -77,7 +78,10 @@ impl DeviceSelector {
                 for requested_id in gpu_ids {
                     if *requested_id >= available_gpus.len() {
                         let error_msg = if available_gpus.is_empty() {
-                            format!("Error: GPU {} does not exist. No GPUs available on this system.", requested_id)
+                            format!(
+                                "Error: GPU {} does not exist. No GPUs available on this system.",
+                                requested_id
+                            )
                         } else {
                             let gpu_info: Vec<String> = available_gpus
                                 .iter()
@@ -94,11 +98,17 @@ impl DeviceSelector {
                 }
             } else if available_gpus.is_empty() {
                 // --gpu flag without IDs means use all GPUs, but none are available
-                return Err("Error: --gpu flag was used but no GPUs are available on this system.".to_string());
+                return Err(
+                    "Error: --gpu flag was used but no GPUs are available on this system."
+                        .to_string(),
+                );
             }
         } else if config.gpu_only && available_gpus.is_empty() {
             // --gpu-only flag but no GPUs available
-            return Err("Error: --gpu-only flag was used but no GPUs are available on this system.".to_string());
+            return Err(
+                "Error: --gpu-only flag was used but no GPUs are available on this system."
+                    .to_string(),
+            );
         }
 
         Ok(())
@@ -135,7 +145,7 @@ impl DeviceSelector {
                             // No --gpu flag: don't include GPUs
                             false
                         }
-                    },
+                    }
                     DeviceInfo::Cpu { .. } => {
                         // Keep CPU only if --gpu-only is NOT set
                         !config.gpu_only

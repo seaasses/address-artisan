@@ -101,11 +101,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),

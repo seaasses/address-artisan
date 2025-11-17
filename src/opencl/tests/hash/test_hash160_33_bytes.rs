@@ -3,7 +3,7 @@ mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
     const MESSAGE_SIZE: usize = 33; // Compressed public key
-    const HASH_SIZE: usize = 20;    // Hash160 output
+    const HASH_SIZE: usize = 20; // Hash160 output
 
     pub struct Hash160_33Bytes {
         message_buffer: Buffer<u8>,
@@ -94,11 +94,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),

@@ -73,7 +73,10 @@ mod tests {
         }
 
         fn build_program(device: Device, context: Context) -> Result<Program, String> {
-            let src = include_str!(concat!(env!("OUT_DIR"), "/uint256_subtraction_with_underflow_flag_kernel"));
+            let src = include_str!(concat!(
+                env!("OUT_DIR"),
+                "/uint256_subtraction_with_underflow_flag_kernel"
+            ));
 
             let program = match Program::builder().src(src).devices(device).build(&context) {
                 Ok(program) => program,
@@ -114,11 +117,7 @@ mod tests {
             Ok((device, context, queue))
         }
 
-        fn write_to_buffer(
-            &mut self,
-            buffer: &Buffer<u8>,
-            data: Vec<u8>,
-        ) -> Result<(), String> {
+        fn write_to_buffer(&mut self, buffer: &Buffer<u8>, data: Vec<u8>) -> Result<(), String> {
             match buffer.write(&data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error writing to buffer: ".to_string() + &e.to_string()),
@@ -139,12 +138,18 @@ mod tests {
             let mut data = [0u32; 1];
             match self.underflow_flag_buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
-                Err(e) => return Err("Error reading from flag buffer: ".to_string() + &e.to_string()),
+                Err(e) => {
+                    return Err("Error reading from flag buffer: ".to_string() + &e.to_string())
+                }
             };
             Ok(data[0])
         }
 
-        fn subtraction_with_underflow_flag(&mut self, a: Vec<u8>, b: Vec<u8>) -> Result<(Vec<u8>, u32), String> {
+        fn subtraction_with_underflow_flag(
+            &mut self,
+            a: Vec<u8>,
+            b: Vec<u8>,
+        ) -> Result<(Vec<u8>, u32), String> {
             if a.len() != 32 || b.len() != 32 {
                 return Err(format!(
                     "Input vectors must be 32 bytes long, got a: {}, b: {}",
