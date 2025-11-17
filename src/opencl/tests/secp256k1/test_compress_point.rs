@@ -84,7 +84,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -99,7 +99,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -111,7 +111,7 @@ mod tests {
         }
 
         fn read_from_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             len: usize,
         ) -> Result<Vec<u8>, String> {

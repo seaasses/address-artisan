@@ -17,13 +17,13 @@ impl WorkbenchFactory {
         stop_signal: Arc<AtomicBool>,
     ) -> Box<dyn Workbench + Send> {
         match device {
-            DeviceInfo::CPU { threads, .. } => Box::new(CPUWorkbench::new(
+            DeviceInfo::Cpu { threads, .. } => Box::new(CPUWorkbench::new(
                 config,
                 threads,
                 event_sender,
                 stop_signal,
             )),
-            DeviceInfo::GPU { device_index, platform_index, .. } => Box::new(GpuWorkbench::new(
+            DeviceInfo::Gpu { device_index, platform_index, .. } => Box::new(GpuWorkbench::new(
                 config,
                 event_sender,
                 stop_signal,

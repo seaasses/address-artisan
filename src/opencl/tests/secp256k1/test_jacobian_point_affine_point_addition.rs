@@ -2,6 +2,8 @@
 mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
+    type PointResult = Result<(Vec<u8>, Vec<u8>, Vec<u8>), String>;
+
     pub struct JacobianPointAffinePointAddition {
         jac_a_x_buffer: Buffer<u8>,
         jac_a_y_buffer: Buffer<u8>,
@@ -104,7 +106,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -119,7 +121,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -130,7 +132,7 @@ mod tests {
             Ok(())
         }
 
-        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+        fn read_from_buffer(&mut self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; 32]; // Uint256 = 32 bytes
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
@@ -139,7 +141,7 @@ mod tests {
             Ok(data)
         }
 
-        fn addition(&mut self, jac_a_x: Vec<u8>, jac_a_y: Vec<u8>, jac_a_z: Vec<u8>, aff_b_x: Vec<u8>, aff_b_y: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
+        fn addition(&mut self, jac_a_x: Vec<u8>, jac_a_y: Vec<u8>, jac_a_z: Vec<u8>, aff_b_x: Vec<u8>, aff_b_y: Vec<u8>) -> PointResult {
             if jac_a_x.len() != 32 || jac_a_y.len() != 32 || jac_a_z.len() != 32 || aff_b_x.len() != 32 || aff_b_y.len() != 32 {
                 return Err(format!(
                     "All inputs must be 32 bytes long, got: jac_a_x={}, jac_a_y={}, jac_a_z={}, aff_b_x={}, aff_b_y={}",

@@ -175,15 +175,15 @@ mod tests {
         let paths: Vec<[u32; 6]> = walker.iter_from_counter(counter_start, 150).collect();
 
         // First 100 should have a=1000, index 0-99
-        for i in 0..100 {
-            assert_eq!(paths[i][3], 1000, "At position {}", i);
-            assert_eq!(paths[i][5], i as u32, "At position {}", i);
+        for (i, path) in paths.iter().enumerate().take(100) {
+            assert_eq!(path[3], 1000, "At position {}", i);
+            assert_eq!(path[5], i as u32, "At position {}", i);
         }
 
         // Next 50 should have a=1001, index 0-49
-        for i in 100..150 {
-            assert_eq!(paths[i][3], 1001, "At position {}", i);
-            assert_eq!(paths[i][5], (i - 100) as u32, "At position {}", i);
+        for (i, path) in paths.iter().enumerate().skip(100).take(50) {
+            assert_eq!(path[3], 1001, "At position {}", i);
+            assert_eq!(path[5], (i - 100) as u32, "At position {}", i);
         }
     }
 

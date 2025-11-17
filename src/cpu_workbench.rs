@@ -158,7 +158,7 @@ mod tests {
         let (bench, stop_signal) = create_test_bench(config, 4);
 
         assert_eq!(bench.total_generated(), 0);
-        assert_eq!(stop_signal.load(Ordering::Relaxed), false);
+        assert!(!stop_signal.load(Ordering::Relaxed));
     }
 
     #[test]
@@ -303,7 +303,7 @@ mod tests {
         bench.wait();
 
         let mut progress_count = 0;
-        while let Ok(_) = rx.try_recv() {
+        while rx.try_recv().is_ok() {
             progress_count += 1;
         }
 
@@ -375,7 +375,7 @@ mod tests {
             .any(|e| matches!(e, crate::events::WorkbenchEvent::PotentialMatch { .. }));
 
         assert!(
-            has_potential_match || events.len() > 0,
+            has_potential_match || !events.is_empty(),
             "Should have sent events (match is likely with prefix '1')"
         );
     }

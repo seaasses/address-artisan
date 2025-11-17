@@ -7,6 +7,8 @@ use secp256k1::{PublicKey, Secp256k1};
 use sha2::{Digest, Sha256, Sha512};
 use std::num::NonZeroUsize;
 
+type ExtendedKeyResult = Result<([u8; 32], [u8; 32], [u8; 32]), String>;
+
 pub trait KeyDeriver {
     fn get_pubkey_hash_160(&mut self, path: &[u32]) -> Result<[u8; 20], String>;
     fn get_pubkey(&mut self, path: &[u32]) -> Result<[u8; 33], String>;
@@ -82,7 +84,7 @@ impl KeyDeriver for ExtendedPublicKeyDeriver {
         let pubkey = self.get_pubkey(path)?;
 
         self.sha256_hasher.reset();
-        self.sha256_hasher.update(&pubkey);
+        self.sha256_hasher.update(pubkey);
         let hash = self.sha256_hasher.finalize_reset();
 
         self.ripemd_hasher.reset();
@@ -133,7 +135,7 @@ impl ExtendedPublicKeyDeriver {
         Ok(current_xpub)
     }
 
-    pub fn get_extended_key(&mut self, path: &[u32]) -> Result<([u8; 32], [u8; 32], [u8; 32]), String> {
+    pub fn get_extended_key(&mut self, path: &[u32]) -> ExtendedKeyResult {
         let xpub = self.get_derived_xpub(path)?;
 
         let uncompressed = xpub.public_key.serialize_uncompressed();

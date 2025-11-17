@@ -2,6 +2,8 @@
 mod tests {
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
+    type PointResult = Result<(Vec<u8>, Vec<u8>, Vec<u8>), String>;
+
     pub struct JacobianDoublePoint {
         point_x_buffer: Buffer<u8>,
         point_y_buffer: Buffer<u8>,
@@ -96,7 +98,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -111,7 +113,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -122,7 +124,7 @@ mod tests {
             Ok(())
         }
 
-        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+        fn read_from_buffer(&mut self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; 32]; // Uint256 = 32 bytes
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
@@ -131,7 +133,7 @@ mod tests {
             Ok(data)
         }
 
-        fn double_point(&mut self, point_x: Vec<u8>, point_y: Vec<u8>, point_z: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
+        fn double_point(&mut self, point_x: Vec<u8>, point_y: Vec<u8>, point_z: Vec<u8>) -> PointResult {
             if point_x.len() != 32 || point_y.len() != 32 || point_z.len() != 32 {
                 return Err(format!(
                     "All inputs must be 32 bytes long, got: x={}, y={}, z={}",

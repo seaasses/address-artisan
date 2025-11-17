@@ -90,7 +90,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -105,7 +105,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -116,7 +116,7 @@ mod tests {
             Ok(())
         }
 
-        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+        fn read_from_buffer(&mut self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; 32]; // Uint256 = 32 bytes
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),

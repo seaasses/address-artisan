@@ -33,10 +33,9 @@ impl Prefix {
         }
 
         // Detect address type automatically and validate
-        let address_type = if prefix_str.starts_with("bc1q") {
+        let address_type = if let Some(bech32_part) = prefix_str.strip_prefix("bc1q") {
             // Validate bech32 characters
             const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-            let bech32_part = &prefix_str[4..];
             for c in bech32_part.chars() {
                 if !BECH32_CHARSET.contains(c) {
                     return Err(format!("Invalid bech32 character: '{}'", c));

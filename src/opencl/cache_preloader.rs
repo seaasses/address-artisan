@@ -51,10 +51,10 @@ impl CachePreloader {
         const BYTES_PER_LIMB: usize = 8;
         let mut limbs = [0u64; LIMB_COUNT];
 
-        for limb_idx in 0..LIMB_COUNT {
+        for (limb_idx, limb) in limbs.iter_mut().enumerate() {
             let byte_offset = limb_idx * BYTES_PER_LIMB;
 
-            limbs[limb_idx] = u64::from_be_bytes([
+            *limb = u64::from_be_bytes([
                 bytes[byte_offset],
                 bytes[byte_offset + 1],
                 bytes[byte_offset + 2],

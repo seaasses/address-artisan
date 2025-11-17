@@ -39,7 +39,7 @@ impl DeviceSelector {
         devices
             .into_iter()
             .map(|device| {
-                if matches!(device, DeviceInfo::CPU { .. }) {
+                if matches!(device, DeviceInfo::Cpu { .. }) {
                     device.with_threads(thread_count)
                 } else {
                     device
@@ -54,7 +54,7 @@ impl DeviceSelector {
             .iter()
             .filter_map(|device| {
                 match device {
-                    gpu_device @ DeviceInfo::GPU { is_onboard, .. } => {
+                    gpu_device @ DeviceInfo::Gpu { is_onboard, .. } => {
                         if !is_onboard {
                             let index = gpu_global_index;
                             gpu_global_index += 1;
@@ -113,7 +113,7 @@ impl DeviceSelector {
             .into_iter()
             .filter(|device| {
                 match device {
-                    DeviceInfo::GPU { is_onboard, .. } => {
+                    DeviceInfo::Gpu { is_onboard, .. } => {
                         if *is_onboard {
                             // Never include onboard GPUs
                             false
@@ -136,7 +136,7 @@ impl DeviceSelector {
                             false
                         }
                     },
-                    DeviceInfo::CPU { .. } => {
+                    DeviceInfo::Cpu { .. } => {
                         // Keep CPU only if --gpu-only is NOT set
                         !config.gpu_only
                     }

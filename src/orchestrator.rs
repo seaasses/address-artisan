@@ -116,10 +116,10 @@ impl Orchestrator {
 
         // Create bench_name with device_index for GPUs
         let bench_name = match &device {
-            DeviceInfo::GPU { device_index, .. } => {
+            DeviceInfo::Gpu { device_index, .. } => {
                 format!("{}_{}", device_index, device.name())
             },
-            DeviceInfo::CPU { .. } => {
+            DeviceInfo::Cpu { .. } => {
                 device.name().to_string()
             }
         };
@@ -302,7 +302,7 @@ mod tests {
 
         let result = orch.handle_potential_match("cpu".to_string(), path, 0);
 
-        assert_eq!(result, true);
+        assert!(result);
     }
 
     #[test]
@@ -316,7 +316,7 @@ mod tests {
     fn test_spawn_workbench_sends_started_event() {
         let (orch, stop_signal) = create_test_orchestrator();
 
-        orch.spawn_workbench(DeviceInfo::CPU {
+        orch.spawn_workbench(DeviceInfo::Cpu {
             name: "cpu_2".to_string(),
             threads: 2,
         });

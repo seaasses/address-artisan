@@ -115,8 +115,8 @@ mod tests {
         assert_eq!(keys[0], [0, 0]);
         assert_eq!(keys[24], [0, 24]);
 
-        for i in 0..25 {
-            assert_eq!(keys[i], [0, i as u32]);
+        for (i, key) in keys.iter().enumerate().take(25) {
+            assert_eq!(*key, [0, i as u32]);
         }
     }
 

@@ -100,7 +100,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -115,7 +115,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -126,7 +126,7 @@ mod tests {
             Ok(())
         }
 
-        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+        fn read_from_buffer(&mut self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; 32];
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
@@ -135,8 +135,8 @@ mod tests {
             Ok(data)
         }
 
-        fn read_from_flag_buffer(self: &mut Self) -> Result<u32, String> {
-            let mut data = vec![0u32; 1];
+        fn read_from_flag_buffer(&mut self) -> Result<u32, String> {
+            let mut data = [0u32; 1];
             match self.underflow_flag_buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
                 Err(e) => return Err("Error reading from flag buffer: ".to_string() + &e.to_string()),

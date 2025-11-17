@@ -8,47 +8,23 @@ pub struct CacheKey {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Uint256 {
     pub limbs: [u64; 4],
 }
 
-impl Default for Uint256 {
-    fn default() -> Self {
-        Self { limbs: [0u64; 4] }
-    }
-}
-
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct PointGpu {
     pub x: Uint256,
     pub y: Uint256,
 }
 
-impl Default for PointGpu {
-    fn default() -> Self {
-        Self {
-            x: Uint256::default(),
-            y: Uint256::default(),
-        }
-    }
-}
-
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct XPub {
     pub chain_code: [u8; 32],
     pub k_par: PointGpu,
-}
-
-impl Default for XPub {
-    fn default() -> Self {
-        Self {
-            chain_code: [0u8; 32],
-            k_par: PointGpu::default(),
-        }
-    }
 }
 
 unsafe impl ocl::OclPrm for CacheKey {}
@@ -57,21 +33,11 @@ unsafe impl ocl::OclPrm for PointGpu {}
 unsafe impl ocl::OclPrm for XPub {}
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Hash160RangeGpu {
     pub low: [u8; 20],
     pub high: [u8; 20],
     pub prefix_id: u8,
-}
-
-impl Default for Hash160RangeGpu {
-    fn default() -> Self {
-        Self {
-            low: [0u8; 20],
-            high: [0u8; 20],
-            prefix_id: 0,
-        }
-    }
 }
 
 unsafe impl ocl::OclPrm for Hash160RangeGpu {}

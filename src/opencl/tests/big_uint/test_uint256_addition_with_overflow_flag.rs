@@ -91,7 +91,7 @@ mod tests {
 
             let context = match Context::builder()
                 .platform(platform)
-                .devices(device.clone())
+                .devices(device)
                 .build()
             {
                 Ok(context) => context,
@@ -106,7 +106,7 @@ mod tests {
         }
 
         fn write_to_buffer(
-            self: &mut Self,
+            &mut self,
             buffer: &Buffer<u8>,
             data: Vec<u8>,
         ) -> Result<(), String> {
@@ -116,7 +116,7 @@ mod tests {
             };
             Ok(())
         }
-        fn read_from_buffer(self: &mut Self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
+        fn read_from_buffer(&mut self, buffer: &Buffer<u8>) -> Result<Vec<u8>, String> {
             let mut data = vec![0u8; buffer.len()];
             match buffer.read(&mut data[..]).enq() {
                 Ok(_) => (),
@@ -176,7 +176,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -202,7 +202,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -228,7 +228,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -306,7 +306,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, true);
+        assert!(overflow_flag);
     }
 
     #[test]
@@ -328,7 +328,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, true);
+        assert!(overflow_flag);
     }
 
     #[test]
@@ -354,7 +354,7 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, false);
+        assert!(!overflow_flag);
     }
 
     #[test]
@@ -380,6 +380,6 @@ mod tests {
         let (result, overflow_flag) = ocl.addition_with_overflow_flag(a, b).unwrap();
 
         assert_eq!(result, expected);
-        assert_eq!(overflow_flag, true);
+        assert!(overflow_flag);
     }
 }

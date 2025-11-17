@@ -7,7 +7,6 @@ use crate::prefix::Prefix;
     about,
     long_about = "A tool for generating vanity Bitcoin addresses (P2PKH and P2WPKH)."
 )]
-
 pub struct Cli {
     #[arg(
         short = 'p',
@@ -119,7 +118,7 @@ impl Cli {
 
         for c in xpub.chars() {
             if !valid_base58_chars.contains(c) {
-                return Err(format!("Invalid xpub"));
+                return Err("Invalid xpub".to_string());
             }
         }
 

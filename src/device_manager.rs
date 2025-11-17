@@ -12,7 +12,7 @@ impl DeviceManager {
         let cpu_name = Self::detect_cpu_name();
         let cpu_threads = Self::detect_cpu_threads();
 
-        devices.push(DeviceInfo::CPU {
+        devices.push(DeviceInfo::Cpu {
             name: cpu_name,
             threads: cpu_threads,
         });
@@ -43,7 +43,7 @@ impl DeviceManager {
                             // Detect if GPU is onboard/integrated
                             let is_onboard = Self::is_onboard_gpu(device);
 
-                            gpus.push(DeviceInfo::GPU {
+                            gpus.push(DeviceInfo::Gpu {
                                 name,
                                 device_index,
                                 platform_index,
@@ -147,16 +147,16 @@ mod tests {
     fn test_detect_available_devices_returns_cpu() {
         let devices = DeviceManager::detect_available_devices();
 
-        assert!(devices.len() >= 1, "Should detect at least one device");
+        assert!(!devices.is_empty(), "Should detect at least one device");
 
         // First device should always be CPU
         match &devices[0] {
-            DeviceInfo::CPU { name, threads } => {
+            DeviceInfo::Cpu { name, threads } => {
                 assert!(!name.is_empty());
                 assert_ne!(name, "");
                 assert!(*threads > 0);
             }
-            DeviceInfo::GPU { .. } => {
+            DeviceInfo::Gpu { .. } => {
                 panic!("First device should be CPU, not GPU");
             }
         }

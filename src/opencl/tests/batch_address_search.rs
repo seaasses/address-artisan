@@ -271,7 +271,7 @@ mod tests {
         CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, 0, 0).unwrap();
 
         let prefix = Prefix::new("1").unwrap();
-        assert!(prefix.ranges.len() > 0);
+        assert!(!prefix.ranges.is_empty());
 
         // For now just verify setup works
         assert_eq!(gpu_cache.size(), 1);
@@ -358,7 +358,7 @@ mod tests {
 
         // Prefix "1" is very broad, should find at least one match
         assert!(count > 0, "Should find at least one match with prefix '1'");
-        assert!(matches.len() > 0);
+        assert!(!matches.is_empty());
     }
 
     #[test]
