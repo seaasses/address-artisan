@@ -16,34 +16,43 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Download version artifact from triggering workflow
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
+          name: release-version
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Check version and create tag
+      - name: Check if version changed
+        id: check
         run: |
-          # Compare with previous commit
-          BASE_REF="HEAD^"
+          VERSION=$(cat version.txt | tr -d '[:space:]')
 
-          # Extract current version from Cargo.toml
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
-
-          # Extract previous version from Cargo.toml
-          PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
-
-          # If version changed, create tag
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "🚀 Creating release tag for version $CURRENT_VERSION"
-
-            TAG_NAME="v$CURRENT_VERSION"
-
-            # Create and push tag
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-            git push origin "$TAG_NAME"
-
-            echo "✅ Tag $TAG_NAME created and pushed"
+          if [ -z "$VERSION" ]; then
+            echo "ℹ️  No version change detected by CI"
+            echo "should_release=false" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️  No version change detected, skipping tag creation"
+            echo "🚀 CI detected version change to: $VERSION"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
+
+      - uses: actions/checkout@v5
+        if: steps.check.outputs.should_release == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Create and push tag
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.version }}"
+          TAG_NAME="v$VERSION"
+
+          echo "🚀 Creating release tag $TAG_NAME"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
+
+          echo "✅ Tag $TAG_NAME created and pushed"
