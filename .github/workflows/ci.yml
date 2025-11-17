@@ -16,7 +16,6 @@ env:
 jobs:
   version-change-check:
     name: Version Change Validation
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -24,15 +23,27 @@ jobs:
           fetch-depth: 0
 
       - name: Check version change isolation
+        id: version_check
         run: |
+          # PR references for checking modified files
           BASE_REF="${{ github.event.pull_request.base.sha }}"
           HEAD_REF="${{ github.event.pull_request.head.sha }}"
 
           # Extract current version from Cargo.toml
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
 
-          # Extract previous version from Cargo.toml
-          PREVIOUS_VERSION=$(git show $BASE_REF:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+          # Get the latest version tag to compare semantic versioning
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            # No tags yet, this is the first release
+            echo "ℹ️  No previous version tags found"
+            PREVIOUS_VERSION="0.0.0"
+          else
+            # Get version from the latest tag
+            PREVIOUS_VERSION=$(git show $LATEST_TAG:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+            echo "ℹ️  Latest released version: $LATEST_TAG ($PREVIOUS_VERSION)"
+          fi
 
           # If version changed
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
@@ -75,48 +86,60 @@ jobs:
               exit 1
             fi
 
-            # Check number of commits in the PR
-            NUM_COMMITS=$(git rev-list --count $BASE_REF..$HEAD_REF)
+            # Validate modified files (only for PRs)
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              # List all modified files in the PR (total diff, not just last commit)
+              CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
+              NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
-            if [ $NUM_COMMITS -ne 1 ]; then
-              echo ""
-              echo "❌ ERROR: Version bump PR must contain exactly 1 commit"
-              echo ""
-              echo "This PR has $NUM_COMMITS commits"
-              echo "Please squash all commits into a single commit for version bumps"
-              exit 1
+              # If more than 1 file was modified
+              if [ $NUM_CHANGED -gt 1 ]; then
+                echo ""
+                echo "❌ ERROR: Version bump must only modify Cargo.toml"
+                echo ""
+                echo "Files modified in this PR:"
+                echo "$CHANGED_FILES"
+                exit 1
+              fi
+
+              # Check if the only modified file is Cargo.toml
+              if [ "$CHANGED_FILES" != "Cargo.toml" ]; then
+                echo ""
+                echo "❌ ERROR: Version changed but Cargo.toml is not the only modified file"
+                echo ""
+                echo "Files modified:"
+                echo "$CHANGED_FILES"
+                exit 1
+              fi
+
+              echo "✅ Only Cargo.toml modified - ready to release"
             fi
 
-            echo "✅ PR has exactly 1 commit"
-
-            # List all modified files in the PR
-            CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
-            NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
-
-            # If more than 1 file was modified
-            if [ $NUM_CHANGED -gt 1 ]; then
-              echo ""
-              echo "❌ ERROR: Version bump must only modify Cargo.toml"
-              echo ""
-              echo "Files modified in this PR:"
-              echo "$CHANGED_FILES"
-              exit 1
-            fi
-
-            # Check if the only modified file is Cargo.toml
-            if [ "$CHANGED_FILES" != "Cargo.toml" ]; then
-              echo ""
-              echo "❌ ERROR: Version changed but Cargo.toml is not the only modified file"
-              echo ""
-              echo "Files modified:"
-              echo "$CHANGED_FILES"
-              exit 1
-            fi
-
-            echo "✅ Only Cargo.toml modified - ready to release"
+            # All validations passed - export version
+            echo "✅ All validations passed
+            echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "✅ No version change detected"
+            echo "new_version=" >> $GITHUB_OUTPUT
           fi
+
+      - name: Export version
+        run: |
+          VERSION="${{ steps.version_check.outputs.new_version }}"
+          if [ -n "$VERSION" ]; then
+            echo "$VERSION" > version.txt
+            echo "📦 Exporting version $VERSION for CD workflow"
+          else
+            echo "" > version.txt
+            echo "📦 No version change - exporting empty artifact"
+          fi
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-version
+          path: version.txt
+          retention-days: 1
 
   format:
     name: Format Check
