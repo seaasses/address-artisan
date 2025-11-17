@@ -14,6 +14,7 @@ pub enum WorkbenchEvent {
     PotentialMatch {
         bench_id: String,
         path: [u32; 6],
+        prefix_id: u8,
     },
     Stopped {
         bench_id: String,
@@ -54,11 +55,12 @@ impl EventSender {
             .ok();
     }
 
-    pub fn potential_match(&self, path: [u32; 6]) {
+    pub fn potential_match(&self, path: [u32; 6], prefix_id: u8) {
         self.inner
             .send(WorkbenchEvent::PotentialMatch {
                 bench_id: self.bench_id.clone(),
                 path,
+                prefix_id,
             })
             .ok();
     }
@@ -121,13 +123,14 @@ mod tests {
         let sender = EventSender::new(tx, "test-bench".to_string());
         let path = [1, 2, 3, 4, 5, 6];
 
-        sender.potential_match(path);
+        sender.potential_match(path, 0);
 
         let event = rx.recv().unwrap();
         match event {
-            WorkbenchEvent::PotentialMatch { bench_id, path: received_path } => {
+            WorkbenchEvent::PotentialMatch { bench_id, path: received_path, prefix_id } => {
                 assert_eq!(bench_id, "test-bench");
                 assert_eq!(received_path, path);
+                assert_eq!(prefix_id, 0);
             }
             _ => panic!("Expected PotentialMatch event"),
         }
@@ -161,7 +164,7 @@ mod tests {
         sender.started(now);
         sender.progress(100);
         sender.progress(200);
-        sender.potential_match([1, 2, 3, 4, 5, 6]);
+        sender.potential_match([1, 2, 3, 4, 5, 6], 0);
         sender.stopped(300, Duration::from_secs(5));
 
         let events: Vec<_> = rx.iter().take(5).collect();
@@ -196,7 +199,7 @@ mod tests {
 
         sender.started(Instant::now());
         sender.progress(50);
-        sender.potential_match([0; 6]);
+        sender.potential_match([0; 6], 0);
         sender.stopped(100, Duration::from_secs(1));
 
         let events: Vec<_> = rx.iter().take(4).collect();
@@ -221,7 +224,7 @@ mod tests {
 
         sender.started(Instant::now());
         sender.progress(100);
-        sender.potential_match([0; 6]);
+        sender.potential_match([0; 6], 0);
         sender.stopped(100, Duration::from_secs(1));
     }
 }
