@@ -53,4 +53,11 @@ typedef struct
   Point k_par;
 } XPub;
 
+typedef struct
+{
+  uchar low[20];
+  uchar high[20];
+  uchar prefix_id;
+} Hash160RangeGpu;
+
 #endif // STRUCTS_H

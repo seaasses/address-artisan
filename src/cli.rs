@@ -9,8 +9,15 @@ use crate::prefix::Prefix;
 )]
 
 pub struct Cli {
-    #[arg(short = 'p', long = "prefix", help = "Prefix for the address (P2PKH: '1abc...' or P2WPKH: 'bc1qaaa...')", value_parser = Cli::validate_prefix)]
-    pub prefix: Prefix,
+    #[arg(
+        short = 'p',
+        long = "prefix",
+        help = "Prefix(es) for the address (P2PKH: '1abc...' or P2WPKH: 'bc1qaaa...'). Can specify multiple: --prefix 1A 1B or --prefix 1A,1B",
+        num_args = 1..,
+        value_delimiter = ',',
+        value_parser = Cli::validate_prefix
+    )]
+    pub prefixes: Vec<Prefix>,
     #[arg(short = 'x', long = "xpub", help = "Xpub", value_parser = Cli::validate_xpub)]
     pub xpub: String,
     #[arg(
@@ -65,6 +72,19 @@ impl Cli {
                     .to_string(),
             );
         }
+
+        // Check prefix count limits
+        if self.prefixes.is_empty() {
+            return Err("Error: At least one prefix must be provided.".to_string());
+        }
+
+        if self.prefixes.len() > 256 {
+            return Err(format!(
+                "Error: Maximum 256 prefixes allowed, but {} were provided.",
+                self.prefixes.len()
+            ));
+        }
+
         Ok(())
     }
 
@@ -335,7 +355,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_gpu_only_with_cpu_threads() {
         let cli = Cli {
-            prefix: Prefix::new("1A").unwrap(),
+            prefixes: vec![Prefix::new("1A").unwrap()],
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 4,
@@ -353,7 +373,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_gpu_only_with_zero_threads() {
         let cli = Cli {
-            prefix: Prefix::new("1A").unwrap(),
+            prefixes: vec![Prefix::new("1A").unwrap()],
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 0, // 0 means auto-detect, which is valid with gpu_only
@@ -368,7 +388,7 @@ mod tests {
     #[test]
     fn test_validate_conflicting_options_no_gpu_only_with_threads() {
         let cli = Cli {
-            prefix: Prefix::new("1A").unwrap(),
+            prefixes: vec![Prefix::new("1A").unwrap()],
             xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
             max_depth: 1000,
             cpu_threads: 4,
@@ -378,5 +398,59 @@ mod tests {
 
         let result = cli.validate_conflicting_options();
         assert!(result.is_ok());
+    }
+
+    // Tests for multiple prefixes validation
+    #[test]
+    fn test_validate_multiple_prefixes_valid() {
+        let cli = Cli {
+            prefixes: vec![Prefix::new("1A").unwrap(), Prefix::new("1B").unwrap()],
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: false,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_empty_prefixes() {
+        let cli = Cli {
+            prefixes: vec![],
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: false,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("At least one prefix must be provided"));
+    }
+
+    #[test]
+    fn test_validate_too_many_prefixes() {
+        let mut prefixes = Vec::new();
+        for _ in 0..257 {
+            // Generate 257 prefixes
+            prefixes.push(Prefix::new("1A").unwrap());
+        }
+
+        let cli = Cli {
+            prefixes,
+            xpub: "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn".to_string(),
+            max_depth: 1000,
+            cpu_threads: 4,
+            gpu: None,
+            gpu_only: false,
+        };
+
+        let result = cli.validate_conflicting_options();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Maximum 256 prefixes allowed"));
     }
 }

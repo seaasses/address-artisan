@@ -3,7 +3,7 @@ mod tests {
     use crate::extended_public_key::ExtendedPubKey;
     use crate::extended_public_key_deriver::ExtendedPublicKeyDeriver;
     use crate::opencl::cache_preloader::CachePreloader;
-    use crate::opencl::gpu_cache::{CacheKey, GpuCache, XPub};
+    use crate::opencl::gpu_cache::{CacheKey, GpuCache, Hash160RangeGpu, XPub};
     use crate::prefix::Prefix;
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
@@ -24,12 +24,12 @@ mod tests {
         cache_keys_buffer: Buffer<CacheKey>,
         cache_values_buffer: Buffer<XPub>,
         cache_size_buffer: Buffer<u32>,
-        range_lows_buffer: Buffer<u8>,
-        range_highs_buffer: Buffer<u8>,
+        ranges_buffer: Buffer<Hash160RangeGpu>,
         matches_hash160_buffer: Buffer<u8>,
         _matches_b_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
         _matches_a_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
         _matches_index_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
+        _matches_prefix_id_buffer: Buffer<u8>, // Needed for kernel args but not read in tests
         match_count_buffer: Buffer<u32>,
         _cache_miss_error_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
     }
@@ -41,12 +41,12 @@ mod tests {
             let cache_keys_buffer = Self::new_buffer::<CacheKey>(&queue, 1000)?;
             let cache_values_buffer = Self::new_buffer::<XPub>(&queue, 1000)?;
             let cache_size_buffer = Self::new_buffer::<u32>(&queue, 1)?; // Create cache size buffer
-            let range_lows_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
-            let range_highs_buffer = Self::new_buffer::<u8>(&queue, 10 * 20)?;
+            let ranges_buffer = Self::new_buffer::<Hash160RangeGpu>(&queue, 10)?;
             let matches_hash160_buffer = Self::new_buffer::<u8>(&queue, 1000 * 20)?;
             let matches_b_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
             let matches_a_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
             let matches_index_buffer = Self::new_buffer::<u32>(&queue, 1000)?;
+            let matches_prefix_id_buffer = Self::new_buffer::<u8>(&queue, 1000)?;
             let match_count_buffer = Self::new_buffer::<u32>(&queue, 1)?;
             let cache_miss_error_buffer = Self::new_buffer::<u32>(&queue, 1)?;
 
@@ -59,8 +59,7 @@ mod tests {
                 .global_work_size(1000)
                 .arg(&cache_keys_buffer)
                 .arg(&cache_values_buffer)
-                .arg(&range_lows_buffer)
-                .arg(&range_highs_buffer)
+                .arg(&ranges_buffer)
                 .arg(0u32) // range_count
                 .arg(&cache_size_buffer) // Now using buffer instead of scalar
                 .arg(0u64) // start_counter
@@ -69,6 +68,7 @@ mod tests {
                 .arg(&matches_b_buffer)
                 .arg(&matches_a_buffer)
                 .arg(&matches_index_buffer)
+                .arg(&matches_prefix_id_buffer)
                 .arg(&match_count_buffer)
                 .arg(&cache_miss_error_buffer)
                 .build()
@@ -79,12 +79,12 @@ mod tests {
                 cache_keys_buffer,
                 cache_values_buffer,
                 cache_size_buffer,
-                range_lows_buffer,
-                range_highs_buffer,
+                ranges_buffer,
                 matches_hash160_buffer,
                 _matches_b_buffer: matches_b_buffer,
                 _matches_a_buffer: matches_a_buffer,
                 _matches_index_buffer: matches_index_buffer,
+                _matches_prefix_id_buffer: matches_prefix_id_buffer,
                 match_count_buffer,
                 _cache_miss_error_buffer: cache_miss_error_buffer,
             })
@@ -131,23 +131,20 @@ mod tests {
         }
 
         fn load_ranges(&mut self, prefix: &Prefix) -> Result<(), String> {
-            let mut lows = Vec::new();
-            let mut highs = Vec::new();
+            let mut gpu_ranges = Vec::new();
 
             for range in &prefix.ranges {
-                lows.extend_from_slice(&range.low);
-                highs.extend_from_slice(&range.high);
+                gpu_ranges.push(Hash160RangeGpu {
+                    low: range.low,
+                    high: range.high,
+                    prefix_id: 0, // Single prefix in tests, always use id 0
+                });
             }
 
-            self.range_lows_buffer
-                .write(&lows)
+            self.ranges_buffer
+                .write(&gpu_ranges)
                 .enq()
-                .map_err(|e| format!("Error writing lows: {}", e))?;
-
-            self.range_highs_buffer
-                .write(&highs)
-                .enq()
-                .map_err(|e| format!("Error writing highs: {}", e))?;
+                .map_err(|e| format!("Error writing ranges: {}", e))?;
 
             Ok(())
         }
@@ -168,7 +165,7 @@ mod tests {
                 .map_err(|e| format!("Error resetting match count: {}", e))?;
 
             self.kernel
-                .set_arg(4, range_count)
+                .set_arg(3, range_count)
                 .map_err(|e| format!("Error setting range_count: {}", e))?;
 
             // Update cache size in buffer instead of setting kernel arg
@@ -179,10 +176,10 @@ mod tests {
                 .map_err(|e| format!("Error writing cache_size: {}", e))?;
 
             self.kernel
-                .set_arg(6, start_counter)
+                .set_arg(5, start_counter)
                 .map_err(|e| format!("Error setting start_counter: {}", e))?;
             self.kernel
-                .set_arg(7, max_depth)
+                .set_arg(6, max_depth)
                 .map_err(|e| format!("Error setting max_depth: {}", e))?;
 
             unsafe {

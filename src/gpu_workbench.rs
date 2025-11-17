@@ -90,25 +90,15 @@ impl GpuWorkbench {
 
         event_sender.started(Instant::now());
 
-        // Prepare range buffers from prefix
-        let (range_lows_data, range_highs_data) = Self::prepare_range_buffers(&config.prefix);
-        let range_count = config.prefix.ranges.len() as u32;
+        // Prepare GPU ranges from all prefixes
+        let gpu_ranges = Self::prepare_gpu_ranges(&config.prefixes);
+        let range_count = gpu_ranges.len() as u32;
 
         // Create ALL GPU buffers ONCE before the loop
-        let range_lows_buffer = match Buffer::<u8>::builder()
+        let ranges_buffer = match Buffer::<crate::opencl::gpu_cache::Hash160RangeGpu>::builder()
             .queue(queue.clone())
-            .len(range_lows_data.len())
-            .copy_host_slice(&range_lows_data)
-            .build()
-        {
-            Ok(buf) => buf,
-            Err(_) => return,
-        };
-
-        let range_highs_buffer = match Buffer::<u8>::builder()
-            .queue(queue.clone())
-            .len(range_highs_data.len())
-            .copy_host_slice(&range_highs_data)
+            .len(gpu_ranges.len())
+            .copy_host_slice(&gpu_ranges)
             .build()
         {
             Ok(buf) => buf,
@@ -143,6 +133,15 @@ impl GpuWorkbench {
         };
 
         let matches_index_buffer = match Buffer::<u32>::builder()
+            .queue(queue.clone())
+            .len(MAX_MATCHES)
+            .build()
+        {
+            Ok(buf) => buf,
+            Err(_) => return,
+        };
+
+        let matches_prefix_id_buffer = match Buffer::<u8>::builder()
             .queue(queue.clone())
             .len(MAX_MATCHES)
             .build()
@@ -192,16 +191,16 @@ impl GpuWorkbench {
             .global_work_size(GPU_WORK_SIZE as usize)
             .arg(cache_keys_buffer) // arg 0 - fixed (same buffer object always)
             .arg(cache_values_buffer) // arg 1 - fixed (same buffer object always)
-            .arg(&range_lows_buffer) // arg 2 - fixed
-            .arg(&range_highs_buffer) // arg 3 - fixed
-            .arg(range_count) // arg 4 - fixed
-            .arg(cache_size_buffer) // arg 5 - fixed buffer (GpuCache updates its content)
-            .arg(0u64) // arg 6 - start_counter, will update in loop
-            .arg(config.max_depth) // arg 7 - fixed
-            .arg(&matches_hash160_buffer) // arg 8 - fixed
-            .arg(&matches_b_buffer) // arg 9 - fixed
-            .arg(&matches_a_buffer) // arg 10 - fixed
-            .arg(&matches_index_buffer) // arg 11 - fixed
+            .arg(&ranges_buffer) // arg 2 - fixed (Hash160RangeGpu struct buffer)
+            .arg(range_count) // arg 3 - fixed
+            .arg(cache_size_buffer) // arg 4 - fixed buffer (GpuCache updates its content)
+            .arg(0u64) // arg 5 - start_counter, will update in loop
+            .arg(config.max_depth) // arg 6 - fixed
+            .arg(&matches_hash160_buffer) // arg 7 - fixed
+            .arg(&matches_b_buffer) // arg 8 - fixed
+            .arg(&matches_a_buffer) // arg 9 - fixed
+            .arg(&matches_index_buffer) // arg 10 - fixed
+            .arg(&matches_prefix_id_buffer) // arg 11 - fixed (NEW!)
             .arg(&match_count_buffer) // arg 12 - fixed (reset separately)
             .arg(&cache_miss_error_buffer) // arg 13 - fixed (reset separately)
             .build()
@@ -251,7 +250,7 @@ impl GpuWorkbench {
             }
 
             // Only need to update the counter arg - cache size is now managed by GpuCache buffer
-            if let Err(e) = kernel.set_arg(6, counter) {
+            if let Err(e) = kernel.set_arg(5, counter) {
                 eprintln!("Failed to set start_counter arg: {}", e);
                 break;
             }
@@ -317,13 +316,20 @@ impl GpuWorkbench {
                     break;
                 }
 
+                let mut matches_prefix_id_data = vec![0u8; num_matches];
+                if let Err(e) = matches_prefix_id_buffer.read(&mut matches_prefix_id_data).enq() {
+                    eprintln!("Failed to read prefix_id: {}", e);
+                    break;
+                }
+
                 // Process matches
                 for i in 0..num_matches {
                     let b = matches_b_data[i];
                     let a = matches_a_data[i];
                     let index = matches_index_data[i];
+                    let prefix_id = matches_prefix_id_data[i];
                     let path = [config.seed0, config.seed1, b, a, 0, index];
-                    event_sender.potential_match(path);
+                    event_sender.potential_match(path, prefix_id);
                 }
             }
 
@@ -410,16 +416,20 @@ impl GpuWorkbench {
         result
     }
 
-    fn prepare_range_buffers(prefix: &crate::prefix::Prefix) -> (Vec<u8>, Vec<u8>) {
-        let mut lows = Vec::with_capacity(prefix.ranges.len() * 20);
-        let mut highs = Vec::with_capacity(prefix.ranges.len() * 20);
+    fn prepare_gpu_ranges(prefixes: &[crate::prefix::Prefix]) -> Vec<crate::opencl::gpu_cache::Hash160RangeGpu> {
+        let mut gpu_ranges = Vec::new();
 
-        for range in &prefix.ranges {
-            lows.extend_from_slice(&range.low);
-            highs.extend_from_slice(&range.high);
+        for (prefix_id, prefix) in prefixes.iter().enumerate() {
+            for range in &prefix.ranges {
+                gpu_ranges.push(crate::opencl::gpu_cache::Hash160RangeGpu {
+                    low: range.low,
+                    high: range.high,
+                    prefix_id: prefix_id as u8,
+                });
+            }
         }
 
-        (lows, highs)
+        gpu_ranges
     }
 }
 

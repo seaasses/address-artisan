@@ -6,6 +6,7 @@
 #define NON_HARDENED_COUNT ((ulong)(NON_HARDENED_MAX_INDEX) + 1)
 #define MAX_MATCHES 1000
 
+
 // Branchless compare: returns 1 if a >= b, 0 otherwise
 inline int hash160_gte(const uchar a[20], __global const uchar *b)
 {
@@ -59,8 +60,7 @@ inline int hash160_lte(const uchar a[20], __global const uchar *b)
 __kernel void batch_address_search(
     __global const CacheKey *cache_keys,
     __global const XPub *cache_values,
-    __global const uchar *range_lows,
-    __global const uchar *range_highs,
+    __global const Hash160RangeGpu *ranges,
     const uint range_count,
     __global const uint *cache_size_buffer,  // Now a buffer instead of scalar
     const ulong start_counter,
@@ -69,6 +69,7 @@ __kernel void batch_address_search(
     __global uint *matches_b,
     __global uint *matches_a,
     __global uint *matches_index,
+    __global uchar *matches_prefix_id,
     __global uint *match_count,
     __global uint *cache_miss_error)
 {
@@ -110,12 +111,11 @@ __kernel void batch_address_search(
     // Check all ranges
     for (uint r = 0; r < range_count; r++)
     {
-        __global const uchar *low = &range_lows[r * 20];
-        __global const uchar *high = &range_highs[r * 20];
+        __global const Hash160RangeGpu *range = &ranges[r];
 
         // Check if low <= hash160 <= high
         // this if is ok because matches are expected to be rare
-        if (hash160_gte(hash160, low) && hash160_lte(hash160, high))
+        if (hash160_gte(hash160, range->low) && hash160_lte(hash160, range->high))
         {
             // MATCH! Save atomically
             uint slot = atomic_inc(match_count);
@@ -132,6 +132,9 @@ __kernel void batch_address_search(
                 matches_b[slot] = b;
                 matches_a[slot] = a;
                 matches_index[slot] = index;
+
+                // Save prefix_id
+                matches_prefix_id[slot] = range->prefix_id;
             }
 
             return; // Found match, no need to check other ranges

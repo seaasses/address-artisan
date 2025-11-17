@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 pub struct Orchestrator {
     xpub: ExtendedPubKey,
-    prefix: Prefix,
+    prefixes: Vec<Prefix>,
     max_depth: u32,
 
     stop_signal: Arc<AtomicBool>,
@@ -32,7 +32,7 @@ pub struct Orchestrator {
 impl Orchestrator {
     pub fn new(
         xpub: ExtendedPubKey,
-        prefix: Prefix,
+        prefixes: Vec<Prefix>,
         max_depth: u32,
         stop_signal: Arc<AtomicBool>,
         ground_truth_validator: GroundTruthValidator,
@@ -42,7 +42,7 @@ impl Orchestrator {
 
         Self {
             xpub,
-            prefix,
+            prefixes,
             max_depth,
             stop_signal,
             event_tx,
@@ -82,8 +82,8 @@ impl Orchestrator {
                     );
                 }
 
-                WorkbenchEvent::PotentialMatch { bench_id, path } => {
-                    if self.handle_potential_match(bench_id, path) {
+                WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } => {
+                    if self.handle_potential_match(bench_id, path, prefix_id) {
                         self.logger.stop_requested();
                         self.stop_signal.store(true, Ordering::Relaxed);
                     }
@@ -109,7 +109,7 @@ impl Orchestrator {
 
     fn spawn_workbench(&self, device: DeviceInfo) {
         let xpub = self.xpub.clone();
-        let prefix = self.prefix.clone();
+        let prefixes = self.prefixes.clone();
         let max_depth = self.max_depth;
         let event_tx = self.event_tx.clone();
         let stop_signal = Arc::clone(&self.stop_signal);
@@ -130,7 +130,7 @@ impl Orchestrator {
             .spawn(move || {
                 let seed0 = rand::random::<u32>() & 0x7FFFFFFF;
                 let seed1 = rand::random::<u32>() & 0x7FFFFFFF;
-                let config = WorkbenchConfig::new(xpub, prefix, seed0, seed1, max_depth);
+                let config = WorkbenchConfig::new(xpub, prefixes, seed0, seed1, max_depth);
                 let event_sender = EventSender::new(event_tx, bench_name);
 
                 let bench = WorkbenchFactory::create(
@@ -172,11 +172,14 @@ impl Orchestrator {
         }
     }
 
-    fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6]) -> bool {
+    fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6], prefix_id: u8) -> bool {
+        // Get the prefix using prefix_id
+        let prefix = &self.prefixes[prefix_id as usize];
+
         // Validate and get address in one derivation to avoid double derivation
         match self
             .ground_truth_validator
-            .validate_and_get_address(&self.prefix, &path)
+            .validate_and_get_address(prefix, &path)
         {
             Ok(Some(address)) => {
                 // Match confirmed - log it
@@ -231,14 +234,14 @@ mod tests {
     fn create_test_orchestrator() -> (Orchestrator, Arc<AtomicBool>) {
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
-        let prefix = Prefix::new("1").unwrap();
+        let prefixes = vec![Prefix::new("1").unwrap()];
         let stop_signal = Arc::new(AtomicBool::new(false));
         let ground_truth_validator = GroundTruthValidator::new(xpub_str).unwrap();
         let logger = Logger::new();
 
         let orchestrator = Orchestrator::new(
             xpub,
-            prefix,
+            prefixes,
             10000,
             Arc::clone(&stop_signal),
             ground_truth_validator,
@@ -297,7 +300,7 @@ mod tests {
         let (mut orch, _) = create_test_orchestrator();
         let path = [1000, 2000, 0, 0, 0, 0];
 
-        let result = orch.handle_potential_match("cpu".to_string(), path);
+        let result = orch.handle_potential_match("cpu".to_string(), path, 0);
 
         assert_eq!(result, true);
     }

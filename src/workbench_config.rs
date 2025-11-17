@@ -5,7 +5,7 @@ use crate::prefix::Prefix;
 #[derive(Clone)]
 pub struct WorkbenchConfig {
     pub xpub: ExtendedPubKey,
-    pub prefix: Prefix,
+    pub prefixes: Vec<Prefix>,
     pub seed0: u32,
     pub seed1: u32,
     pub max_depth: u32,
@@ -14,7 +14,7 @@ pub struct WorkbenchConfig {
 impl WorkbenchConfig {
     pub fn new(
         xpub: ExtendedPubKey,
-        prefix: Prefix,
+        prefixes: Vec<Prefix>,
         seed0: u32,
         seed1: u32,
         max_depth: u32,
@@ -28,7 +28,7 @@ impl WorkbenchConfig {
 
         Self {
             xpub,
-            prefix,
+            prefixes,
             seed0,
             seed1,
             max_depth,
@@ -55,9 +55,9 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1").unwrap();
+        let prefixes = vec![Prefix::new("1").unwrap()];
 
-        WorkbenchConfig::new(xpub, prefix, 0x80000000, 1000, 1000);
+        WorkbenchConfig::new(xpub, prefixes, 0x80000000, 1000, 1000);
     }
 
     #[test]
@@ -67,9 +67,9 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1").unwrap();
+        let prefixes = vec![Prefix::new("1").unwrap()];
 
-        WorkbenchConfig::new(xpub, prefix, 1000, 0x80000000, 1000);
+        WorkbenchConfig::new(xpub, prefixes, 1000, 0x80000000, 1000);
     }
 
     #[test]
@@ -79,9 +79,9 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1").unwrap();
+        let prefixes = vec![Prefix::new("1").unwrap()];
 
-        WorkbenchConfig::new(xpub, prefix, 1000, 1000, 0x80000000);
+        WorkbenchConfig::new(xpub, prefixes, 1000, 1000, 0x80000000);
     }
 
     #[test]
@@ -90,9 +90,9 @@ mod tests {
         use crate::prefix::Prefix;
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
-        let prefix = Prefix::new("1").unwrap();
+        let prefixes = vec![Prefix::new("1").unwrap()];
 
-        let config = WorkbenchConfig::new(xpub, prefix, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX);
+        let config = WorkbenchConfig::new(xpub, prefixes, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.seed0, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.seed1, NON_HARDENED_MAX_INDEX);
         assert_eq!(config.max_depth, NON_HARDENED_MAX_INDEX);

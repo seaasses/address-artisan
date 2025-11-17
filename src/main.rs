@@ -30,7 +30,7 @@ use std::sync::Arc;
 fn main() {
     let cli = Cli::parse_args();
 
-    let prefix = cli.prefix.clone();
+    let prefixes = cli.prefixes.clone();
     let xpub = ExtendedPubKey::from_str(&cli.xpub).unwrap();
     let ground_truth_validator = GroundTruthValidator::new(&cli.xpub)
         .expect("Failed to create ground truth validator");
@@ -62,12 +62,18 @@ fn main() {
         .sum();
 
     let logger = Logger::new();
-    logger.start(prefix.as_str(), cli.max_depth, total_cpu_threads);
+    // Format prefixes for display: "1A, 1B, 1C"
+    let prefixes_str = prefixes
+        .iter()
+        .map(|p| p.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    logger.start(&prefixes_str, cli.max_depth, total_cpu_threads);
     println!();
 
     let mut orchestrator = Orchestrator::new(
         xpub,
-        prefix,
+        prefixes,
         cli.max_depth,
         stop_signal,
         ground_truth_validator,
