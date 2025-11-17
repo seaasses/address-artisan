@@ -26,6 +26,7 @@ jobs:
       - name: Check version change isolation
         run: |
           BASE_REF="${{ github.event.pull_request.base.sha }}"
+          HEAD_REF="${{ github.event.pull_request.head.sha }}"
 
           # Extract current version from Cargo.toml
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
@@ -74,8 +75,8 @@ jobs:
               exit 1
             fi
 
-            # Check number of commits in the PR
-            NUM_COMMITS=$(git rev-list --count $BASE_REF..HEAD)
+            # Check number of commits in the PR (use head SHA, not merge commit)
+            NUM_COMMITS=$(git rev-list --count $BASE_REF..$HEAD_REF)
 
             if [ $NUM_COMMITS -ne 1 ]; then
               echo ""
@@ -89,7 +90,7 @@ jobs:
             echo "✅ PR has exactly 1 commit"
 
             # List all modified files in the PR
-            CHANGED_FILES=$(git diff --name-only $BASE_REF HEAD)
+            CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
             NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
             # If more than 1 file was modified (besides Cargo.toml)
