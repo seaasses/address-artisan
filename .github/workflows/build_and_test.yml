@@ -40,6 +40,44 @@ jobs:
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             echo "⚠️  Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
 
+            # Parse version numbers
+            PREV_MAJOR=$(echo $PREVIOUS_VERSION | cut -d. -f1)
+            PREV_MINOR=$(echo $PREVIOUS_VERSION | cut -d. -f2)
+            PREV_PATCH=$(echo $PREVIOUS_VERSION | cut -d. -f3)
+
+            CURR_MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+            CURR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+            CURR_PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+
+            echo "Previous: $PREV_MAJOR.$PREV_MINOR.$PREV_PATCH"
+            echo "Current:  $CURR_MAJOR.$CURR_MINOR.$CURR_PATCH"
+
+            # Validate semver bump
+            VALID_BUMP=false
+
+            # Check for valid major bump: X.Y.Z -> (X+1).0.0
+            if [ $CURR_MAJOR -eq $((PREV_MAJOR + 1)) ] && [ $CURR_MINOR -eq 0 ] && [ $CURR_PATCH -eq 0 ]; then
+              echo "✅ Valid MAJOR version bump"
+              VALID_BUMP=true
+            # Check for valid minor bump: X.Y.Z -> X.(Y+1).0
+            elif [ $CURR_MAJOR -eq $PREV_MAJOR ] && [ $CURR_MINOR -eq $((PREV_MINOR + 1)) ] && [ $CURR_PATCH -eq 0 ]; then
+              echo "✅ Valid MINOR version bump"
+              VALID_BUMP=true
+            # Check for valid patch bump: X.Y.Z -> X.Y.(Z+1)
+            elif [ $CURR_MAJOR -eq $PREV_MAJOR ] && [ $CURR_MINOR -eq $PREV_MINOR ] && [ $CURR_PATCH -eq $((PREV_PATCH + 1)) ]; then
+              echo "✅ Valid PATCH version bump"
+              VALID_BUMP=true
+            fi
+
+            if [ "$VALID_BUMP" = false ]; then
+              echo "❌ ERROR: Invalid version bump!"
+              echo "Valid bumps from $PREVIOUS_VERSION are:"
+              echo "  - MAJOR: $((PREV_MAJOR + 1)).0.0"
+              echo "  - MINOR: $PREV_MAJOR.$((PREV_MINOR + 1)).0"
+              echo "  - PATCH: $PREV_MAJOR.$PREV_MINOR.$((PREV_PATCH + 1))"
+              exit 1
+            fi
+
             # List all modified files in the PR
             CHANGED_FILES=$(git diff --name-only $BASE_REF HEAD)
             NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
