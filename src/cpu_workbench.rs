@@ -77,8 +77,10 @@ impl Workbench for CPUWorkbench {
                         path_walker.iter_from_counter(start_counter, current_chunk_size as u64)
                     {
                         if let Ok(pubkey_hash) = xpub_deriver.get_pubkey_hash_160(&path) {
-                            if config.prefix.matches_pattern(&pubkey_hash) {
-                                event_sender.potential_match(path);
+                            for (prefix_id, prefix) in config.prefixes.iter().enumerate() {
+                                if prefix.matches_pattern(&pubkey_hash) {
+                                    event_sender.potential_match(path, prefix_id as u8);
+                                }
                             }
                         }
 
@@ -151,7 +153,7 @@ mod tests {
     fn test_cpu_working_bench_creation() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 4);
 
@@ -163,7 +165,7 @@ mod tests {
     fn test_total_generated() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (bench, _) = create_test_bench(config, 4);
 
@@ -176,7 +178,7 @@ mod tests {
     fn test_threads_actually_process_addresses() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
 
@@ -195,7 +197,7 @@ mod tests {
     fn test_wait_actually_waits_for_threads() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
 
@@ -269,7 +271,7 @@ mod tests {
     fn test_cpu_workbench_sends_started_event_on_start() {
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (bench, stop_signal) = create_test_bench(config, 2);
 
@@ -287,7 +289,7 @@ mod tests {
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (tx, rx) = mpsc::channel();
         let event_sender = EventSender::new(tx, "test".to_string());
@@ -317,7 +319,7 @@ mod tests {
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (tx, _rx) = mpsc::channel();
         let event_sender = EventSender::new(tx, "test".to_string());
@@ -354,7 +356,7 @@ mod tests {
 
         let xpub = ExtendedPubKey::from_str("xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn").unwrap();
         let prefix = Prefix::new("1").unwrap();
-        let config = WorkbenchConfig::new(xpub, prefix, 1000, 2000, 10000);
+        let config = WorkbenchConfig::new(xpub, vec![prefix], 1000, 2000, 10000);
 
         let (tx, rx) = mpsc::channel();
         let event_sender = EventSender::new(tx, "test".to_string());
