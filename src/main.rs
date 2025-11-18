@@ -66,7 +66,7 @@ fn main() {
         .collect::<Vec<_>>()
         .join(", ");
     logger.start(&prefixes_str, cli.max_depth, total_cpu_threads);
-    println!();
+    println!("test");
 
     let mut orchestrator = Orchestrator::new(
         xpub,
