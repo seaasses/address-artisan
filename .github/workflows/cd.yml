@@ -19,32 +19,42 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       should_release: ${{ steps.check.outputs.should_release }}
     steps:
-      - name: Download version artifact from triggering workflow
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
         with:
-          name: release-version
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Read version from artifact
+      - name: Check version change
         id: check
         run: |
-          VERSION=$(cat version.txt | tr -d '[:space:]')
+          # Extract current version from Cargo.toml
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
 
-          if [ -z "$VERSION" ]; then
-            echo "ℹ️  No version change detected by CI"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "version=" >> $GITHUB_OUTPUT
-          else
-            echo "🚀 CI detected version change to: $VERSION"
+          # Get the latest version tag
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            # No tags yet, this is the first release
+            echo "🚀 First release detected: $CURRENT_VERSION"
             echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          fi
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            # Get version from the latest tag
+            PREVIOUS_VERSION=$(git show $LATEST_TAG:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+            echo "ℹ️  Latest released version: $LATEST_TAG ($PREVIOUS_VERSION)"
+            echo "ℹ️  Current version: $CURRENT_VERSION"
 
-      - uses: actions/checkout@v5
-        if: steps.check.outputs.should_release == 'true'
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+            # Check if version changed
+            if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+              echo "🚀 Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            else
+              echo "ℹ️  No version change detected"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+              echo "version=" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       - name: Create tag and GitHub Release
         if: steps.check.outputs.should_release == 'true'
@@ -53,15 +63,15 @@ jobs:
         run: |
           VERSION="${{ steps.check.outputs.version }}"
           TAG_NAME="v$VERSION"
-          RELEASE_NOTES_FILE="${VERSION}_release_notes.md"
 
-          # Read release notes from file (created by CI during PR)
-          if [ -f "$RELEASE_NOTES_FILE" ]; then
-            RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE")
-            echo "📋 Using release notes from $RELEASE_NOTES_FILE"
-          else
+          # Extract release notes from Cargo.toml metadata
+          RELEASE_NOTES=$(awk '/\[package\.metadata\.release\]/,/^notes = """/{if(/^notes = """/){flag=1;next}/"""/{if(flag){exit}}if(flag){print}}' Cargo.toml)
+
+          if [ -z "$RELEASE_NOTES" ]; then
             RELEASE_NOTES="Release $TAG_NAME"
-            echo "ℹ️  No release notes file found, using default message"
+            echo "ℹ️  No release notes in Cargo.toml, using default message"
+          else
+            echo "📋 Using release notes from Cargo.toml [package.metadata.release]"
           fi
 
           echo "🚀 Creating release $TAG_NAME"
