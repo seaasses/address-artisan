@@ -11,8 +11,8 @@ permissions:
   contents: write
 
 jobs:
-  create-tag:
-    name: Create Release Tag
+  check-version:
+    name: Check Version
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
@@ -56,12 +56,21 @@ jobs:
             fi
           fi
 
+  create-release:
+    name: Create GitHub Release
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Create tag and GitHub Release
-        if: steps.check.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ steps.check.outputs.version }}"
+          VERSION="${{ needs.check-version.outputs.version }}"
           TAG_NAME="v$VERSION"
 
           # Extract release notes from Cargo.toml metadata
@@ -92,8 +101,8 @@ jobs:
 
   publish:
     name: Publish to crates.io
-    needs: create-tag
-    if: needs.create-tag.outputs.should_release == 'true'
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
