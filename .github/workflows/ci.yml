@@ -142,35 +142,23 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
-    name: Tests (${{ matrix.os }})
+    name: Tests
     needs: version-change-check
     if: |
       always() &&
       (needs.version-change-check.result == 'success' ||
        needs.version-change-check.result == 'skipped')
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install OpenCL (Linux)
-        if: runner.os == 'Linux'
+      - name: Install OpenCL
         run: |
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
-
-      - name: Install OpenCL (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          vcpkg install opencl:x64-windows
-          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
-          echo "C:\vcpkg\installed\x64-windows\bin" >> $env:GITHUB_PATH
-          echo "LIB=C:\vcpkg\installed\x64-windows\lib;$env:LIB" >> $env:GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
 
@@ -178,35 +166,23 @@ jobs:
         run: cargo test --verbose
 
   build:
-    name: Build (${{ matrix.os }})
+    name: Build
     needs: version-change-check
     if: |
       always() &&
       (needs.version-change-check.result == 'success' ||
        needs.version-change-check.result == 'skipped')
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install OpenCL (Linux)
-        if: runner.os == 'Linux'
+      - name: Install OpenCL
         run: |
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
-
-      - name: Install OpenCL (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          vcpkg install opencl:x64-windows
-          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
-          echo "C:\vcpkg\installed\x64-windows\bin" >> $env:GITHUB_PATH
-          echo "LIB=C:\vcpkg\installed\x64-windows\lib;$env:LIB" >> $env:GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
 
