@@ -17,6 +17,9 @@ jobs:
   version-change-check:
     name: Version Change Validation
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version_check.outputs.version }}
+      should_release: ${{ steps.version_check.outputs.should_release }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -39,6 +42,8 @@ jobs:
           fi
 
           if [ -z "$PREVIOUS_VERSION" ] || [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
             if [ -n "$PREVIOUS_VERSION" ]; then
               echo "Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
             fi
@@ -99,6 +104,9 @@ jobs:
                 exit 1
               fi
             fi
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "version=" >> $GITHUB_OUTPUT
           fi
 
   format:
@@ -188,3 +196,56 @@ jobs:
 
       - name: Build
         run: cargo build --verbose --release
+
+  pr-comment:
+    name: PR Comment
+    needs: [version-change-check, format, clippy, test, build]
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.version-change-check.outputs.should_release == 'true' &&
+      needs.format.result == 'success' &&
+      needs.clippy.result == 'success' &&
+      needs.test.result == 'success' &&
+      needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Post PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.version-change-check.outputs.version }}"
+
+          RELEASE_NOTES=$(awk '
+            /\[package\.metadata\.release\]/ { in_section=1; next }
+            in_section && /^notes = """/ { in_notes=1; next }
+            in_notes && /^"""/ { exit }
+            in_notes { print }
+          ' Cargo.toml)
+
+          cat > comment.md << 'EOF'
+          ## ✅ All checks passed!
+
+          When this PR is merged to `main`, a new release will be automatically created:
+
+          ### Release `v$VERSION`
+
+          **Release Notes:**
+          $RELEASE_NOTES
+
+          **Artifacts:**
+          - `address-artisan-v$VERSION-linux-x86_64.tar.gz`
+          - `address-artisan-v$VERSION-linux-arm64.tar.gz`
+
+          The release will also be published to [crates.io](https://crates.io/crates/address-artisan).
+          EOF
+
+          # Replace variables in comment
+          sed -i "s/\$VERSION/$VERSION/g" comment.md
+          ESCAPED_NOTES=$(echo "$RELEASE_NOTES" | sed 's/$/\\n/' | tr -d '\n')
+          sed -i "s|\$RELEASE_NOTES|$RELEASE_NOTES|g" comment.md
+
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
