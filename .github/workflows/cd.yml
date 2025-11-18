@@ -65,7 +65,13 @@ jobs:
           TAG_NAME="v$VERSION"
 
           # Extract release notes from Cargo.toml metadata
-          RELEASE_NOTES=$(awk '/\[package\.metadata\.release\]/,/^notes = """/{if(/^notes = """/){flag=1;next}/"""/{if(flag){exit}}if(flag){print}}' Cargo.toml)
+          # Look for [package.metadata.release] section and extract notes between triple quotes
+          RELEASE_NOTES=$(awk '
+            /\[package\.metadata\.release\]/ { in_section=1; next }
+            in_section && /^notes = """/ { in_notes=1; next }
+            in_notes && /^"""/ { exit }
+            in_notes { print }
+          ' Cargo.toml)
 
           if [ -z "$RELEASE_NOTES" ]; then
             RELEASE_NOTES="Release $TAG_NAME"
