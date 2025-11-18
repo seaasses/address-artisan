@@ -1,6 +1,6 @@
 [package]
 name = "address-artisan"
-version = "0.2.12"
+version = "0.2.13"
 description = "A tool for generating vanity P2PKH Bitcoin addresses."
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
 readme = "README.md"
@@ -8,6 +8,16 @@ license = "MIT"
 repository = "https://github.com/seaasses/address-artisan"
 edition = "2021"
 
+[package.metadata.release]
+notes = """
+## What's Changed
+- Improved CI/CD workflows
+- Better version validation in pull requests
+- Automated GitHub releases with custom release notes
+
+## Contributors
+Thanks to everyone who contributed to this release!
+"""
 
 [dependencies]
 bs58 = "0.5.1"
