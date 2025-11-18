@@ -1,19 +1,24 @@
 [package]
 name = "address-artisan"
-version = "0.2.323"
-description = "A tool for generating vanity P2PKH Bitcoin addresses."
+version = "0.2.324"
+description = "Vanity Bitcoin address generator based on BIP32 extended public keys with GPU acceleration."
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/seaasses/address-artisan"
+homepage = "https://github.com/seaasses/address-artisan"
+keywords = ["bitcoin", "vanity", "gpu", "xpub", "address"]
+categories = ["command-line-utilities", "cryptography::cryptocurrencies", "concurrency"]
 edition = "2021"
+rust-version = "1.70"
 
 [package.metadata.release]
 notes = """
-## What's Changedddddddddd
+## What's Changed
 - Improved CI/CD workflows
 - Better version validation in pull requests
 - Automated GitHub releases with custom release notes
+- Multi-architecture Linux binaries (x86_64 and ARM64)
 
 ## Contributors
 Thanks to everyone who contributed to this release!
@@ -35,3 +40,9 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 bitcoin = "0.32.7"
 ocl = "0.19.7"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true

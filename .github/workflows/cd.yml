@@ -109,16 +109,13 @@ jobs:
       - name: Build for ${{ matrix.platform }}
         run: cross build --release --target ${{ matrix.target }}
 
-      - name: Strip and package binary
+      - name: Package binary
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           TARGET="${{ matrix.target }}"
           PLATFORM="${{ matrix.platform }}"
 
           cd target/$TARGET/release
-
-          # Strip binary
-          strip address-artisan 2>/dev/null || true
 
           # Create temporary directory for tarball
           mkdir -p address-artisan-v$VERSION-$PLATFORM
