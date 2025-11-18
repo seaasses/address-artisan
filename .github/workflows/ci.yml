@@ -116,7 +116,8 @@ jobs:
               fi
 
               # Validate that both files have the same version
-              LOCK_VERSION=$(grep '^version = ' Cargo.lock | head -1 | cut -d'"' -f2)
+              # Extract version from the address-artisan package in Cargo.lock
+              LOCK_VERSION=$(awk '/^\[\[package\]\]$/,/^$/ {if (/^name = "address-artisan"/) {in_pkg=1} if (in_pkg && /^version = /) {print; exit}}' Cargo.lock | cut -d'"' -f2)
 
               if [ "$CURRENT_VERSION" != "$LOCK_VERSION" ]; then
                 echo ""
