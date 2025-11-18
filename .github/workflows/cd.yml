@@ -106,7 +106,7 @@ jobs:
       - name: Install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
 
-      - name: Build for ${{ matrix.target }}
+      - name: Build for ${{ matrix.platform }}
         run: cross build --release --target ${{ matrix.target }}
 
       - name: Strip and package binary
