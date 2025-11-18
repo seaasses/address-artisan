@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "address-artisan"
-version = "0.2.32"
+version = "0.2.323"
 dependencies = [
  "bitcoin",
  "bs58",
