@@ -142,20 +142,24 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
-    name: Tests
+    name: Tests (${{ matrix.os }})
     needs: version-change-check
     if: |
       always() &&
       (needs.version-change-check.result == 'success' ||
        needs.version-change-check.result == 'skipped')
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install OpenCL
+      - name: Install OpenCL (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
@@ -166,20 +170,24 @@ jobs:
         run: cargo test --verbose
 
   build:
-    name: Build
+    name: Build (${{ matrix.os }})
     needs: version-change-check
     if: |
       always() &&
       (needs.version-change-check.result == 'success' ||
        needs.version-change-check.result == 'skipped')
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install OpenCL
+      - name: Install OpenCL (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
