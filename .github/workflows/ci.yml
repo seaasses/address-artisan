@@ -130,28 +130,16 @@ jobs:
           if [ -n "$VERSION" ]; then
             echo "$VERSION" > version.txt
 
-            # Export PR info for release notes (only available in PR context)
+            # Create release notes file (only for PRs)
             if [ "${{ github.event_name }}" == "pull_request" ]; then
               PR_BODY='${{ github.event.pull_request.body }}'
-              PR_TITLE='${{ github.event.pull_request.title }}'
-              PR_NUMBER='${{ github.event.pull_request.number }}'
-
-              echo "$PR_BODY" > pr_body.txt
-              echo "$PR_TITLE" > pr_title.txt
-              echo "$PR_NUMBER" > pr_number.txt
-
-              echo "📦 Exporting version $VERSION with PR #$PR_NUMBER info"
-            else
-              echo "📦 Exporting version $VERSION (no PR context)"
-              echo "" > pr_body.txt
-              echo "" > pr_title.txt
-              echo "" > pr_number.txt
+              echo "$PR_BODY" > "${VERSION}_release_notes.md"
+              echo "📝 Created ${VERSION}_release_notes.md with PR description"
             fi
+
+            echo "📦 Exporting version $VERSION"
           else
             echo "" > version.txt
-            echo "" > pr_body.txt
-            echo "" > pr_title.txt
-            echo "" > pr_number.txt
             echo "📦 No version change - exporting empty artifact"
           fi
 
@@ -161,9 +149,7 @@ jobs:
           name: release-version
           path: |
             version.txt
-            pr_body.txt
-            pr_title.txt
-            pr_number.txt
+            *_release_notes.md
           retention-days: 1
 
   format:
