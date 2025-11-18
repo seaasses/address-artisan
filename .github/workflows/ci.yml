@@ -92,27 +92,41 @@ jobs:
               CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
               NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
-              # If more than 1 file was modified
-              if [ $NUM_CHANGED -gt 1 ]; then
+              # Version bump should modify exactly Cargo.toml and Cargo.lock
+              if [ $NUM_CHANGED -ne 2 ]; then
                 echo ""
-                echo "❌ ERROR: Version bump must only modify Cargo.toml"
+                echo "❌ ERROR: Version bump must modify exactly Cargo.toml and Cargo.lock"
                 echo ""
-                echo "Files modified in this PR:"
+                echo "Files modified in this PR ($NUM_CHANGED):"
                 echo "$CHANGED_FILES"
                 exit 1
               fi
 
-              # Check if the only modified file is Cargo.toml
-              if [ "$CHANGED_FILES" != "Cargo.toml" ]; then
+              # Check if the modified files are exactly Cargo.toml and Cargo.lock
+              if ! echo "$CHANGED_FILES" | grep -q "^Cargo.toml$"; then
                 echo ""
-                echo "❌ ERROR: Version changed but Cargo.toml is not the only modified file"
-                echo ""
-                echo "Files modified:"
-                echo "$CHANGED_FILES"
+                echo "❌ ERROR: Cargo.toml must be modified for version bump"
                 exit 1
               fi
 
-              echo "✅ Only Cargo.toml modified - ready to release"
+              if ! echo "$CHANGED_FILES" | grep -q "^Cargo.lock$"; then
+                echo ""
+                echo "❌ ERROR: Cargo.lock must be modified for version bump"
+                exit 1
+              fi
+
+              # Validate that both files have the same version
+              LOCK_VERSION=$(grep '^version = ' Cargo.lock | head -1 | cut -d'"' -f2)
+
+              if [ "$CURRENT_VERSION" != "$LOCK_VERSION" ]; then
+                echo ""
+                echo "❌ ERROR: Version mismatch between Cargo.toml and Cargo.lock"
+                echo "  Cargo.toml: $CURRENT_VERSION"
+                echo "  Cargo.lock: $LOCK_VERSION"
+                exit 1
+              fi
+
+              echo "✅ Only Cargo.toml and Cargo.lock modified with matching versions - ready to release"
             fi
 
             echo "✅ All validations passed"
