@@ -10,7 +10,7 @@ edition = "2021"
 
 [package.metadata.release]
 notes = """
-## What's Changed
+## What's Changedddddddddd
 - Improved CI/CD workflows
 - Better version validation in pull requests
 - Automated GitHub releases with custom release notes
