@@ -25,36 +25,25 @@ jobs:
       - name: Check version change isolation
         id: version_check
         run: |
-          # PR references for checking modified files
           BASE_REF="${{ github.event.pull_request.base.sha }}"
           HEAD_REF="${{ github.event.pull_request.head.sha }}"
 
-          # Extract current version from Cargo.toml
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
-
-          # Get the latest version tag to compare semantic versioning
           LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
 
           if [ -z "$LATEST_TAG" ]; then
-            # No tags yet, this is the first release - any version is valid
-            echo "ℹ️  No previous version tags found"
-            echo "🚀 First release detected: $CURRENT_VERSION"
+            echo "First release: $CURRENT_VERSION"
             PREVIOUS_VERSION=""
           else
-            # Get version from the latest tag
             PREVIOUS_VERSION=$(git show $LATEST_TAG:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
-            echo "ℹ️  Latest released version: $LATEST_TAG ($PREVIOUS_VERSION)"
           fi
 
-          # If version changed (or first release)
           if [ -z "$PREVIOUS_VERSION" ] || [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             if [ -n "$PREVIOUS_VERSION" ]; then
-              echo "⚠️  Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+              echo "Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
             fi
 
-            # Validate semver bump (only if not first release)
             if [ -n "$PREVIOUS_VERSION" ]; then
-              # Parse version numbers
               PREV_MAJOR=$(echo $PREVIOUS_VERSION | cut -d. -f1)
               PREV_MINOR=$(echo $PREVIOUS_VERSION | cut -d. -f2)
               PREV_PATCH=$(echo $PREVIOUS_VERSION | cut -d. -f3)
@@ -63,84 +52,53 @@ jobs:
               CURR_MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
               CURR_PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
 
-              # Validate semver bump
               VALID_BUMP=false
 
-              # Check for valid major bump: X.Y.Z -> (X+1).0.0
               if [ $CURR_MAJOR -eq $((PREV_MAJOR + 1)) ] && [ $CURR_MINOR -eq 0 ] && [ $CURR_PATCH -eq 0 ]; then
-                echo "✅ Valid MAJOR version bump"
                 VALID_BUMP=true
-              # Check for valid minor bump: X.Y.Z -> X.(Y+1).0
               elif [ $CURR_MAJOR -eq $PREV_MAJOR ] && [ $CURR_MINOR -eq $((PREV_MINOR + 1)) ] && [ $CURR_PATCH -eq 0 ]; then
-                echo "✅ Valid MINOR version bump"
                 VALID_BUMP=true
-              # Check for valid patch bump: X.Y.Z -> X.Y.(Z+1)
               elif [ $CURR_MAJOR -eq $PREV_MAJOR ] && [ $CURR_MINOR -eq $PREV_MINOR ] && [ $CURR_PATCH -eq $((PREV_PATCH + 1)) ]; then
-                echo "✅ Valid PATCH version bump"
                 VALID_BUMP=true
               fi
 
               if [ "$VALID_BUMP" = false ]; then
-                echo ""
-                echo "❌ ERROR: Invalid version bump from $PREVIOUS_VERSION to $CURRENT_VERSION"
-                echo ""
+                echo "Invalid version bump: $PREVIOUS_VERSION → $CURRENT_VERSION"
                 echo "Valid options:"
-                echo "  • MAJOR: $((PREV_MAJOR + 1)).0.0"
-                echo "  • MINOR: $PREV_MAJOR.$((PREV_MINOR + 1)).0"
-                echo "  • PATCH: $PREV_MAJOR.$PREV_MINOR.$((PREV_PATCH + 1))"
+                echo "  MAJOR: $((PREV_MAJOR + 1)).0.0"
+                echo "  MINOR: $PREV_MAJOR.$((PREV_MINOR + 1)).0"
+                echo "  PATCH: $PREV_MAJOR.$PREV_MINOR.$((PREV_PATCH + 1))"
                 exit 1
               fi
-            else
-              echo "✅ First release - skipping semver validation"
             fi
 
-            # Validate modified files (only for PRs)
             if [ "${{ github.event_name }}" == "pull_request" ]; then
-              # List all modified files in the PR (total diff, not just last commit)
               CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
               NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
 
-              # Version bump should modify exactly Cargo.toml and Cargo.lock
               if [ $NUM_CHANGED -ne 2 ]; then
-                echo ""
-                echo "❌ ERROR: Version bump must modify exactly Cargo.toml and Cargo.lock"
-                echo ""
-                echo "Files modified in this PR ($NUM_CHANGED):"
+                echo "Must modify exactly Cargo.toml and Cargo.lock ($NUM_CHANGED files changed)"
                 echo "$CHANGED_FILES"
                 exit 1
               fi
 
-              # Check if the modified files are exactly Cargo.toml and Cargo.lock
               if ! echo "$CHANGED_FILES" | grep -q "^Cargo.toml$"; then
-                echo ""
-                echo "❌ ERROR: Cargo.toml must be modified for version bump"
+                echo "Cargo.toml must be modified"
                 exit 1
               fi
 
               if ! echo "$CHANGED_FILES" | grep -q "^Cargo.lock$"; then
-                echo ""
-                echo "❌ ERROR: Cargo.lock must be modified for version bump"
+                echo "Cargo.lock must be modified"
                 exit 1
               fi
 
-              # Validate that both files have the same version
-              # Extract version from the address-artisan package in Cargo.lock
               LOCK_VERSION=$(awk '/^\[\[package\]\]$/,/^$/ {if (/^name = "address-artisan"/) {in_pkg=1} if (in_pkg && /^version = /) {print; exit}}' Cargo.lock | cut -d'"' -f2)
 
               if [ "$CURRENT_VERSION" != "$LOCK_VERSION" ]; then
-                echo ""
-                echo "❌ ERROR: Version mismatch between Cargo.toml and Cargo.lock"
-                echo "  Cargo.toml: $CURRENT_VERSION"
-                echo "  Cargo.lock: $LOCK_VERSION"
+                echo "Version mismatch: Cargo.toml=$CURRENT_VERSION, Cargo.lock=$LOCK_VERSION"
                 exit 1
               fi
-
-              echo "✅ Only Cargo.toml and Cargo.lock modified with matching versions - ready to release"
             fi
-
-            echo "✅ All validations passed"
-          else
-            echo "✅ No version change detected"
           fi
 
   format:

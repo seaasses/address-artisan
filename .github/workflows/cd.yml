@@ -11,8 +11,8 @@ permissions:
   contents: write
 
 jobs:
-  create-tag:
-    name: Create Release Tag
+  check-version:
+    name: Check Version
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
@@ -27,45 +27,44 @@ jobs:
       - name: Check version change
         id: check
         run: |
-          # Extract current version from Cargo.toml
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
-
-          # Get the latest version tag
           LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
 
           if [ -z "$LATEST_TAG" ]; then
-            # No tags yet, this is the first release
-            echo "🚀 First release detected: $CURRENT_VERSION"
+            echo "First release: $CURRENT_VERSION"
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
-            # Get version from the latest tag
             PREVIOUS_VERSION=$(git show $LATEST_TAG:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
-            echo "ℹ️  Latest released version: $LATEST_TAG ($PREVIOUS_VERSION)"
-            echo "ℹ️  Current version: $CURRENT_VERSION"
 
-            # Check if version changed
             if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-              echo "🚀 Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+              echo "Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
               echo "should_release=true" >> $GITHUB_OUTPUT
               echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
             else
-              echo "ℹ️  No version change detected"
+              echo "No version change"
               echo "should_release=false" >> $GITHUB_OUTPUT
               echo "version=" >> $GITHUB_OUTPUT
             fi
           fi
 
+  create-release:
+    name: Create GitHub Release
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Create tag and GitHub Release
-        if: steps.check.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ steps.check.outputs.version }}"
+          VERSION="${{ needs.check-version.outputs.version }}"
           TAG_NAME="v$VERSION"
 
-          # Extract release notes from Cargo.toml metadata
-          # Look for [package.metadata.release] section and extract notes between triple quotes
           RELEASE_NOTES=$(awk '
             /\[package\.metadata\.release\]/ { in_section=1; next }
             in_section && /^notes = """/ { in_notes=1; next }
@@ -75,25 +74,77 @@ jobs:
 
           if [ -z "$RELEASE_NOTES" ]; then
             RELEASE_NOTES="Release $TAG_NAME"
-            echo "ℹ️  No release notes in Cargo.toml, using default message"
-          else
-            echo "📋 Using release notes from Cargo.toml [package.metadata.release]"
           fi
 
-          echo "🚀 Creating release $TAG_NAME"
-
-          # Create GitHub Release (this also creates the tag)
           gh release create "$TAG_NAME" \
             --title "Release $TAG_NAME" \
             --notes "$RELEASE_NOTES" \
             --target ${{ github.event.workflow_run.head_sha }}
 
-          echo "✅ Release $TAG_NAME created"
+          echo "Release $TAG_NAME created"
+
+  build-linux-binaries:
+    name: Build Linux Binaries
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build for ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Strip and package binary
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+
+          cd target/$TARGET/release
+
+          # Strip binary
+          strip address-artisan 2>/dev/null || true
+
+          # Create temporary directory for tarball
+          mkdir -p address-artisan-v$VERSION-$TARGET
+          cp address-artisan address-artisan-v$VERSION-$TARGET/
+          cp ${{ github.workspace }}/README.md address-artisan-v$VERSION-$TARGET/
+          cp ${{ github.workspace }}/LICENSE address-artisan-v$VERSION-$TARGET/
+
+          # Create tarball
+          tar czf address-artisan-v$VERSION-$TARGET.tar.gz address-artisan-v$VERSION-$TARGET
+
+          # Move to project root
+          mv address-artisan-v$VERSION-$TARGET.tar.gz ${{ github.workspace }}/
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+          TAG_NAME="v$VERSION"
+
+          gh release upload "$TAG_NAME" \
+            "address-artisan-v$VERSION-$TARGET.tar.gz" \
+            --clobber
 
   publish:
     name: Publish to crates.io
-    needs: create-tag
-    if: needs.create-tag.outputs.should_release == 'true'
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -103,9 +154,8 @@ jobs:
 
       - name: Publish release
         run: |
-          VERSION="${{ needs.create-tag.outputs.version }}"
+          VERSION="${{ needs.check-version.outputs.version }}"
           echo "📦 Publishing version $VERSION to crates.io"
 
-          # Simulate cargo publish (will be replaced with actual publish later)
-          echo "Would run: cargo publish --token \$CARGO_REGISTRY_TOKEN"
-          echo "✅ Release published successfully"
+          # TODO: Replace with actual cargo publish
+          echo "Simulated: cargo publish --token \$CARGO_REGISTRY_TOKEN"
