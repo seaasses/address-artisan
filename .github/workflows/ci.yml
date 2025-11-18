@@ -115,42 +115,10 @@ jobs:
               echo "✅ Only Cargo.toml modified - ready to release"
             fi
 
-            # All validations passed - export version
             echo "✅ All validations passed"
-            echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "✅ No version change detected"
-            echo "new_version=" >> $GITHUB_OUTPUT
           fi
-
-      - name: Export release data
-        run: |
-          VERSION="${{ steps.version_check.outputs.new_version }}"
-
-          if [ -n "$VERSION" ]; then
-            echo "$VERSION" > version.txt
-
-            # Create release notes file (only for PRs)
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              PR_BODY='${{ github.event.pull_request.body }}'
-              echo "$PR_BODY" > "${VERSION}_release_notes.md"
-              echo "📝 Created ${VERSION}_release_notes.md with PR description"
-            fi
-
-            echo "📦 Exporting version $VERSION"
-          else
-            echo "" > version.txt
-            echo "📦 No version change - exporting empty artifact"
-          fi
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-version
-          path: |
-            version.txt
-            *_release_notes.md
-          retention-days: 1
 
   format:
     name: Format Check
