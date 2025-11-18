@@ -164,6 +164,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
 
+      - name: Install OpenCL (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install opencl:x64-windows
+          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+          echo "C:\vcpkg\installed\x64-windows\bin" >> $env:GITHUB_PATH
+          echo "LIB=C:\vcpkg\installed\x64-windows\lib;$env:LIB" >> $env:GITHUB_ENV
+
       - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
@@ -191,6 +199,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ocl-icd-opencl-dev opencl-headers pocl-opencl-icd
+
+      - name: Install OpenCL (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install opencl:x64-windows
+          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+          echo "C:\vcpkg\installed\x64-windows\bin" >> $env:GITHUB_PATH
+          echo "LIB=C:\vcpkg\installed\x64-windows\lib;$env:LIB" >> $env:GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
 
