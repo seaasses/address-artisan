@@ -232,18 +232,10 @@ jobs:
           cat > comment.md << EOF
           ## This is a release PR
 
-          When this PR is merged to \`main\`, a new release will be automatically created:
+          When this PR is merged to \`main\`, the release \`v${VERSION}\` will be automatically created with the following notes:
 
-          ### Release \`v${VERSION}\`
-
-          **Release Notes:**
           ${RELEASE_NOTES}
 
-          **Artifacts:**
-          - \`address-artisan-v${VERSION}-linux-x86_64.tar.gz\`
-          - \`address-artisan-v${VERSION}-linux-arm64.tar.gz\`
-
-          The release will also be published to [crates.io](https://crates.io/crates/address-artisan).
           EOF
 
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
