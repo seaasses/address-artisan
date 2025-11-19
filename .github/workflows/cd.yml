@@ -48,34 +48,9 @@ jobs:
             fi
           fi
 
-  create-release:
-    name: Create GitHub Release
+  build-binaries:
+    name: Build Binaries (${{ matrix.platform }})
     needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Create tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
-          TAG_NAME="v$VERSION"
-          NOTES_FILE="docs/release-notes/v$VERSION.md"
-
-          gh release create "$TAG_NAME" \
-            --title "Address Artisan $VERSION" \
-            --notes-file "$NOTES_FILE" \
-            --target ${{ github.event.workflow_run.head_sha }}
-
-          echo "Release $TAG_NAME created"
-
-  build-linux-binaries:
-    name: Build Linux Binaries
-    needs: [check-version, create-release]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -119,21 +94,64 @@ jobs:
           # Move to project root
           mv address-artisan-v$VERSION-$PLATFORM.tar.gz ${{ github.workspace }}/
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-artisan-${{ matrix.platform }}
+          path: address-artisan-*.tar.gz
+          retention-days: 1
+
+  create-release:
+    name: Create GitHub Release
+    needs: [check-version, build-binaries]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TAG_NAME="v$VERSION"
+          NOTES_FILE="docs/release-notes/v$VERSION.md"
+
+          gh release create "$TAG_NAME" \
+            --title "Address Artisan $VERSION" \
+            --notes-file "$NOTES_FILE" \
+            --target ${{ github.event.workflow_run.head_sha }}
+
+          echo "Release $TAG_NAME created"
+
+  upload-binaries:
+    name: Upload Binaries to Release
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: address-artisan-*
+          merge-multiple: true
+
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          PLATFORM="${{ matrix.platform }}"
           TAG_NAME="v$VERSION"
 
           gh release upload "$TAG_NAME" \
-            "address-artisan-v$VERSION-$PLATFORM.tar.gz" \
+            address-artisan-*.tar.gz \
             --clobber
 
   publish:
     name: Publish to crates.io
-    needs: [check-version, create-release]
+    needs: [check-version, upload-binaries]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
