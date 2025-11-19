@@ -212,6 +212,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install OpenCL dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ocl-icd-opencl-dev opencl-headers
+
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
