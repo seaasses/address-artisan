@@ -83,16 +83,16 @@ jobs:
           cd target/$TARGET/release
 
           # Create temporary directory for tarball
-          mkdir -p address-artisan-v$VERSION-$PLATFORM
-          cp address-artisan address-artisan-v$VERSION-$PLATFORM/
-          cp ${{ github.workspace }}/README.md address-artisan-v$VERSION-$PLATFORM/
-          cp ${{ github.workspace }}/LICENSE address-artisan-v$VERSION-$PLATFORM/
+          mkdir -p address-artisan-$VERSION-$PLATFORM
+          cp address-artisan address-artisan-$VERSION-$PLATFORM/
+          cp ${{ github.workspace }}/README.md address-artisan-$VERSION-$PLATFORM/
+          cp ${{ github.workspace }}/LICENSE address-artisan-$VERSION-$PLATFORM/
 
           # Create tarball
-          tar czf address-artisan-v$VERSION-$PLATFORM.tar.gz address-artisan-v$VERSION-$PLATFORM
+          tar czf address-artisan-$VERSION-$PLATFORM.tar.gz address-artisan-$VERSION-$PLATFORM
 
           # Move to project root
-          mv address-artisan-v$VERSION-$PLATFORM.tar.gz ${{ github.workspace }}/
+          mv address-artisan-$VERSION-$PLATFORM.tar.gz ${{ github.workspace }}/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -102,7 +102,7 @@ jobs:
           retention-days: 1
 
   build-deb:
-    name: Build .deb (${{ matrix.platform }})
+    name: Build .deb (${{ matrix.arch }})
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
@@ -110,9 +110,9 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64
+            arch: amd64
           - target: aarch64-unknown-linux-gnu
-            platform: linux-arm64
+            arch: arm64
     steps:
       - uses: actions/checkout@v5
         with:
@@ -126,7 +126,7 @@ jobs:
           cargo install cross --git https://github.com/cross-rs/cross
           cargo install cargo-deb
 
-      - name: Build for ${{ matrix.platform }}
+      - name: Build for ${{ matrix.arch }}
         run: cross build --release --target ${{ matrix.target }}
 
       - name: Build .deb package
@@ -134,15 +134,15 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
           cargo deb --no-build --target ${{ matrix.target }}
 
-          # Rename .deb to include platform
+          # Rename .deb to include architecture
           cd target/${{ matrix.target }}/debian
           DEB_FILE=$(ls *.deb)
-          mv "$DEB_FILE" "address-artisan_${VERSION}_${{ matrix.platform }}.deb"
+          mv "$DEB_FILE" "address-artisan_${VERSION}_${{ matrix.arch }}.deb"
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: address-artisan-${{ matrix.platform }}-deb
+          name: address-artisan-${{ matrix.arch }}-deb
           path: target/${{ matrix.target }}/debian/*.deb
           retention-days: 1
 
