@@ -205,8 +205,8 @@ jobs:
       - name: Build
         run: cargo build --verbose --release
 
-  pr-comment:
-    name: PR Comment
+  release-pr-comment:
+    name: Release PR Comment
     needs: [version-change-check, format, clippy, test, build]
     if: |
       github.event_name == 'pull_request' &&
