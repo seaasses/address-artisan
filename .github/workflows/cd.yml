@@ -132,6 +132,10 @@ jobs:
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
