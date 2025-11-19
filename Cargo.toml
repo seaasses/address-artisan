@@ -1,6 +1,6 @@
 [package]
 name = "address-artisan"
-version = "0.2.326"
+version = "0.2.327"
 description = "Vanity Bitcoin address generator based on BIP32 extended public keys with GPU acceleration."
 authors = ["Marcus Lacerda <marcuslacerda@tutamail.com>"]
 readme = "README.md"
