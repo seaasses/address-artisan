@@ -227,7 +227,7 @@ jobs:
           ' Cargo.toml)
 
           cat > comment.md << EOF
-          ## ✅ All checks passed!
+          ## This is a release PR
 
           When this PR is merged to \`main\`, a new release will be automatically created:
 
