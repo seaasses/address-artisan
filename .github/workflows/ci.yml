@@ -80,9 +80,10 @@ jobs:
             if [ "${{ github.event_name }}" == "pull_request" ]; then
               CHANGED_FILES=$(git diff --name-only $BASE_REF $HEAD_REF)
               NUM_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
+              EXPECTED_NOTES_FILE="docs/release-notes/v$CURRENT_VERSION.md"
 
-              if [ $NUM_CHANGED -ne 2 ]; then
-                echo "Must modify exactly Cargo.toml and Cargo.lock ($NUM_CHANGED files changed)"
+              if [ $NUM_CHANGED -ne 3 ]; then
+                echo "Must modify exactly 3 files: Cargo.toml, Cargo.lock, and $EXPECTED_NOTES_FILE ($NUM_CHANGED files changed)"
                 echo "$CHANGED_FILES"
                 exit 1
               fi
@@ -94,6 +95,13 @@ jobs:
 
               if ! echo "$CHANGED_FILES" | grep -q "^Cargo.lock$"; then
                 echo "Cargo.lock must be modified"
+                exit 1
+              fi
+
+              if ! echo "$CHANGED_FILES" | grep -q "^$EXPECTED_NOTES_FILE$"; then
+                echo "Release notes file must be modified: $EXPECTED_NOTES_FILE"
+                echo "Changed files:"
+                echo "$CHANGED_FILES"
                 exit 1
               fi
 
@@ -218,13 +226,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ needs.version-change-check.outputs.version }}"
-
-          RELEASE_NOTES=$(awk '
-            /\[package\.metadata\.release\]/ { in_section=1; next }
-            in_section && /^notes = """/ { in_notes=1; next }
-            in_notes && /^"""/ { exit }
-            in_notes { print }
-          ' Cargo.toml)
+          NOTES_FILE="docs/release-notes/v${VERSION}.md"
+          RELEASE_NOTES=$(cat "$NOTES_FILE")
 
           cat > comment.md << EOF
           ## This is a release PR

@@ -12,18 +12,6 @@ categories = ["command-line-utilities", "cryptography::cryptocurrencies", "concu
 edition = "2021"
 rust-version = "1.70"
 
-[package.metadata.release]
-notes = """
-## What's Changed
-- Improved CI/CD workflows
-- Better version validation in pull requests
-- Automated GitHub releases with custom release notes
-- Multi-architecture Linux binaries (x86_64 and ARM64)
-
-## Contributors
-Thanks to everyone who contributed to this release!
-"""
-
 [dependencies]
 bs58 = "0.5.1"
 clap = { version = "4.5.51", features = ["derive"] }

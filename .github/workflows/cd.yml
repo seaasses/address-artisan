@@ -64,21 +64,11 @@ jobs:
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           TAG_NAME="v$VERSION"
-
-          RELEASE_NOTES=$(awk '
-            /\[package\.metadata\.release\]/ { in_section=1; next }
-            in_section && /^notes = """/ { in_notes=1; next }
-            in_notes && /^"""/ { exit }
-            in_notes { print }
-          ' Cargo.toml)
-
-          if [ -z "$RELEASE_NOTES" ]; then
-            RELEASE_NOTES="Release $TAG_NAME"
-          fi
+          NOTES_FILE="docs/release-notes/v$VERSION.md"
 
           gh release create "$TAG_NAME" \
-            --title "Release $TAG_NAME" \
-            --notes "$RELEASE_NOTES" \
+            --title "Address Artisan $VERSION" \
+            --notes-file "$NOTES_FILE" \
             --target ${{ github.event.workflow_run.head_sha }}
 
           echo "Release $TAG_NAME created"
