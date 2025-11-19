@@ -101,9 +101,54 @@ jobs:
           path: address-artisan-*.tar.gz
           retention-days: 1
 
+  build-deb:
+    name: Build .deb (${{ matrix.platform }})
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            platform: linux-arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross and cargo-deb
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          cargo install cargo-deb
+
+      - name: Build for ${{ matrix.platform }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build .deb package
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          cargo deb --no-build --target ${{ matrix.target }}
+
+          # Rename .deb to include platform
+          cd target/${{ matrix.target }}/debian
+          DEB_FILE=$(ls *.deb)
+          mv "$DEB_FILE" "address-artisan_${VERSION}_${{ matrix.platform }}.deb"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-artisan-${{ matrix.platform }}-deb
+          path: target/${{ matrix.target }}/debian/*.deb
+          retention-days: 1
+
   create-release:
     name: Create GitHub Release
-    needs: [check-version, build-binaries]
+    needs: [check-version, build-binaries, build-deb]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -151,6 +196,7 @@ jobs:
 
           gh release upload "$TAG_NAME" \
             address-artisan-*.tar.gz \
+            address-artisan_*.deb \
             --clobber
 
   publish:

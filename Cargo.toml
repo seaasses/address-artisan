@@ -39,3 +39,14 @@ lto = true
 codegen-units = 1
 opt-level = 3
 strip = true
+
+[package.metadata.deb]
+maintainer = "Marcus Lacerda <marcuslacerda@tutamail.com>"
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/address-artisan", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/address-artisan/", "644"],
+    ["LICENSE", "usr/share/doc/address-artisan/", "644"],
+]
