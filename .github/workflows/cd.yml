@@ -1,0 +1,178 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check Version
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check version change
+        id: check
+        run: |
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "First release: $CURRENT_VERSION"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            PREVIOUS_VERSION=$(git show $LATEST_TAG:Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+
+            if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+              echo "Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            else
+              echo "No version change"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+              echo "version=" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build-binaries:
+    name: Build Binaries (${{ matrix.platform }})
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            platform: linux-arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build for ${{ matrix.platform }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Package binary
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+          PLATFORM="${{ matrix.platform }}"
+
+          cd target/$TARGET/release
+
+          # Create temporary directory for tarball
+          mkdir -p address-artisan-v$VERSION-$PLATFORM
+          cp address-artisan address-artisan-v$VERSION-$PLATFORM/
+          cp ${{ github.workspace }}/README.md address-artisan-v$VERSION-$PLATFORM/
+          cp ${{ github.workspace }}/LICENSE address-artisan-v$VERSION-$PLATFORM/
+
+          # Create tarball
+          tar czf address-artisan-v$VERSION-$PLATFORM.tar.gz address-artisan-v$VERSION-$PLATFORM
+
+          # Move to project root
+          mv address-artisan-v$VERSION-$PLATFORM.tar.gz ${{ github.workspace }}/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-artisan-${{ matrix.platform }}
+          path: address-artisan-*.tar.gz
+          retention-days: 1
+
+  create-release:
+    name: Create GitHub Release
+    needs: [check-version, build-binaries]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TAG_NAME="v$VERSION"
+          NOTES_FILE="docs/release-notes/v$VERSION.md"
+
+          gh release create "$TAG_NAME" \
+            --title "Address Artisan $VERSION" \
+            --notes-file "$NOTES_FILE" \
+            --target ${{ github.event.workflow_run.head_sha }}
+
+          echo "Release $TAG_NAME created"
+
+  upload-binaries:
+    name: Upload Binaries to Release
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: address-artisan-*
+          merge-multiple: true
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          TAG_NAME="v$VERSION"
+
+          gh release upload "$TAG_NAME" \
+            address-artisan-*.tar.gz \
+            --clobber
+
+  publish:
+    name: Publish to crates.io
+    needs: [check-version, upload-binaries]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          echo "📦 Publishing version $VERSION to crates.io..."
+
+          cargo publish --token "$CARGO_REGISTRY_TOKEN"
+
+          echo "✅ Successfully published address-artisan v$VERSION to crates.io"
