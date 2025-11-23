@@ -30,7 +30,7 @@ pub struct Cli {
     #[arg(
         short = 't',
         long = "cpu-threads",
-        help = "Number of CPU threads to use (0 = auto-detect all available threads)",
+        help = "Number of CPU threads to use (default: 0 = auto-detect physical cores)",
         default_value = "0",
         value_parser = Cli::validate_cpu_threads
     )]
