@@ -8,15 +8,34 @@ Address Artisan is a vanity Bitcoin address generator based on [BIP32](https://g
 
 ## Get the Address Artisan
 
-You can install the tool using:
+### Option 1: Download Pre-compiled Binaries
+
+Download the latest version from the [releases page](https://github.com/seaasses/address-artisan/releases/latest).
+
+### Option 2: Install from Cargo
+
+Install the latest stable release from crates.io:
 
 ```bash
 cargo install address-artisan
 ```
 
-Or clone the repository and build it:
+### Option 3: Build from Source
+
+Build the latest stable release:
 
 ```bash
+git clone https://github.com/seaasses/address-artisan.git
+cd address-artisan
+git checkout $(git tag -l --sort=-version:refname | head -n1)
+cargo build --release
+```
+
+Or build the most recent code from the main branch:
+
+```bash
+git clone https://github.com/seaasses/address-artisan.git
+cd address-artisan
 cargo build --release
 ```
 
