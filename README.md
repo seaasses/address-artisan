@@ -8,15 +8,34 @@ Address Artisan is a vanity Bitcoin address generator based on [BIP32](https://g
 
 ## Get the Address Artisan
 
-You can install the tool using:
+### Option 1: Download Pre-compiled Binaries
+
+Download the latest version from the [releases page](https://github.com/seaasses/address-artisan/releases/latest).
+
+### Option 2: Install from Cargo
+
+Install the latest stable release from crates.io:
 
 ```bash
 cargo install address-artisan
 ```
 
-Or clone the repository and build it:
+### Option 3: Build from Source
+
+Build the latest stable release:
 
 ```bash
+git clone https://github.com/seaasses/address-artisan.git
+cd address-artisan
+git checkout $(git tag -l --sort=-version:refname | head -n1)
+cargo build --release
+```
+
+Or build the most recent code from the main branch:
+
+```bash
+git clone https://github.com/seaasses/address-artisan.git
+cd address-artisan
 cargo build --release
 ```
 
@@ -37,36 +56,6 @@ For detailed information, use the help command:
 ```bash
 address-artisan --help
 ```
-
-### Device Selection Examples
-
-```bash
-# CPU only (auto-detect cores)
-address-artisan -x <xpub> -p <prefix>
-
-# CPU with 8 threads
-address-artisan -x <xpub> -p <prefix> -t 8
-
-# Use all available GPUs + CPU
-address-artisan -x <xpub> -p <prefix> --gpu
-
-# Use GPU 0 + CPU
-address-artisan -x <xpub> -p <prefix> --gpu 0
-
-# Use GPU 0 and GPU 2 + CPU
-address-artisan -x <xpub> -p <prefix> --gpu 0,2
-
-# Use all GPUs, no CPU
-address-artisan -x <xpub> -p <prefix> --gpu-only
-
-# Use only GPU 1, no CPU
-address-artisan -x <xpub> -p <prefix> --gpu 1 --gpu-only
-
-# Use GPUs 0 and 1, plus CPU with 4 threads
-address-artisan -x <xpub> -p <prefix> --gpu 0 1 -t 4
-```
-
-**Note:** If you specify an invalid GPU ID, the program will display the available GPUs on your system. Integrated/onboard GPUs are automatically excluded.
 
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 

@@ -30,7 +30,7 @@ pub struct Cli {
     #[arg(
         short = 't',
         long = "cpu-threads",
-        help = "Number of CPU threads to use (0 = auto-detect all available threads)",
+        help = "Number of CPU threads to use (default: 0 = auto-detect physical cores)",
         default_value = "0",
         value_parser = Cli::validate_cpu_threads
     )]
@@ -46,7 +46,7 @@ pub struct Cli {
     pub gpu: Option<Vec<usize>>,
     #[arg(
         long = "gpu-only",
-        help = "Use only GPU (no CPU, excludes integrated/onboard GPUs)",
+        help = "Use only GPU for processing (no CPU, excludes integrated/onboard GPUs). Can be combined with --gpu to specify which GPUs to use",
         default_value = "false"
     )]
     pub gpu_only: bool,
