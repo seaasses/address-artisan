@@ -422,16 +422,13 @@ mod tests {
         // Process events like run() does
         let mut processed = 0;
         while let Ok(event) = orch.event_rx.try_recv() {
-            match event {
-                WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } => {
-                    // Only process if we haven't found enough addresses yet
-                    if !orch.should_stop() {
-                        orch.handle_potential_match(bench_id, path, prefix_id);
-                        processed += 1;
-                    }
-                    // Otherwise, silently discard (this is what we're testing)
+            if let WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } = event {
+                // Only process if we haven't found enough addresses yet
+                if !orch.should_stop() {
+                    orch.handle_potential_match(bench_id, path, prefix_id);
+                    processed += 1;
                 }
-                _ => {}
+                // Otherwise, silently discard (this is what we're testing)
             }
         }
 
