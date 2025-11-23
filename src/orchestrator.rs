@@ -192,15 +192,11 @@ impl Orchestrator {
                 // Match confirmed - log it and increment counter
                 self.logger.log_found_address(&bench_id, &address, &path);
                 self.found_addresses += 1;
-                
+
                 // Check if we should stop:
                 // - If num_addresses is 0, never stop (infinite mode)
                 // - Otherwise, stop when we've found enough addresses
-                if self.num_addresses > 0 && self.found_addresses >= self.num_addresses {
-                    true
-                } else {
-                    false
-                }
+                self.num_addresses > 0 && self.found_addresses >= self.num_addresses
             }
             Ok(None) => {
                 // False positive from range matching - not a real match
