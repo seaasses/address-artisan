@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn test_discards_events_exceeding_limit() {
         let (mut orch, _) = create_test_orchestrator(2);
-        
+
         // Simulate 5 potential matches coming in (like a simple prefix finding multiple addresses)
         let paths = [
             [1000, 2000, 0, 0, 0, 0],
@@ -412,17 +412,24 @@ mod tests {
 
         // Send all 5 events to the channel (simulating batch results)
         for path in paths.iter() {
-            orch.event_tx.send(WorkbenchEvent::PotentialMatch {
-                bench_id: "test".to_string(),
-                path: *path,
-                prefix_id: 0,
-            }).unwrap();
+            orch.event_tx
+                .send(WorkbenchEvent::PotentialMatch {
+                    bench_id: "test".to_string(),
+                    path: *path,
+                    prefix_id: 0,
+                })
+                .unwrap();
         }
 
         // Process events like run() does
         let mut processed = 0;
         while let Ok(event) = orch.event_rx.try_recv() {
-            if let WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } = event {
+            if let WorkbenchEvent::PotentialMatch {
+                bench_id,
+                path,
+                prefix_id,
+            } = event
+            {
                 // Only process if we haven't found enough addresses yet
                 if !orch.should_stop() {
                     orch.handle_potential_match(bench_id, path, prefix_id);
@@ -433,8 +440,14 @@ mod tests {
         }
 
         // Should have processed exactly 2 addresses (the limit)
-        assert_eq!(orch.found_addresses, 2, "Should have found exactly 2 addresses");
+        assert_eq!(
+            orch.found_addresses, 2,
+            "Should have found exactly 2 addresses"
+        );
         assert_eq!(processed, 2, "Should have processed exactly 2 events");
-        assert!(orch.should_stop(), "Should indicate stop after reaching limit");
+        assert!(
+            orch.should_stop(),
+            "Should indicate stop after reaching limit"
+        );
     }
 }
