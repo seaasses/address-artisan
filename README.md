@@ -26,6 +26,7 @@ The tool requires 2 mandatory arguments (`xpub` and `prefix`) and accepts severa
 
 - `--xpub` (`-x`): Extended public key (obtainable from almost any Bitcoin wallet)
 - `--prefix` (`-p`): Desired address prefix (must start with "1" or "bc1q")
+- `--num-addresses` (`-n`): Number of addresses to find before stopping automatically (default: 1, 0 = never stop). Useful for generating multiple vanity addresses in a single run
 - `--max-depth` (`-m`): Maximum depth of the last derivation path (default: 1000). A larger max-depth means better utilization of the key space and cache. However, an address may get buried in a large gap, and since [account discovery](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#user-content-Account_discovery) is designed to be sequential, it may take time for the wallet to find it after increasing the gap limit. Testing suggests 100,000 is an optimal value, causing only a 3-second wallet freeze during setup.
 - `--cpu-threads` (`-t`): Number of CPU threads to use (default: 0 = auto-detect physical cores)
 - `--gpu` (`-g`): Enable GPU processing (excludes integrated/onboard GPUs). Can optionally specify GPU IDs: `--gpu 0,1` or `--gpu 0 1`. Without IDs, all available GPUs are used
