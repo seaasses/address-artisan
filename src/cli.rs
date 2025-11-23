@@ -46,7 +46,7 @@ pub struct Cli {
     pub gpu: Option<Vec<usize>>,
     #[arg(
         long = "gpu-only",
-        help = "Use only GPU (no CPU, excludes integrated/onboard GPUs)",
+        help = "Use only GPU for processing (no CPU, excludes integrated/onboard GPUs). Can be combined with --gpu to specify which GPUs to use",
         default_value = "false"
     )]
     pub gpu_only: bool,
