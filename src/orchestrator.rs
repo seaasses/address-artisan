@@ -92,9 +92,13 @@ impl Orchestrator {
                     path,
                     prefix_id,
                 } => {
-                    if self.handle_potential_match(bench_id, path, prefix_id) {
-                        self.logger.stop_requested();
-                        self.stop_signal.store(true, Ordering::Relaxed);
+                    if !self.should_stop() {
+                        self.handle_potential_match(bench_id, path, prefix_id);
+
+                        if self.should_stop() {
+                            self.logger.stop_requested();
+                            self.stop_signal.store(true, Ordering::Relaxed);
+                        }
                     }
                 }
 
@@ -179,7 +183,11 @@ impl Orchestrator {
         }
     }
 
-    fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6], prefix_id: u8) -> bool {
+    fn should_stop(&self) -> bool {
+        self.num_addresses > 0 && self.found_addresses >= self.num_addresses
+    }
+
+    fn handle_potential_match(&mut self, bench_id: String, path: [u32; 6], prefix_id: u8) {
         // Get the prefix using prefix_id
         let prefix = &self.prefixes[prefix_id as usize];
 
@@ -192,20 +200,13 @@ impl Orchestrator {
                 // Match confirmed - log it and increment counter
                 self.logger.log_found_address(&bench_id, &address, &path);
                 self.found_addresses += 1;
-
-                // Check if we should stop:
-                // - If num_addresses is 0, never stop (infinite mode)
-                // - Otherwise, stop when we've found enough addresses
-                self.num_addresses > 0 && self.found_addresses >= self.num_addresses
             }
             Ok(None) => {
                 // False positive from range matching - not a real match
                 self.logger.log_false_positive(&bench_id, &path);
-                false
             }
             Err(_) => {
                 self.logger.log_derivation_error();
-                false
             }
         }
     }
@@ -313,9 +314,12 @@ mod tests {
         let (mut orch, _) = create_test_orchestrator(1);
         let path = [1000, 2000, 0, 0, 0, 0];
 
-        let result = orch.handle_potential_match("cpu".to_string(), path, 0);
+        orch.handle_potential_match("cpu".to_string(), path, 0);
 
-        assert!(result);
+        // Should have incremented found_addresses
+        assert_eq!(orch.found_addresses, 1);
+        // Should indicate we should stop (found 1 of 1 requested)
+        assert!(orch.should_stop());
     }
 
     #[test]
@@ -346,16 +350,15 @@ mod tests {
         stop_signal.store(true, Ordering::Relaxed);
     }
 
-    // Tests for num_addresses functionality
     #[test]
     fn test_num_addresses_stops_after_one() {
         let (mut orch, _) = create_test_orchestrator(1);
         let path = [1000, 2000, 0, 0, 0, 0];
 
-        // First match should return true (stop)
-        let should_stop = orch.handle_potential_match("cpu".to_string(), path, 0);
-        assert!(should_stop);
+        // First match should trigger stop condition
+        orch.handle_potential_match("cpu".to_string(), path, 0);
         assert_eq!(orch.found_addresses, 1);
+        assert!(orch.should_stop());
     }
 
     #[test]
@@ -365,32 +368,76 @@ mod tests {
         let path2 = [1001, 2001, 0, 0, 0, 0];
         let path3 = [1002, 2002, 0, 0, 0, 0];
 
-        // First match should not stop
-        let should_stop = orch.handle_potential_match("cpu".to_string(), path1, 0);
-        assert!(!should_stop);
+        // First match should not trigger stop
+        orch.handle_potential_match("cpu".to_string(), path1, 0);
         assert_eq!(orch.found_addresses, 1);
+        assert!(!orch.should_stop());
 
-        // Second match should not stop
-        let should_stop = orch.handle_potential_match("cpu".to_string(), path2, 0);
-        assert!(!should_stop);
+        // Second match should not trigger stop
+        orch.handle_potential_match("cpu".to_string(), path2, 0);
         assert_eq!(orch.found_addresses, 2);
+        assert!(!orch.should_stop());
 
-        // Third match should stop
-        let should_stop = orch.handle_potential_match("cpu".to_string(), path3, 0);
-        assert!(should_stop);
+        // Third match should trigger stop
+        orch.handle_potential_match("cpu".to_string(), path3, 0);
         assert_eq!(orch.found_addresses, 3);
+        assert!(orch.should_stop());
     }
 
     #[test]
     fn test_num_addresses_zero_never_stops() {
         let (mut orch, _) = create_test_orchestrator(0);
 
-        // Test multiple matches, should never return true
+        // Test multiple matches, should never trigger stop
         for i in 0..10 {
             let path = [1000 + i, 2000 + i, 0, 0, 0, 0];
-            let should_stop = orch.handle_potential_match("cpu".to_string(), path, 0);
-            assert!(!should_stop, "Should not stop at match {}", i + 1);
+            orch.handle_potential_match("cpu".to_string(), path, 0);
+            assert!(!orch.should_stop(), "Should not stop at match {}", i + 1);
             assert_eq!(orch.found_addresses, i + 1);
         }
+    }
+
+    #[test]
+    fn test_discards_events_exceeding_limit() {
+        let (mut orch, _) = create_test_orchestrator(2);
+        
+        // Simulate 5 potential matches coming in (like a simple prefix finding multiple addresses)
+        let paths = [
+            [1000, 2000, 0, 0, 0, 0],
+            [1001, 2001, 0, 0, 0, 0],
+            [1002, 2002, 0, 0, 0, 0],
+            [1003, 2003, 0, 0, 0, 0],
+            [1004, 2004, 0, 0, 0, 0],
+        ];
+
+        // Send all 5 events to the channel (simulating batch results)
+        for path in paths.iter() {
+            orch.event_tx.send(WorkbenchEvent::PotentialMatch {
+                bench_id: "test".to_string(),
+                path: *path,
+                prefix_id: 0,
+            }).unwrap();
+        }
+
+        // Process events like run() does
+        let mut processed = 0;
+        while let Ok(event) = orch.event_rx.try_recv() {
+            match event {
+                WorkbenchEvent::PotentialMatch { bench_id, path, prefix_id } => {
+                    // Only process if we haven't found enough addresses yet
+                    if !orch.should_stop() {
+                        orch.handle_potential_match(bench_id, path, prefix_id);
+                        processed += 1;
+                    }
+                    // Otherwise, silently discard (this is what we're testing)
+                }
+                _ => {}
+            }
+        }
+
+        // Should have processed exactly 2 addresses (the limit)
+        assert_eq!(orch.found_addresses, 2, "Should have found exactly 2 addresses");
+        assert_eq!(processed, 2, "Should have processed exactly 2 events");
+        assert!(orch.should_stop(), "Should indicate stop after reaching limit");
     }
 }
