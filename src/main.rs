@@ -72,6 +72,7 @@ fn main() {
         xpub,
         prefixes,
         cli.max_depth,
+        cli.num_addresses,
         stop_signal,
         ground_truth_validator,
         logger,

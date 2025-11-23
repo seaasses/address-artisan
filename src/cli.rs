@@ -50,6 +50,14 @@ pub struct Cli {
         default_value = "false"
     )]
     pub gpu_only: bool,
+    #[arg(
+        short = 'n',
+        long = "num-addresses",
+        help = "Number of addresses to find before stopping automatically (default: 1, 0 = never stop)",
+        default_value = "1",
+        value_parser = Cli::validate_num_addresses
+    )]
+    pub num_addresses: u32,
 }
 
 impl Cli {
@@ -144,6 +152,14 @@ impl Cli {
         }
 
         Ok(id_int)
+    }
+
+    fn validate_num_addresses(num: &str) -> Result<u32, String> {
+        let num_int: u32 = num
+            .parse()
+            .map_err(|e: std::num::ParseIntError| e.to_string())?;
+
+        Ok(num_int)
     }
 }
 
@@ -350,6 +366,45 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // num_addresses tests
+    #[test]
+    fn test_validate_num_addresses_valid_positive() {
+        let num = "10";
+        let result = Cli::validate_num_addresses(num);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 10);
+    }
+
+    #[test]
+    fn test_validate_num_addresses_zero() {
+        let num = "0";
+        let result = Cli::validate_num_addresses(num);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_validate_num_addresses_one() {
+        let num = "1";
+        let result = Cli::validate_num_addresses(num);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[test]
+    fn test_validate_num_addresses_negative() {
+        let num = "-1";
+        let result = Cli::validate_num_addresses(num);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_num_addresses_invalid_string() {
+        let num = "abc";
+        let result = Cli::validate_num_addresses(num);
+        assert!(result.is_err());
+    }
+
     // Tests for conflicting options validation
     #[test]
     fn test_validate_conflicting_options_gpu_only_with_cpu_threads() {
@@ -360,6 +415,7 @@ mod tests {
             cpu_threads: 4,
             gpu: None,
             gpu_only: true,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
@@ -378,6 +434,7 @@ mod tests {
             cpu_threads: 0, // 0 means auto-detect, which is valid with gpu_only
             gpu: None,
             gpu_only: true,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
@@ -393,6 +450,7 @@ mod tests {
             cpu_threads: 4,
             gpu: None,
             gpu_only: false,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
@@ -409,6 +467,7 @@ mod tests {
             cpu_threads: 4,
             gpu: None,
             gpu_only: false,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
@@ -424,6 +483,7 @@ mod tests {
             cpu_threads: 4,
             gpu: None,
             gpu_only: false,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
@@ -448,6 +508,7 @@ mod tests {
             cpu_threads: 4,
             gpu: None,
             gpu_only: false,
+            num_addresses: 1,
         };
 
         let result = cli.validate_conflicting_options();
