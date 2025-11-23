@@ -38,36 +38,6 @@ For detailed information, use the help command:
 address-artisan --help
 ```
 
-### Device Selection Examples
-
-```bash
-# CPU only (auto-detect cores)
-address-artisan -x <xpub> -p <prefix>
-
-# CPU with 8 threads
-address-artisan -x <xpub> -p <prefix> -t 8
-
-# Use all available GPUs + CPU
-address-artisan -x <xpub> -p <prefix> --gpu
-
-# Use GPU 0 + CPU
-address-artisan -x <xpub> -p <prefix> --gpu 0
-
-# Use GPU 0 and GPU 2 + CPU
-address-artisan -x <xpub> -p <prefix> --gpu 0,2
-
-# Use all GPUs, no CPU
-address-artisan -x <xpub> -p <prefix> --gpu-only
-
-# Use only GPU 1, no CPU
-address-artisan -x <xpub> -p <prefix> --gpu 1 --gpu-only
-
-# Use GPUs 0 and 1, plus CPU with 4 threads
-address-artisan -x <xpub> -p <prefix> --gpu 0 1 -t 4
-```
-
-**Note:** If you specify an invalid GPU ID, the program will display the available GPUs on your system. Integrated/onboard GPUs are automatically excluded.
-
 For a complete walkthrough with all steps and details, check the [Example](#example) section.
 
 ## ⚠️ **WARNING**
