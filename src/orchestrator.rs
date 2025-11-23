@@ -18,6 +18,8 @@ pub struct Orchestrator {
     xpub: ExtendedPubKey,
     prefixes: Vec<Prefix>,
     max_depth: u32,
+    num_addresses: u32,
+    found_addresses: u32,
 
     stop_signal: Arc<AtomicBool>,
 
@@ -34,6 +36,7 @@ impl Orchestrator {
         xpub: ExtendedPubKey,
         prefixes: Vec<Prefix>,
         max_depth: u32,
+        num_addresses: u32,
         stop_signal: Arc<AtomicBool>,
         ground_truth_validator: GroundTruthValidator,
         logger: Logger,
@@ -44,6 +47,8 @@ impl Orchestrator {
             xpub,
             prefixes,
             max_depth,
+            num_addresses,
+            found_addresses: 0,
             stop_signal,
             event_tx,
             event_rx,
@@ -184,9 +189,18 @@ impl Orchestrator {
             .validate_and_get_address(prefix, &path)
         {
             Ok(Some(address)) => {
-                // Match confirmed - log it
+                // Match confirmed - log it and increment counter
                 self.logger.log_found_address(&bench_id, &address, &path);
-                true
+                self.found_addresses += 1;
+                
+                // Check if we should stop:
+                // - If num_addresses is 0, never stop (infinite mode)
+                // - Otherwise, stop when we've found enough addresses
+                if self.num_addresses > 0 && self.found_addresses >= self.num_addresses {
+                    true
+                } else {
+                    false
+                }
             }
             Ok(None) => {
                 // False positive from range matching - not a real match
@@ -233,7 +247,7 @@ mod tests {
     use super::*;
     use crate::extended_public_key::ExtendedPubKey;
 
-    fn create_test_orchestrator() -> (Orchestrator, Arc<AtomicBool>) {
+    fn create_test_orchestrator(num_addresses: u32) -> (Orchestrator, Arc<AtomicBool>) {
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let prefixes = vec![Prefix::new("1").unwrap()];
@@ -245,6 +259,7 @@ mod tests {
             xpub,
             prefixes,
             10000,
+            num_addresses,
             Arc::clone(&stop_signal),
             ground_truth_validator,
             logger,
@@ -255,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_handle_started_registers_bench() {
-        let (orch, _) = create_test_orchestrator();
+        let (orch, _) = create_test_orchestrator(1);
         let mut bench_stats = HashMap::new();
 
         orch.handle_started("test-bench".to_string(), Instant::now(), &mut bench_stats);
@@ -266,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_handle_progress_accumulates_delta() {
-        let (orch, _) = create_test_orchestrator();
+        let (orch, _) = create_test_orchestrator(1);
         let mut bench_stats = HashMap::new();
         let mut last_log_time = Instant::now();
 
@@ -299,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_handle_potential_match_derives_address() {
-        let (mut orch, _) = create_test_orchestrator();
+        let (mut orch, _) = create_test_orchestrator(1);
         let path = [1000, 2000, 0, 0, 0, 0];
 
         let result = orch.handle_potential_match("cpu".to_string(), path, 0);
@@ -309,14 +324,14 @@ mod tests {
 
     #[test]
     fn test_handle_stopped_does_not_panic() {
-        let (orch, _) = create_test_orchestrator();
+        let (orch, _) = create_test_orchestrator(1);
 
         orch.handle_stopped("bench1".to_string(), 5000, Duration::from_secs(10));
     }
 
     #[test]
     fn test_spawn_workbench_sends_started_event() {
-        let (orch, stop_signal) = create_test_orchestrator();
+        let (orch, stop_signal) = create_test_orchestrator(1);
 
         orch.spawn_workbench(DeviceInfo::Cpu {
             name: "cpu_2".to_string(),
@@ -333,5 +348,53 @@ mod tests {
         }
 
         stop_signal.store(true, Ordering::Relaxed);
+    }
+
+    // Tests for num_addresses functionality
+    #[test]
+    fn test_num_addresses_stops_after_one() {
+        let (mut orch, _) = create_test_orchestrator(1);
+        let path = [1000, 2000, 0, 0, 0, 0];
+
+        // First match should return true (stop)
+        let should_stop = orch.handle_potential_match("cpu".to_string(), path, 0);
+        assert!(should_stop);
+        assert_eq!(orch.found_addresses, 1);
+    }
+
+    #[test]
+    fn test_num_addresses_stops_after_multiple() {
+        let (mut orch, _) = create_test_orchestrator(3);
+        let path1 = [1000, 2000, 0, 0, 0, 0];
+        let path2 = [1001, 2001, 0, 0, 0, 0];
+        let path3 = [1002, 2002, 0, 0, 0, 0];
+
+        // First match should not stop
+        let should_stop = orch.handle_potential_match("cpu".to_string(), path1, 0);
+        assert!(!should_stop);
+        assert_eq!(orch.found_addresses, 1);
+
+        // Second match should not stop
+        let should_stop = orch.handle_potential_match("cpu".to_string(), path2, 0);
+        assert!(!should_stop);
+        assert_eq!(orch.found_addresses, 2);
+
+        // Third match should stop
+        let should_stop = orch.handle_potential_match("cpu".to_string(), path3, 0);
+        assert!(should_stop);
+        assert_eq!(orch.found_addresses, 3);
+    }
+
+    #[test]
+    fn test_num_addresses_zero_never_stops() {
+        let (mut orch, _) = create_test_orchestrator(0);
+
+        // Test multiple matches, should never return true
+        for i in 0..10 {
+            let path = [1000 + i, 2000 + i, 0, 0, 0, 0];
+            let should_stop = orch.handle_potential_match("cpu".to_string(), path, 0);
+            assert!(!should_stop, "Should not stop at match {}", i + 1);
+            assert_eq!(orch.found_addresses, i + 1);
+        }
     }
 }
