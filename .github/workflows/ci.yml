@@ -101,7 +101,7 @@ jobs:
               fi
 
               # Check for any files that are not allowed
-              INVALID_FILES=$(echo "$CHANGED_FILES" | grep -v "^Cargo.toml$" | grep -v "^Cargo.lock$" | grep -v "^$EXPECTED_NOTES_FILE$" | grep -v "^$ALLOWED_ASSETS_DIR")
+              INVALID_FILES=$(echo "$CHANGED_FILES" | grep -v "^Cargo.toml$" | grep -v "^Cargo.lock$" | grep -v "^$EXPECTED_NOTES_FILE$" | grep -v "^$ALLOWED_ASSETS_DIR" || true)
 
               if [ -n "$INVALID_FILES" ]; then
                 echo "Only these files can be modified in a release PR:"
