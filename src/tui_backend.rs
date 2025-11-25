@@ -353,7 +353,8 @@ fn run_event_loop(
                 .split(frame.area());
 
                 // Title
-                let title = Paragraph::new("Address Artisan - Vanity Address Generator");
+                let title = Paragraph::new("Address Artisan")
+                    .style(Style::default().add_modifier(Modifier::BOLD));
                 frame.render_widget(title, chunks[0]);
 
                 // Configuration
