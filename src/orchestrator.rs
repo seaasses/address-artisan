@@ -1,8 +1,8 @@
 use crate::device_info::DeviceInfo;
+use crate::display_backend::{BenchStats, UiBackend};
 use crate::events::{EventSender, WorkbenchEvent};
 use crate::extended_public_key::ExtendedPubKey;
 use crate::ground_truth_validator::GroundTruthValidator;
-use crate::logger::{BenchStats, Logger};
 use crate::prefix::Prefix;
 use crate::workbench::Workbench;
 use crate::workbench_config::WorkbenchConfig;
@@ -13,6 +13,10 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+// Orchestrator Constants
+const GRACEFUL_SHUTDOWN_TIMEOUT_SECS: u64 = 5;
+const STATUS_LOG_INTERVAL_SECS: u64 = 2;
 
 pub struct Orchestrator {
     xpub: ExtendedPubKey,
@@ -28,7 +32,7 @@ pub struct Orchestrator {
 
     ground_truth_validator: GroundTruthValidator,
 
-    logger: Logger,
+    backend: Box<dyn UiBackend>,
 }
 
 impl Orchestrator {
@@ -39,7 +43,7 @@ impl Orchestrator {
         num_addresses: u32,
         stop_signal: Arc<AtomicBool>,
         ground_truth_validator: GroundTruthValidator,
-        logger: Logger,
+        backend: Box<dyn UiBackend>,
     ) -> Self {
         let (event_tx, event_rx) = mpsc::channel();
 
@@ -53,7 +57,7 @@ impl Orchestrator {
             event_tx,
             event_rx,
             ground_truth_validator,
-            logger,
+            backend,
         }
     }
 
@@ -63,16 +67,54 @@ impl Orchestrator {
         }
 
         let mut bench_stats: HashMap<String, BenchStats> = HashMap::new();
+        let mut bench_ids: Vec<String> = Vec::new();
         let mut running_benches = devices.len();
         let mut last_log_time = Instant::now();
+        let mut stop_time: Option<Instant> = None;
 
-        while let Ok(event) = self.event_rx.recv() {
+        loop {
+            // Check if stop was requested externally (e.g., Ctrl+C)
+            if self.stop_signal.load(Ordering::Relaxed) && stop_time.is_none() {
+                self.backend.stop_requested();
+                for id in &bench_ids {
+                    self.backend.workbench_stopping(id);
+                }
+                stop_time = Some(Instant::now());
+            }
+
+            // Use timeout after stop is requested
+            let event = if let Some(stop_instant) = stop_time {
+                let elapsed = stop_instant.elapsed();
+                let timeout = Duration::from_secs(GRACEFUL_SHUTDOWN_TIMEOUT_SECS);
+                if elapsed >= timeout {
+                    // Timeout passed since stop - exit anyway
+                    break;
+                }
+                let remaining = timeout - elapsed;
+                self.event_rx.recv_timeout(remaining)
+            } else {
+                self.event_rx
+                    .recv()
+                    .map_err(|_| std::sync::mpsc::RecvTimeoutError::Disconnected)
+            };
+
+            let event = match event {
+                Ok(e) => e,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // Timeout reached - all workbenches should have stopped by now
+                    break;
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    // Channel disconnected
+                    break;
+                }
+            };
             match event {
                 WorkbenchEvent::Started {
                     bench_id,
                     timestamp,
                 } => {
-                    self.handle_started(bench_id, timestamp, &mut bench_stats);
+                    self.handle_started(bench_id, timestamp, &mut bench_stats, &mut bench_ids);
                 }
 
                 WorkbenchEvent::Progress {
@@ -96,8 +138,13 @@ impl Orchestrator {
                         self.handle_potential_match(bench_id, path, prefix_id);
 
                         if self.should_stop() {
-                            self.logger.stop_requested();
+                            self.backend.stop_requested();
+                            // Notify all workbenches that they are stopping
+                            for id in &bench_ids {
+                                self.backend.workbench_stopping(id);
+                            }
                             self.stop_signal.store(true, Ordering::Relaxed);
+                            stop_time = Some(Instant::now()); // Start 5 second timeout
                         }
                     }
                 }
@@ -117,10 +164,10 @@ impl Orchestrator {
             }
         }
 
-        self.logger.final_status();
+        self.backend.final_status();
     }
 
-    fn spawn_workbench(&self, device: DeviceInfo) {
+    fn spawn_workbench(&mut self, device: DeviceInfo) {
         let xpub = self.xpub.clone();
         let prefixes = self.prefixes.clone();
         let max_depth = self.max_depth;
@@ -134,6 +181,9 @@ impl Orchestrator {
             }
             DeviceInfo::Cpu { .. } => device.name().to_string(),
         };
+
+        // Notify that workbench is starting
+        self.backend.workbench_starting(&bench_name);
 
         let thread_name = format!("{}-bench", bench_name);
         thread::Builder::new()
@@ -157,17 +207,19 @@ impl Orchestrator {
     }
 
     fn handle_started(
-        &self,
+        &mut self,
         bench_id: String,
         timestamp: Instant,
         bench_stats: &mut HashMap<String, BenchStats>,
+        bench_ids: &mut Vec<String>,
     ) {
-        self.logger.workbench_started(&bench_id);
-        bench_stats.insert(bench_id, BenchStats::new(timestamp));
+        self.backend.workbench_started(&bench_id);
+        bench_stats.insert(bench_id.clone(), BenchStats::new(timestamp));
+        bench_ids.push(bench_id);
     }
 
     fn handle_progress(
-        &self,
+        &mut self,
         bench_id: String,
         addresses_generated: u64,
         bench_stats: &mut HashMap<String, BenchStats>,
@@ -177,8 +229,8 @@ impl Orchestrator {
             stats.total_generated += addresses_generated;
         }
 
-        if last_log_time.elapsed() >= Duration::from_secs(3) {
-            self.logger.log_status(bench_stats);
+        if last_log_time.elapsed() >= Duration::from_secs(STATUS_LOG_INTERVAL_SECS) {
+            self.backend.log_status(bench_stats);
             *last_log_time = Instant::now();
         }
     }
@@ -198,21 +250,22 @@ impl Orchestrator {
         {
             Ok(Some(address)) => {
                 // Match confirmed - log it and increment counter
-                self.logger.log_found_address(&bench_id, &address, &path);
+                self.backend
+                    .log_found_address(&bench_id, &address, &path, prefix_id);
                 self.found_addresses += 1;
             }
             Ok(None) => {
                 // False positive from range matching - not a real match
-                self.logger.log_false_positive(&bench_id, &path);
+                self.backend.log_false_positive(&bench_id, &path);
             }
             Err(_) => {
-                self.logger.log_derivation_error();
+                self.backend.log_derivation_error();
             }
         }
     }
 
-    fn handle_stopped(&self, bench_id: String, total_generated: u64, elapsed: Duration) {
-        self.logger
+    fn handle_stopped(&mut self, bench_id: String, total_generated: u64, elapsed: Duration) {
+        self.backend
             .workbench_stopped(&bench_id, total_generated, elapsed);
     }
 }
@@ -243,6 +296,7 @@ pub fn run_workbench(
 mod tests {
     use super::*;
     use crate::extended_public_key::ExtendedPubKey;
+    use crate::null_backend::NullBackend;
 
     fn create_test_orchestrator(num_addresses: u32) -> (Orchestrator, Arc<AtomicBool>) {
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
@@ -250,7 +304,7 @@ mod tests {
         let prefixes = vec![Prefix::new("1").unwrap()];
         let stop_signal = Arc::new(AtomicBool::new(false));
         let ground_truth_validator = GroundTruthValidator::new(xpub_str).unwrap();
-        let logger = Logger::new();
+        let backend: Box<dyn UiBackend> = Box::new(NullBackend::new(Arc::clone(&stop_signal)));
 
         let orchestrator = Orchestrator::new(
             xpub,
@@ -259,7 +313,7 @@ mod tests {
             num_addresses,
             Arc::clone(&stop_signal),
             ground_truth_validator,
-            logger,
+            backend,
         );
 
         (orchestrator, stop_signal)
@@ -267,10 +321,16 @@ mod tests {
 
     #[test]
     fn test_handle_started_registers_bench() {
-        let (orch, _) = create_test_orchestrator(1);
+        let (mut orch, _) = create_test_orchestrator(1);
         let mut bench_stats = HashMap::new();
+        let mut bench_ids = Vec::new();
 
-        orch.handle_started("test-bench".to_string(), Instant::now(), &mut bench_stats);
+        orch.handle_started(
+            "test-bench".to_string(),
+            Instant::now(),
+            &mut bench_stats,
+            &mut bench_ids,
+        );
 
         assert!(bench_stats.contains_key("test-bench"));
         assert_eq!(bench_stats.get("test-bench").unwrap().total_generated, 0);
@@ -278,11 +338,17 @@ mod tests {
 
     #[test]
     fn test_handle_progress_accumulates_delta() {
-        let (orch, _) = create_test_orchestrator(1);
+        let (mut orch, _) = create_test_orchestrator(1);
         let mut bench_stats = HashMap::new();
+        let mut bench_ids = Vec::new();
         let mut last_log_time = Instant::now();
 
-        orch.handle_started("bench1".to_string(), Instant::now(), &mut bench_stats);
+        orch.handle_started(
+            "bench1".to_string(),
+            Instant::now(),
+            &mut bench_stats,
+            &mut bench_ids,
+        );
 
         orch.handle_progress(
             "bench1".to_string(),
@@ -324,14 +390,14 @@ mod tests {
 
     #[test]
     fn test_handle_stopped_does_not_panic() {
-        let (orch, _) = create_test_orchestrator(1);
+        let (mut orch, _) = create_test_orchestrator(1);
 
         orch.handle_stopped("bench1".to_string(), 5000, Duration::from_secs(10));
     }
 
     #[test]
     fn test_spawn_workbench_sends_started_event() {
-        let (orch, stop_signal) = create_test_orchestrator(1);
+        let (mut orch, stop_signal) = create_test_orchestrator(1);
 
         orch.spawn_workbench(DeviceInfo::Cpu {
             name: "cpu_2".to_string(),
