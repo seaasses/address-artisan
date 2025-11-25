@@ -93,7 +93,9 @@ impl Orchestrator {
                 let remaining = timeout - elapsed;
                 self.event_rx.recv_timeout(remaining)
             } else {
-                self.event_rx.recv().map_err(|_| std::sync::mpsc::RecvTimeoutError::Disconnected)
+                self.event_rx
+                    .recv()
+                    .map_err(|_| std::sync::mpsc::RecvTimeoutError::Disconnected)
             };
 
             let event = match event {
@@ -248,7 +250,8 @@ impl Orchestrator {
         {
             Ok(Some(address)) => {
                 // Match confirmed - log it and increment counter
-                self.backend.log_found_address(&bench_id, &address, &path, prefix_id);
+                self.backend
+                    .log_found_address(&bench_id, &address, &path, prefix_id);
                 self.found_addresses += 1;
             }
             Ok(None) => {
@@ -292,8 +295,8 @@ pub fn run_workbench(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::null_backend::NullBackend;
     use crate::extended_public_key::ExtendedPubKey;
+    use crate::null_backend::NullBackend;
 
     fn create_test_orchestrator(num_addresses: u32) -> (Orchestrator, Arc<AtomicBool>) {
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
@@ -322,7 +325,12 @@ mod tests {
         let mut bench_stats = HashMap::new();
         let mut bench_ids = Vec::new();
 
-        orch.handle_started("test-bench".to_string(), Instant::now(), &mut bench_stats, &mut bench_ids);
+        orch.handle_started(
+            "test-bench".to_string(),
+            Instant::now(),
+            &mut bench_stats,
+            &mut bench_ids,
+        );
 
         assert!(bench_stats.contains_key("test-bench"));
         assert_eq!(bench_stats.get("test-bench").unwrap().total_generated, 0);
@@ -335,7 +343,12 @@ mod tests {
         let mut bench_ids = Vec::new();
         let mut last_log_time = Instant::now();
 
-        orch.handle_started("bench1".to_string(), Instant::now(), &mut bench_stats, &mut bench_ids);
+        orch.handle_started(
+            "bench1".to_string(),
+            Instant::now(),
+            &mut bench_stats,
+            &mut bench_ids,
+        );
 
         orch.handle_progress(
             "bench1".to_string(),

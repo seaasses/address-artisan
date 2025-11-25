@@ -19,7 +19,14 @@ impl UiBackend for NullBackend {
     fn workbench_starting(&mut self, _bench_id: &str) {}
     fn workbench_started(&mut self, _bench_id: &str) {}
     fn log_status(&mut self, _bench_stats: &HashMap<String, BenchStats>) {}
-    fn log_found_address(&mut self, _bench_id: &str, _address: &str, _path: &[u32; 6], _prefix_id: u8) {}
+    fn log_found_address(
+        &mut self,
+        _bench_id: &str,
+        _address: &str,
+        _path: &[u32; 6],
+        _prefix_id: u8,
+    ) {
+    }
     fn log_derivation_error(&mut self) {}
     fn log_false_positive(&mut self, _bench_id: &str, _path: &[u32; 6]) {}
     fn stop_requested(&mut self) {}

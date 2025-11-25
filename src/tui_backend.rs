@@ -149,7 +149,12 @@ impl TuiBackend {
         let exit_requested_clone = Arc::clone(&exit_requested);
 
         let event_thread = thread::spawn(move || {
-            if let Err(e) = run_event_loop(state_clone, stop_signal_clone, render_requested_clone, exit_requested_clone) {
+            if let Err(e) = run_event_loop(
+                state_clone,
+                stop_signal_clone,
+                render_requested_clone,
+                exit_requested_clone,
+            ) {
                 eprintln!("TUI event loop error: {}", e);
             }
         });
@@ -178,14 +183,18 @@ impl UiBackend for TuiBackend {
 
     fn workbench_starting(&mut self, bench_id: &str) {
         let mut state = self.state.lock().expect("TUI state mutex poisoned");
-        state.workbench_status.insert(bench_id.to_string(), WorkbenchStatus::Starting);
+        state
+            .workbench_status
+            .insert(bench_id.to_string(), WorkbenchStatus::Starting);
         drop(state);
         self.render_requested.store(true, Ordering::Relaxed);
     }
 
     fn workbench_started(&mut self, bench_id: &str) {
         let mut state = self.state.lock().expect("TUI state mutex poisoned");
-        state.workbench_status.insert(bench_id.to_string(), WorkbenchStatus::Running);
+        state
+            .workbench_status
+            .insert(bench_id.to_string(), WorkbenchStatus::Running);
         drop(state);
         self.render_requested.store(true, Ordering::Relaxed);
     }
@@ -223,14 +232,18 @@ impl UiBackend for TuiBackend {
 
     fn workbench_stopping(&mut self, bench_id: &str) {
         let mut state = self.state.lock().expect("TUI state mutex poisoned");
-        state.workbench_status.insert(bench_id.to_string(), WorkbenchStatus::Stopping);
+        state
+            .workbench_status
+            .insert(bench_id.to_string(), WorkbenchStatus::Stopping);
         drop(state);
         self.render_requested.store(true, Ordering::Relaxed);
     }
 
     fn workbench_stopped(&mut self, bench_id: &str, _total_generated: u64, _elapsed: Duration) {
         let mut state = self.state.lock().expect("TUI state mutex poisoned");
-        state.workbench_status.insert(bench_id.to_string(), WorkbenchStatus::Stopped);
+        state
+            .workbench_status
+            .insert(bench_id.to_string(), WorkbenchStatus::Stopped);
         drop(state);
         self.render_requested.store(true, Ordering::Relaxed);
     }
@@ -268,7 +281,10 @@ impl Drop for TuiBackend {
                     AddressType::P2PKH => "P2PKH",
                     AddressType::P2WPKH => "P2WPKH",
                 };
-                println!("{},{},{},{},{}", item.address, address_type_str, prefix_str, derivation_path, item.path[5]);
+                println!(
+                    "{},{},{},{},{}",
+                    item.address, address_type_str, prefix_str, derivation_path, item.path[5]
+                );
             }
         }
     }
@@ -291,9 +307,17 @@ fn run_event_loop(
 
         // Only render when orchestrator requests it (via log_status)
         if render_requested.swap(false, Ordering::Relaxed) {
-
             // Quick lock to copy data, then unlock before rendering
-            let (config, prefixes, bench_stats, workbench_status, found_addresses, workbenches_selected, found_selected, active_list) = {
+            let (
+                config,
+                prefixes,
+                bench_stats,
+                workbench_status,
+                found_addresses,
+                workbenches_selected,
+                found_selected,
+                active_list,
+            ) = {
                 let state = state.lock().expect("TUI state mutex poisoned");
                 (
                     state.config.clone(),
@@ -310,151 +334,178 @@ fn run_event_loop(
 
             // Render UI using copied data (no lock held)
             terminal.draw(|frame| {
-            // Calculate exact layout heights
-            let config_height = CONFIG_SECTION_HEIGHT;
+                // Calculate exact layout heights
+                let config_height = CONFIG_SECTION_HEIGHT;
 
-            // Workbenches: header(1) + data rows + totals(1) + borders(2)
-            // Count both starting and running workbenches
-            let all_bench_ids = get_all_workbench_ids(&workbench_status, &bench_stats);
-            let num_workbenches = all_bench_ids.len().max(1); // At least show 1 row for layout
-            let workbenches_height = 1 + num_workbenches as u16 + 1 + 2;
+                // Workbenches: header(1) + data rows + totals(1) + borders(2)
+                // Count both starting and running workbenches
+                let all_bench_ids = get_all_workbench_ids(&workbench_status, &bench_stats);
+                let num_workbenches = all_bench_ids.len().max(1); // At least show 1 row for layout
+                let workbenches_height = 1 + num_workbenches as u16 + 1 + 2;
 
-            let chunks = Layout::vertical([
-                Constraint::Length(2),                  // Title
-                Constraint::Length(config_height),      // Configuration
-                Constraint::Length(workbenches_height), // Workbenches (exact size)
-                Constraint::Fill(1),                    // Found addresses (takes remaining)
-                Constraint::Length(1),                  // Instructions
-            ])
-            .split(frame.area());
+                let chunks = Layout::vertical([
+                    Constraint::Length(2),                  // Title
+                    Constraint::Length(config_height),      // Configuration
+                    Constraint::Length(workbenches_height), // Workbenches (exact size)
+                    Constraint::Fill(1),                    // Found addresses (takes remaining)
+                    Constraint::Length(1),                  // Instructions
+                ])
+                .split(frame.area());
 
-            // Title
-            let title = Paragraph::new("Address Artisan - Vanity Address Generator");
-            frame.render_widget(title, chunks[0]);
+                // Title
+                let title = Paragraph::new("Address Artisan - Vanity Address Generator");
+                frame.render_widget(title, chunks[0]);
 
-            // Configuration
-            let prefix_label = if prefixes.len() == 1 { "Prefix" } else { "Prefixes" };
-            let prefixes_str = prefixes
-                .iter()
-                .map(|p| p.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            let config_lines = vec![
-                Line::from(vec![
-                    Span::styled(prefix_label, Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(format!(": {}", prefixes_str)),
-                ]),
-                Line::from(vec![
-                    Span::styled("Max depth", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(format!(": {}", config.max_depth)),
-                ]),
-                Line::from(vec![
-                    Span::styled("CPU threads", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(format!(": {}", config.cpu_threads)),
-                ]),
-            ];
-            let config_widget = Paragraph::new(config_lines)
-                .block(Block::default().borders(Borders::ALL).title("Configuration"))
-                .wrap(Wrap { trim: false });
-            frame.render_widget(config_widget, chunks[1]);
-
-            // Workbenches - using Table for proper column alignment
-            let mut total_generated = 0u64;
-            let mut total_hashrate = 0.0;
-
-            // Collect all workbench IDs (both starting and running)
-            let all_ids = get_all_workbench_ids(&workbench_status, &bench_stats);
-
-            let mut workbench_rows: Vec<Row> = Vec::new();
-            for bench_id in &all_ids {
-                let status = workbench_status.get(bench_id).cloned().unwrap_or(WorkbenchStatus::Running);
-                let status_str = status.as_str();
-
-                // Truncate bench_id if longer than max display length
-                let display_id = if bench_id.len() > WORKBENCH_ID_MAX_DISPLAY_LEN {
-                    format!("{}...", &bench_id[..WORKBENCH_ID_TRUNCATE_LEN])
+                // Configuration
+                let prefix_label = if prefixes.len() == 1 {
+                    "Prefix"
                 } else {
-                    bench_id.to_string()
+                    "Prefixes"
                 };
+                let prefixes_str = prefixes
+                    .iter()
+                    .map(|p| p.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
 
-                if let Some(stats) = bench_stats.get(bench_id) {
-                    // Has stats - show them
-                    let runtime = stats.runtime_secs();
-                    let hashrate = if runtime > 0 {
-                        stats.total_generated / runtime
+                let config_lines = vec![
+                    Line::from(vec![
+                        Span::styled(prefix_label, Style::default().add_modifier(Modifier::BOLD)),
+                        Span::raw(format!(": {}", prefixes_str)),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("Max depth", Style::default().add_modifier(Modifier::BOLD)),
+                        Span::raw(format!(": {}", config.max_depth)),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("CPU threads", Style::default().add_modifier(Modifier::BOLD)),
+                        Span::raw(format!(": {}", config.cpu_threads)),
+                    ]),
+                ];
+                let config_widget = Paragraph::new(config_lines)
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .title("Configuration"),
+                    )
+                    .wrap(Wrap { trim: false });
+                frame.render_widget(config_widget, chunks[1]);
+
+                // Workbenches - using Table for proper column alignment
+                let mut total_generated = 0u64;
+                let mut total_hashrate = 0.0;
+
+                // Collect all workbench IDs (both starting and running)
+                let all_ids = get_all_workbench_ids(&workbench_status, &bench_stats);
+
+                let mut workbench_rows: Vec<Row> = Vec::new();
+                for bench_id in &all_ids {
+                    let status = workbench_status
+                        .get(bench_id)
+                        .cloned()
+                        .unwrap_or(WorkbenchStatus::Running);
+                    let status_str = status.as_str();
+
+                    // Truncate bench_id if longer than max display length
+                    let display_id = if bench_id.len() > WORKBENCH_ID_MAX_DISPLAY_LEN {
+                        format!("{}...", &bench_id[..WORKBENCH_ID_TRUNCATE_LEN])
                     } else {
-                        0
+                        bench_id.to_string()
                     };
 
-                    total_generated += stats.total_generated;
-                    total_hashrate += hashrate as f64;
+                    if let Some(stats) = bench_stats.get(bench_id) {
+                        // Has stats - show them
+                        let runtime = stats.runtime_secs();
+                        let hashrate = if runtime > 0 {
+                            stats.total_generated / runtime
+                        } else {
+                            0
+                        };
 
-                    workbench_rows.push(Row::new(vec![
-                        display_id,
-                        hashrate.to_string(),
-                        stats.total_generated.to_string(),
-                        format!("{}s", runtime),
-                        status_str.to_string(),
-                    ]));
-                } else {
-                    // No stats yet - just show status
-                    workbench_rows.push(Row::new(vec![
-                        display_id,
-                        "-".to_string(),
-                        "-".to_string(),
-                        "-".to_string(),
-                        status_str.to_string(),
-                    ]));
+                        total_generated += stats.total_generated;
+                        total_hashrate += hashrate as f64;
+
+                        workbench_rows.push(Row::new(vec![
+                            display_id,
+                            hashrate.to_string(),
+                            stats.total_generated.to_string(),
+                            format!("{}s", runtime),
+                            status_str.to_string(),
+                        ]));
+                    } else {
+                        // No stats yet - just show status
+                        workbench_rows.push(Row::new(vec![
+                            display_id,
+                            "-".to_string(),
+                            "-".to_string(),
+                            "-".to_string(),
+                            status_str.to_string(),
+                        ]));
+                    }
                 }
-            }
 
-            // Add totals row
-            workbench_rows.push(
-                Row::new(vec![
-                    "TOTAL".to_string(),
-                    (total_hashrate as u64).to_string(),
-                    total_generated.to_string(),
-                    "-".to_string(),
-                    "-".to_string(),
-                ])
-                .style(Style::default().add_modifier(Modifier::BOLD))
-            );
+                // Add totals row
+                workbench_rows.push(
+                    Row::new(vec![
+                        "TOTAL".to_string(),
+                        (total_hashrate as u64).to_string(),
+                        total_generated.to_string(),
+                        "-".to_string(),
+                        "-".to_string(),
+                    ])
+                    .style(Style::default().add_modifier(Modifier::BOLD)),
+                );
 
-            let workbenches_table = Table::new(
-                workbench_rows,
-                [
-                    Constraint::Length(WORKBENCH_ID_COLUMN_WIDTH),         // ID
-                    Constraint::Length(WORKBENCH_ADDR_S_COLUMN_WIDTH),     // Addr/s
-                    Constraint::Length(WORKBENCH_GENERATED_COLUMN_WIDTH),  // Generated
-                    Constraint::Length(WORKBENCH_RUNTIME_COLUMN_WIDTH),    // Runtime
-                    Constraint::Min(10),                                   // Status
-                ],
-            )
-            .header(
-                Row::new(vec!["ID", "Addr/s", "Generated", "Runtime", "Status"])
-                    .style(Style::default().add_modifier(Modifier::BOLD))
-            )
-            .block(Block::default().borders(Borders::ALL).title("Workbenches"))
-            .column_spacing(2)
-            .row_highlight_style(
-                if active_list {
+                let workbenches_table = Table::new(
+                    workbench_rows,
+                    [
+                        Constraint::Length(WORKBENCH_ID_COLUMN_WIDTH),     // ID
+                        Constraint::Length(WORKBENCH_ADDR_S_COLUMN_WIDTH), // Addr/s
+                        Constraint::Length(WORKBENCH_GENERATED_COLUMN_WIDTH), // Generated
+                        Constraint::Length(WORKBENCH_RUNTIME_COLUMN_WIDTH), // Runtime
+                        Constraint::Min(10),                               // Status
+                    ],
+                )
+                .header(
+                    Row::new(vec!["ID", "Addr/s", "Generated", "Runtime", "Status"])
+                        .style(Style::default().add_modifier(Modifier::BOLD)),
+                )
+                .block(Block::default().borders(Borders::ALL).title("Workbenches"))
+                .column_spacing(2)
+                .row_highlight_style(if active_list {
                     Style::default().add_modifier(Modifier::REVERSED)
                 } else {
                     Style::default()
-                }
-            );
+                });
 
-            let mut workbenches_table_state = TableState::default();
-            workbenches_table_state.select(workbenches_selected);
-            frame.render_stateful_widget(workbenches_table, chunks[2], &mut workbenches_table_state);
+                let mut workbenches_table_state = TableState::default();
+                workbenches_table_state.select(workbenches_selected);
+                frame.render_stateful_widget(
+                    workbenches_table,
+                    chunks[2],
+                    &mut workbenches_table_state,
+                );
 
-            // Found addresses - using Table for proper column alignment
-            // Calculate dynamic column widths and build rows in a single pass
-            let (rows, max_address_len, max_type_len, max_prefix_len, max_derivation_len, max_index_len) =
-                found_addresses.iter().fold(
+                // Found addresses - using Table for proper column alignment
+                // Calculate dynamic column widths and build rows in a single pass
+                let (
+                    rows,
+                    max_address_len,
+                    max_type_len,
+                    max_prefix_len,
+                    max_derivation_len,
+                    max_index_len,
+                ) = found_addresses.iter().fold(
                     (Vec::new(), 7, 4, 6, 15, 5), // Initial: (rows, addr, type, prefix, derivation, index)
-                    |(mut rows, mut max_addr, mut max_type, mut max_pref, mut max_deriv, mut max_idx), item| {
+                    |(
+                        mut rows,
+                        mut max_addr,
+                        mut max_type,
+                        mut max_pref,
+                        mut max_deriv,
+                        mut max_idx,
+                    ),
+                     item| {
                         let derivation_path = format_derivation_path(&item.path);
                         let index_str = item.path[5].to_string();
                         let prefix = &prefixes[item.prefix_id as usize];
@@ -484,39 +535,46 @@ fn run_event_loop(
                     },
                 );
 
-            let found_title = format!("Found Addresses ({})", found_addresses.len());
-            let found_table = Table::new(
-                rows,
-                [
-                    Constraint::Max(max_address_len as u16), // Address (max size, can be cut)
-                    Constraint::Length(max_type_len as u16), // Type (P2PKH/P2WPKH - exact size)
-                    Constraint::Max(max_prefix_len as u16), // Prefix (max size, can be cut)
-                    Constraint::Length(max_derivation_len as u16), // Derivation Path (EXACT size - highest priority)
-                    Constraint::Length(max_index_len as u16), // Index (EXACT size - highest priority)
-                    Constraint::Fill(1), // Found by (takes remaining space)
-                ],
-            )
-            .header(
-                Row::new(vec!["Address", "Type", "Prefix", "Derivation Path", "Index", "Found by"])
-                    .style(Style::default().add_modifier(Modifier::BOLD))
-            )
-            .block(Block::default().borders(Borders::ALL).title(found_title))
-            .column_spacing(2)
-            .row_highlight_style(
-                if !active_list {
+                let found_title = format!("Found Addresses ({})", found_addresses.len());
+                let found_table = Table::new(
+                    rows,
+                    [
+                        Constraint::Max(max_address_len as u16), // Address (max size, can be cut)
+                        Constraint::Length(max_type_len as u16), // Type (P2PKH/P2WPKH - exact size)
+                        Constraint::Max(max_prefix_len as u16),  // Prefix (max size, can be cut)
+                        Constraint::Length(max_derivation_len as u16), // Derivation Path (EXACT size - highest priority)
+                        Constraint::Length(max_index_len as u16), // Index (EXACT size - highest priority)
+                        Constraint::Fill(1), // Found by (takes remaining space)
+                    ],
+                )
+                .header(
+                    Row::new(vec![
+                        "Address",
+                        "Type",
+                        "Prefix",
+                        "Derivation Path",
+                        "Index",
+                        "Found by",
+                    ])
+                    .style(Style::default().add_modifier(Modifier::BOLD)),
+                )
+                .block(Block::default().borders(Borders::ALL).title(found_title))
+                .column_spacing(2)
+                .row_highlight_style(if !active_list {
                     Style::default().add_modifier(Modifier::REVERSED)
                 } else {
                     Style::default()
-                }
-            );
+                });
 
-            let mut found_table_state = TableState::default();
-            found_table_state.select(found_selected);
-            frame.render_stateful_widget(found_table, chunks[3], &mut found_table_state);
+                let mut found_table_state = TableState::default();
+                found_table_state.select(found_selected);
+                frame.render_stateful_widget(found_table, chunks[3], &mut found_table_state);
 
-            // Instructions at the bottom
-            let instructions = Paragraph::new("Tab: Switch between Workbenches/Found | ↑↓: Navigate | Ctrl+C: Stop");
-            frame.render_widget(instructions, chunks[4]);
+                // Instructions at the bottom
+                let instructions = Paragraph::new(
+                    "Tab: Switch between Workbenches/Found | ↑↓: Navigate | Ctrl+C: Stop",
+                );
+                frame.render_widget(instructions, chunks[4]);
             })?;
         }
 
@@ -569,14 +627,17 @@ fn handle_key_event(state: &mut TuiState, key_code: KeyCode) -> bool {
             state.active_list = match state.active_list {
                 ActiveList::Workbenches => {
                     // Ensure found list has selection if not empty
-                    if !state.found_addresses.is_empty() && state.found_list_state.selected().is_none() {
+                    if !state.found_addresses.is_empty()
+                        && state.found_list_state.selected().is_none()
+                    {
                         state.found_list_state.select(Some(0));
                     }
                     ActiveList::Found
                 }
                 ActiveList::Found => {
                     // Ensure workbenches list has selection if not empty
-                    let all_ids = get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
+                    let all_ids =
+                        get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
                     if !all_ids.is_empty() && state.workbenches_list_state.selected().is_none() {
                         state.workbenches_list_state.select(Some(0));
                     }
@@ -589,7 +650,8 @@ fn handle_key_event(state: &mut TuiState, key_code: KeyCode) -> bool {
             // Navigate down - only changes if list is not empty
             match state.active_list {
                 ActiveList::Workbenches => {
-                    let all_ids = get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
+                    let all_ids =
+                        get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
                     let len = all_ids.len();
                     if len > 0 {
                         let i = match state.workbenches_list_state.selected() {
@@ -623,7 +685,8 @@ fn handle_key_event(state: &mut TuiState, key_code: KeyCode) -> bool {
             // Navigate up - only changes if list is not empty
             match state.active_list {
                 ActiveList::Workbenches => {
-                    let all_ids = get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
+                    let all_ids =
+                        get_all_workbench_ids(&state.workbench_status, &state.bench_stats);
                     let len = all_ids.len();
                     if len > 0 {
                         let i = match state.workbenches_list_state.selected() {

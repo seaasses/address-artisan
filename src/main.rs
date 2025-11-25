@@ -27,9 +27,9 @@ use display_backend::UiBackend;
 use extended_public_key::ExtendedPubKey;
 use ground_truth_validator::GroundTruthValidator;
 use orchestrator::Orchestrator;
-use tui_backend::TuiBackend;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tui_backend::TuiBackend;
 
 fn main() {
     let cli = Cli::parse_args();
@@ -61,9 +61,8 @@ fn main() {
     let total_cpu_threads: u32 = selected_devices.iter().filter_map(|d| d.threads()).sum();
 
     // Create TUI backend
-    let mut backend: Box<dyn UiBackend> = Box::new(
-        TuiBackend::new(Arc::clone(&stop_signal)).expect("Failed to initialize TUI")
-    );
+    let mut backend: Box<dyn UiBackend> =
+        Box::new(TuiBackend::new(Arc::clone(&stop_signal)).expect("Failed to initialize TUI"));
 
     backend.start(&prefixes, cli.max_depth, total_cpu_threads);
 
