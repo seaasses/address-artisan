@@ -26,6 +26,8 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 bitcoin = "0.32.7"
 ocl = "0.19.7"
+ratatui = "0.29.0"
+crossterm = "0.29.0"
 
 # Platform-specific dependencies
 [target.'cfg(not(windows))'.dependencies]
