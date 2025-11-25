@@ -1,5 +1,5 @@
 use crate::display_backend::{BenchStats, UiBackend};
-use crate::prefix::Prefix;
+use crate::prefix::{AddressType, Prefix};
 use crossterm::{
     cursor::Show,
     event::{self, Event, KeyCode, KeyModifiers},
@@ -259,15 +259,16 @@ impl Drop for TuiBackend {
         // Print found addresses after exiting TUI in CSV format
         let state = self.state.lock().expect("TUI state mutex poisoned");
         if !state.found_addresses.is_empty() {
-            println!("\naddress,prefix,derivation path,index");
+            println!("\naddress,type,prefix,derivation path,index");
             for item in &state.found_addresses {
                 let derivation_path = format_derivation_path(&item.path);
-                let prefix_str = if (item.prefix_id as usize) < state.prefixes.len() {
-                    state.prefixes[item.prefix_id as usize].as_str()
-                } else {
-                    "?"
+                let prefix = &state.prefixes[item.prefix_id as usize];
+                let prefix_str = prefix.as_str();
+                let address_type_str = match prefix.address_type {
+                    AddressType::P2PKH => "P2PKH",
+                    AddressType::P2WPKH => "P2WPKH",
                 };
-                println!("{},{},{},{}", item.address, prefix_str, derivation_path, item.path[5]);
+                println!("{},{},{},{},{}", item.address, address_type_str, prefix_str, derivation_path, item.path[5]);
             }
         }
     }
@@ -450,33 +451,36 @@ fn run_event_loop(
 
             // Found addresses - using Table for proper column alignment
             // Calculate dynamic column widths and build rows in a single pass
-            let (rows, max_address_len, max_prefix_len, max_derivation_len, max_index_len) =
+            let (rows, max_address_len, max_type_len, max_prefix_len, max_derivation_len, max_index_len) =
                 found_addresses.iter().fold(
-                    (Vec::new(), 7, 6, 15, 5), // Initial: (rows, addr, prefix, derivation, index)
-                    |(mut rows, mut max_addr, mut max_pref, mut max_deriv, mut max_idx), item| {
+                    (Vec::new(), 7, 4, 6, 15, 5), // Initial: (rows, addr, type, prefix, derivation, index)
+                    |(mut rows, mut max_addr, mut max_type, mut max_pref, mut max_deriv, mut max_idx), item| {
                         let derivation_path = format_derivation_path(&item.path);
                         let index_str = item.path[5].to_string();
-                        let prefix_str = if (item.prefix_id as usize) < prefixes.len() {
-                            prefixes[item.prefix_id as usize].as_str().to_string()
-                        } else {
-                            "?".to_string()
+                        let prefix = &prefixes[item.prefix_id as usize];
+                        let prefix_str = prefix.as_str().to_string();
+                        let address_type_str = match prefix.address_type {
+                            AddressType::P2PKH => "P2PKH",
+                            AddressType::P2WPKH => "P2WPKH",
                         };
 
                         // Update max lengths
                         max_addr = max_addr.max(item.address.len());
+                        max_type = max_type.max(address_type_str.len());
                         max_pref = max_pref.max(prefix_str.len());
                         max_deriv = max_deriv.max(derivation_path.len());
                         max_idx = max_idx.max(index_str.len());
 
                         rows.push(Row::new(vec![
                             item.address.clone(),
+                            address_type_str.to_string(),
                             prefix_str,
                             derivation_path,
                             index_str,
                             item.bench_id.clone(),
                         ]));
 
-                        (rows, max_addr, max_pref, max_deriv, max_idx)
+                        (rows, max_addr, max_type, max_pref, max_deriv, max_idx)
                     },
                 );
 
@@ -485,6 +489,7 @@ fn run_event_loop(
                 rows,
                 [
                     Constraint::Max(max_address_len as u16), // Address (max size, can be cut)
+                    Constraint::Length(max_type_len as u16), // Type (P2PKH/P2WPKH - exact size)
                     Constraint::Max(max_prefix_len as u16), // Prefix (max size, can be cut)
                     Constraint::Length(max_derivation_len as u16), // Derivation Path (EXACT size - highest priority)
                     Constraint::Length(max_index_len as u16), // Index (EXACT size - highest priority)
@@ -492,7 +497,7 @@ fn run_event_loop(
                 ],
             )
             .header(
-                Row::new(vec!["Address", "Prefix", "Derivation Path", "Index", "Found by"])
+                Row::new(vec!["Address", "Type", "Prefix", "Derivation Path", "Index", "Found by"])
                     .style(Style::default().add_modifier(Modifier::BOLD))
             )
             .block(Block::default().borders(Borders::ALL).title(found_title))
