@@ -223,4 +223,117 @@ mod tests {
         assert_eq!(result_y.len(), 32);
         assert_eq!(result_z.len(), 32);
     }
+
+    #[test]
+    fn test_jacobian_infinity_plus_affine_infinity() {
+        let mut ocl = JacobianPointAffinePointAddition::new().unwrap();
+
+        // Jacobian point at infinity: Z = 0
+        let jac_a_x = vec![0u8; 32];
+        let jac_a_y = vec![0u8; 32];
+        let jac_a_z = vec![0u8; 32]; // Z = 0 means infinity
+
+        // Affine point at infinity: x = SECP256K1_P
+        // P = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+        let aff_b_x = vec![
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+            0xFF, 0xFF, 0xFC, 0x2F,
+        ];
+        let aff_b_y = vec![0u8; 32]; // y value doesn't matter for infinity
+
+        let (_result_x, _result_y, result_z) = ocl
+            .addition(jac_a_x, jac_a_y, jac_a_z, aff_b_x, aff_b_y)
+            .unwrap();
+
+        // Result should be infinity (Z = 0)
+        let expected_z = vec![0u8; 32];
+        assert_eq!(result_z, expected_z, "Z coordinate should be 0 (infinity)");
+    }
+
+    #[test]
+    fn test_jacobian_infinity_plus_affine_point() {
+        let mut ocl = JacobianPointAffinePointAddition::new().unwrap();
+
+        // Jacobian point at infinity: Z = 0
+        let jac_a_x = vec![0u8; 32];
+        let jac_a_y = vec![0u8; 32];
+        let jac_a_z = vec![0u8; 32]; // Z = 0 means infinity
+
+        // Affine point: secp256k1 generator G
+        // Gx = 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+        let aff_b_x = vec![
+            0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87,
+            0x0B, 0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B,
+            0x16, 0xF8, 0x17, 0x98,
+        ];
+        // Gy = 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+        let aff_b_y = vec![
+            0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65, 0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11,
+            0x08, 0xA8, 0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19, 0x9C, 0x47, 0xD0, 0x8F,
+            0xFB, 0x10, 0xD4, 0xB8,
+        ];
+
+        let (result_x, result_y, result_z) = ocl
+            .addition(jac_a_x, jac_a_y, jac_a_z, aff_b_x.clone(), aff_b_y.clone())
+            .unwrap();
+
+        // Result should be B in Jacobian form (with Z = 1)
+        assert_eq!(result_x, aff_b_x, "X coordinate should match B's x");
+        assert_eq!(result_y, aff_b_y, "Y coordinate should match B's y");
+
+        let expected_z = vec![
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+        ];
+        assert_eq!(result_z, expected_z, "Z coordinate should be 1");
+    }
+
+    #[test]
+    fn test_jacobian_point_plus_affine_infinity() {
+        let mut ocl = JacobianPointAffinePointAddition::new().unwrap();
+
+        // Jacobian point: secp256k1 generator G in Jacobian form (Z = 1)
+        // Gx = 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+        let jac_a_x = vec![
+            0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87,
+            0x0B, 0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B,
+            0x16, 0xF8, 0x17, 0x98,
+        ];
+        // Gy = 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+        let jac_a_y = vec![
+            0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65, 0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11,
+            0x08, 0xA8, 0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19, 0x9C, 0x47, 0xD0, 0x8F,
+            0xFB, 0x10, 0xD4, 0xB8,
+        ];
+        let jac_a_z = vec![
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+        ];
+
+        // Affine point at infinity: x = SECP256K1_P
+        let aff_b_x = vec![
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+            0xFF, 0xFF, 0xFC, 0x2F,
+        ];
+        let aff_b_y = vec![0u8; 32]; // y value doesn't matter for infinity
+
+        let (result_x, result_y, result_z) = ocl
+            .addition(
+                jac_a_x.clone(),
+                jac_a_y.clone(),
+                jac_a_z.clone(),
+                aff_b_x,
+                aff_b_y,
+            )
+            .unwrap();
+
+        // Result should be A (unchanged)
+        assert_eq!(result_x, jac_a_x, "X coordinate should match A's x");
+        assert_eq!(result_y, jac_a_y, "Y coordinate should match A's y");
+        assert_eq!(result_z, jac_a_z, "Z coordinate should match A's z");
+    }
 }
