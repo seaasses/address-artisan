@@ -6,7 +6,8 @@ __kernel void ckdpub_throughput_benchmark_kernel(
     __constant uchar *k_par_x_buffer,
     __constant uchar *k_par_y_buffer,
     uint max_threads,
-    __global volatile uint *anti_optimization_counter)
+    __global volatile uint *anti_optimization_counter,
+    __global const Point *g_times_tables)
 {
     uint thread_id = get_global_id(0);
 
@@ -22,7 +23,7 @@ __kernel void ckdpub_throughput_benchmark_kernel(
     parent.k_par.y = UINT256_FROM_BYTES(k_par_y_buffer);
 
     uchar compressed_key[33];
-    ckdpub(parent, thread_id, compressed_key);
+    ckdpub(parent, thread_id, compressed_key, g_times_tables);
 
     uchar xor_result = 0;
     for (int i = 0; i < 33; i++) {

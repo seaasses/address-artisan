@@ -71,7 +71,8 @@ __kernel void batch_address_search(
     __global uint *matches_index,
     __global uchar *matches_prefix_id,
     __global uint *match_count,
-    __global uint *cache_miss_error)
+    __global uint *cache_miss_error,
+    __global const Point *g_times_tables)
 {
     uint gid = get_global_id(0);
     ulong counter = start_counter + gid;
@@ -102,7 +103,7 @@ __kernel void batch_address_search(
 
     // Derive child at index
     uchar compressed_key[33];
-    ckdpub(parent, index, compressed_key);
+    ckdpub(parent, index, compressed_key, g_times_tables);
 
     // Calculate hash160
     uchar hash160[20];

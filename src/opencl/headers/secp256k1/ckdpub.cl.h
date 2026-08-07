@@ -3,5 +3,6 @@
 void ckdpub(
     const XPub parent,
     uint index,
-    uchar *restrict result
+    uchar *restrict result,
+    __global const Point *g_times_tables
 );

@@ -7,7 +7,8 @@ __kernel void ckdpub_kernel(
     __global uchar *k_par_x_buffer,
     __global uchar *k_par_y_buffer,
     __global uint *index_buffer,
-    __global uchar *compressed_key_buffer)
+    __global uchar *compressed_key_buffer,
+    __global const Point *g_times_tables)
 {
     uchar chain_code_private[32];
     uchar k_par_x_private[32];
@@ -29,7 +30,7 @@ __kernel void ckdpub_kernel(
     parent.k_par.y = UINT256_FROM_BYTES(k_par_y_private);
 
     uchar compressed_key_private[33];
-    ckdpub(parent, index, compressed_key_private);
+    ckdpub(parent, index, compressed_key_private, g_times_tables);
 
     for (int i = 0; i < 33; i++) {
         compressed_key_buffer[i] = compressed_key_private[i];

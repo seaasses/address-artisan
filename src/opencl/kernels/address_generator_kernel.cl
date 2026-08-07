@@ -7,7 +7,8 @@ __kernel void address_generator_kernel(
     __global uchar *k_par_y_buffer,
     uint base_index,
     uint quant,
-    __global uchar *hash160_output_buffer
+    __global uchar *hash160_output_buffer,
+    __global const Point *g_times_tables
 )
 {
     uint thread_id = get_global_id(0);
@@ -26,7 +27,7 @@ __kernel void address_generator_kernel(
     parent.k_par.y = UINT256_FROM_BYTES(k_par_y_buffer);
 
     uchar compressed_key[33];
-    ckdpub(parent, index, compressed_key);
+    ckdpub(parent, index, compressed_key, g_times_tables);
 
     uchar hash160[20];
     hash160_33(compressed_key, hash160);
