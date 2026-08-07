@@ -5,8 +5,8 @@ use ocl::{Buffer, Queue};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use std::sync::OnceLock;
 
-pub const WINDOW_COUNT: usize = 64;
-pub const WINDOW_SIZE: usize = 16;
+pub const WINDOW_COUNT: usize = 32;
+pub const WINDOW_SIZE: usize = 256;
 pub const G_TABLES_POINT_COUNT: usize = WINDOW_COUNT * WINDOW_SIZE;
 
 // secp256k1 group order n
@@ -31,12 +31,12 @@ static G_TABLES: OnceLock<Vec<PointGpu>> = OnceLock::new();
 
 /// Precomputed tables for fixed-base scalar multiplication on the GPU.
 ///
-/// Flat layout of 64 tables with 16 points each:
-/// `tables[w * 16 + d] = d * 16^w * G`, where `w` is the 4-bit window
-/// position (0 = least significant nibble of the scalar) and `d` the digit.
+/// Flat layout of 32 tables with 256 points each (512 KB):
+/// `tables[w * 256 + d] = d * 256^w * G`, where `w` is the 8-bit window
+/// position (0 = least significant byte of the scalar) and `d` the digit.
 /// Entries with `d = 0` hold the point-at-infinity sentinel.
 ///
-/// Computed once per process (~1024 scalar multiplications) and shared by
+/// Computed once per process (~8k scalar multiplications) and shared by
 /// every GPU workbench and test harness.
 pub fn g_tables() -> &'static [PointGpu] {
     G_TABLES.get_or_init(compute_g_tables)
@@ -68,8 +68,8 @@ fn compute_g_tables() -> Vec<PointGpu> {
                 continue;
             }
 
-            // scalar = d * 16^w mod n (never zero: n is prime and > d, 16)
-            let scalar = (BigUint::from(d) << (4 * w)) % &n;
+            // scalar = d * 256^w mod n (never zero: n is prime and > d, 256)
+            let scalar = (BigUint::from(d) << (8 * w)) % &n;
             debug_assert!(!scalar.is_zero());
 
             let secret = SecretKey::from_byte_array(biguint_to_be_bytes(&scalar))
@@ -141,13 +141,11 @@ mod tests {
     }
 
     #[test]
-    fn test_window_base_is_16_times_previous() {
-        // tables[w][1] must equal tables[w-1][16] would need d=16; instead
-        // check via scalar identity: tables[1][1] = 16 * G = tables[0][8] + tables[0][8]
-        // Simpler exact check: tables[1][1] must equal the point for scalar 16.
+    fn test_second_window_starts_at_256_g() {
+        // tables[1][1] must equal the point for scalar 256 (= 256^1 * G)
         let secp = Secp256k1::new();
         let mut scalar_bytes = [0u8; 32];
-        scalar_bytes[31] = 16;
+        scalar_bytes[30] = 1; // 256 in big-endian bytes
         let expected = PublicKey::from_secret_key(
             &secp,
             &SecretKey::from_byte_array(scalar_bytes).unwrap(),
