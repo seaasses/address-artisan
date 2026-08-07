@@ -1,3 +1,4 @@
+pub mod bench_ckdpub_throughput;
 pub mod test_ckdpub;
 pub mod test_compress_point;
 pub mod test_g_times_scalar;
