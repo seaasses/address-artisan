@@ -734,7 +734,7 @@ mod tests {
         ];
         let max_depth = 1u32;
         let work_size = cache_keys.len(); // 8 counters
-        // ordinal of first key = b * 2^31 + a, with b = 0, a = 0x7FFFFFFE
+                                          // ordinal of first key = b * 2^31 + a, with b = 0, a = 0x7FFFFFFE
         #[allow(clippy::identity_op)]
         let start_counter = (0u64 << 31) + 0x7FFFFFFE;
         let prefix = Prefix::new("1").unwrap();

@@ -30,33 +30,48 @@ mod tests {
         (device, context, queue)
     }
 
-    /// Builds the kernel program for a given PPT. Tries NVIDIA's `-cl-nv-verbose`
-    /// first (which makes ptxas print register/spill counts into the build log);
-    /// falls back to a plain build on non-NVIDIA devices where the flag is
-    /// rejected. Returns the program and its build log.
+    /// True for NVIDIA devices, which support `-cl-nv-verbose` (ptxas
+    /// register/spill dump) and allocate local memory per *resident* thread.
+    fn is_nvidia(device: Device) -> bool {
+        device
+            .name()
+            .map(|n| n.to_ascii_uppercase().contains("NVIDIA"))
+            .unwrap_or(false)
+    }
+
+    /// Threads for the constant-threads sweep: enough to fully saturate the
+    /// device, but not so many that a spill-heavy high-PPT kernel exhausts a
+    /// small GPU's memory. NVIDIA allocates local memory per resident thread, so
+    /// a big launch is safe there; a 4 GB mobile part is not, so we cap it.
+    fn saturating_threads(device: Device) -> usize {
+        if is_nvidia(device) {
+            524_288
+        } else {
+            65_536
+        }
+    }
+
+    /// Builds the kernel program for a given PPT. On NVIDIA adds `-cl-nv-verbose`
+    /// so ptxas prints register/spill counts into the build log. The flag is
+    /// gated on vendor (not try-fail-rebuild) so non-NVIDIA devices compile the
+    /// huge kernel exactly once. Returns the program and its build log.
     fn build_program(context: &Context, device: Device, ppt: u64) -> Option<(Program, String)> {
         let src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
-        let with_verbose = Program::builder()
+        let mut builder = Program::builder();
+        builder
             .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
-            .cmplr_opt("-cl-nv-verbose")
             .src(src)
-            .devices(device)
-            .build(context);
+            .devices(device);
+        if is_nvidia(device) {
+            builder.cmplr_opt("-cl-nv-verbose");
+        }
 
-        let program = match with_verbose {
+        let program = match builder.build(context) {
             Ok(p) => p,
-            Err(_) => match Program::builder()
-                .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
-                .src(src)
-                .devices(device)
-                .build(context)
-            {
-                Ok(p) => p,
-                Err(e) => {
-                    println!("  ppt={:>2}  BUILD FAILED: {}", ppt, e);
-                    return None;
-                }
-            },
+            Err(e) => {
+                println!("  ppt={:>2}  BUILD FAILED: {}", ppt, e);
+                return None;
+            }
         };
 
         let log = match program.build_info(device, ProgramBuildInfo::BuildLog) {
@@ -231,27 +246,28 @@ mod tests {
         }
     }
 
-    /// CONSTANT-THREADS sweep: threads = WORK_SIZE for every PPT, so the GPU is
-    /// always fully occupied and the only thing changing is how many points each
-    /// thread batches through one shared inversion. This isolates the batched
-    /// inversion's real effect from the thread-starvation confound. If addr/s
-    /// still climbs with PPT here, there is a genuine win beyond ppt=2 that has
-    /// nothing to do with running fewer threads.
+    /// CONSTANT-THREADS sweep: a fixed, device-saturating thread count for every
+    /// PPT, so the GPU is always fully occupied and the only thing changing is
+    /// how many points each thread batches through one shared inversion. This
+    /// isolates the batched inversion's real effect from the thread-starvation
+    /// confound. If addr/s still climbs with PPT here, there is a genuine win
+    /// beyond ppt=2 that has nothing to do with running fewer threads.
     ///
     /// cargo test --release -- --ignored bench_batch_search_constant_threads --nocapture --test-threads=1
     #[test]
     #[ignore]
     fn bench_batch_search_constant_threads() {
         let (device, _, _) = ctx();
+        let threads = saturating_threads(device);
         println!("Device: {}", device.name().unwrap_or_default());
         println!(
             "== constant threads = {} (batch = threads * ppt) ==",
-            WORK_SIZE
+            threads
         );
         for max_depth in [1000u32, 100_000] {
             println!("max_depth = {}:", max_depth);
             for ppt in [1u64, 2, 4, 8, 16] {
-                bench_one(ppt, max_depth, WORK_SIZE);
+                bench_one(ppt, max_depth, threads);
             }
         }
     }
