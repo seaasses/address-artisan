@@ -80,7 +80,9 @@ mod tests {
                 .write(&flat[..])
                 .enq()
                 .map_err(|e| e.to_string())?;
-            self.kernel.set_arg(1, count as u32).map_err(|e| e.to_string())?;
+            self.kernel
+                .set_arg(1, count as u32)
+                .map_err(|e| e.to_string())?;
 
             unsafe {
                 self.kernel.enq().map_err(|e| e.to_string())?;
@@ -172,11 +174,15 @@ mod tests {
     fn test_edge_values() {
         let p = field_prime();
         let values = vec![
-            BigUint::from(1u32),          // inverse is 1
+            BigUint::from(1u32), // inverse is 1
             BigUint::from(2u32),
-            &p - 1u32,                    // p-1, its own inverse
+            &p - 1u32, // p-1, its own inverse
             &p - 2u32,
-            BigUint::parse_bytes(b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E", 16).unwrap(),
+            BigUint::parse_bytes(
+                b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
+                16,
+            )
+            .unwrap(),
         ];
         assert_batch_correct(&values);
     }

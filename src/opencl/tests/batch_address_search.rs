@@ -644,6 +644,7 @@ mod tests {
 
     /// Run the same counter range through the kernel built with a given
     /// POINTS_PER_THREAD and return the set of matched hash160s.
+    #[allow(clippy::too_many_arguments)]
     fn run_match_set(
         ppt: u64,
         cache_keys: &[[u32; 2]],
@@ -700,7 +701,11 @@ mod tests {
         let prefix = Prefix::new("1").unwrap();
 
         let baseline = run_match_set(1, &cache_keys, 7, 9, max_depth, 0, work_size, &prefix);
-        assert_eq!(baseline.len(), work_size, "broad prefix should match every address");
+        assert_eq!(
+            baseline.len(),
+            work_size,
+            "broad prefix should match every address"
+        );
 
         for ppt in [2u64, 4, 8] {
             let batched = run_match_set(ppt, &cache_keys, 7, 9, max_depth, 0, work_size, &prefix);
@@ -729,14 +734,34 @@ mod tests {
         ];
         let max_depth = 1u32;
         let work_size = cache_keys.len(); // 8 counters
-        let start_counter = (0u64 << 31) + 0x7FFFFFFE; // ordinal of first key
+        // ordinal of first key = b * 2^31 + a, with b = 0, a = 0x7FFFFFFE
+        #[allow(clippy::identity_op)]
+        let start_counter = (0u64 << 31) + 0x7FFFFFFE;
         let prefix = Prefix::new("1").unwrap();
 
-        let baseline = run_match_set(1, &cache_keys, 123, 456, max_depth, start_counter, work_size, &prefix);
+        let baseline = run_match_set(
+            1,
+            &cache_keys,
+            123,
+            456,
+            max_depth,
+            start_counter,
+            work_size,
+            &prefix,
+        );
         assert_eq!(baseline.len(), 8);
 
         for ppt in [2u64, 4, 8] {
-            let batched = run_match_set(ppt, &cache_keys, 123, 456, max_depth, start_counter, work_size, &prefix);
+            let batched = run_match_set(
+                ppt,
+                &cache_keys,
+                123,
+                456,
+                max_depth,
+                start_counter,
+                work_size,
+                &prefix,
+            );
             assert_eq!(
                 batched, baseline,
                 "ppt={} diverged from ppt=1 across the rollover",
@@ -755,10 +780,28 @@ mod tests {
         let start_counter = ((5u64) << 31 | 1000) * max_depth as u64;
         let prefix = Prefix::new("1a").unwrap();
 
-        let baseline = run_match_set(1, &cache_keys, 11, 22, max_depth, start_counter, work_size, &prefix);
+        let baseline = run_match_set(
+            1,
+            &cache_keys,
+            11,
+            22,
+            max_depth,
+            start_counter,
+            work_size,
+            &prefix,
+        );
 
         for ppt in [2u64, 4, 8] {
-            let batched = run_match_set(ppt, &cache_keys, 11, 22, max_depth, start_counter, work_size, &prefix);
+            let batched = run_match_set(
+                ppt,
+                &cache_keys,
+                11,
+                22,
+                max_depth,
+                start_counter,
+                work_size,
+                &prefix,
+            );
             assert_eq!(
                 batched, baseline,
                 "ppt={} diverged from ppt=1 with a selective prefix",

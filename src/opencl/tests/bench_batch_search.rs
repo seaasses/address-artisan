@@ -7,6 +7,9 @@ mod tests {
     use crate::opencl::g_tables;
     use crate::opencl::gpu_cache::{GpuCache, Hash160RangeGpu};
     use crate::prefix::Prefix;
+    use ocl::enums::{
+        KernelWorkGroupInfo, KernelWorkGroupInfoResult, ProgramBuildInfo, ProgramBuildInfoResult,
+    };
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
     use std::time::Instant;
 
@@ -27,16 +30,85 @@ mod tests {
         (device, context, queue)
     }
 
-    fn bench_one(ppt: u64, max_depth: u32) {
-        let (device, context, queue) = ctx();
+    /// Builds the kernel program for a given PPT. Tries NVIDIA's `-cl-nv-verbose`
+    /// first (which makes ptxas print register/spill counts into the build log);
+    /// falls back to a plain build on non-NVIDIA devices where the flag is
+    /// rejected. Returns the program and its build log.
+    fn build_program(context: &Context, device: Device, ppt: u64) -> Option<(Program, String)> {
+        let src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
+        let with_verbose = Program::builder()
+            .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
+            .cmplr_opt("-cl-nv-verbose")
+            .src(src)
+            .devices(device)
+            .build(context);
 
-        // Realistic cache: exactly what GpuWorkbench preloads for one batch.
+        let program = match with_verbose {
+            Ok(p) => p,
+            Err(_) => match Program::builder()
+                .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
+                .src(src)
+                .devices(device)
+                .build(context)
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    println!("  ppt={:>2}  BUILD FAILED: {}", ppt, e);
+                    return None;
+                }
+            },
+        };
+
+        let log = match program.build_info(device, ProgramBuildInfo::BuildLog) {
+            Ok(ProgramBuildInfoResult::BuildLog(s)) => s,
+            _ => String::new(),
+        };
+        Some((program, log))
+    }
+
+    /// Prints per-PPT occupancy signals: private (register/local) memory the
+    /// runtime reports for the kernel, plus any register/spill lines NVIDIA's
+    /// verbose ptxas dumps into the build log. This is what tells us whether a
+    /// rising PPT is actually spilling registers (→ kernel split would help) vs.
+    /// just running fewer threads (→ a benchmark artifact).
+    fn report_registers(program: &Program, kernel: &Kernel, device: Device, ppt: u64) {
+        let priv_mem = match kernel.wg_info(device, KernelWorkGroupInfo::PrivateMemSize) {
+            Ok(KernelWorkGroupInfoResult::PrivateMemSize(n)) => n,
+            _ => 0,
+        };
+        println!("  ppt={:>2}  private_mem={} bytes/work-item", ppt, priv_mem);
+
+        if let Ok(ProgramBuildInfoResult::BuildLog(log)) =
+            program.build_info(device, ProgramBuildInfo::BuildLog)
+        {
+            for line in log.lines() {
+                let l = line.to_ascii_lowercase();
+                if l.contains("register") || l.contains("spill") || l.contains("stack") {
+                    println!("           {}", line.trim());
+                }
+            }
+        }
+    }
+
+    /// Runs one configuration.
+    ///
+    /// `threads` is the OpenCL global work size; each thread processes `ppt`
+    /// points, so the batch covers `threads * ppt` counters. The throughput
+    /// denominator is that same `threads * ppt`, so addr/s is comparable across
+    /// configs regardless of how work is split between threads and PPT.
+    fn bench_one(ppt: u64, max_depth: u32, threads: usize) {
+        let (device, context, queue) = ctx();
+        let total_points = threads * ppt as usize;
+
+        // Realistic cache: exactly what GpuWorkbench would preload for this batch.
         let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
         let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
         let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
-        let cache_keys = CacheRangeAnalyzer::analyze_counter_range(0, WORK_SIZE as u64, max_depth);
+        let cache_keys =
+            CacheRangeAnalyzer::analyze_counter_range(0, total_points as u64, max_depth);
 
-        let mut gpu_cache = GpuCache::new(device, context.clone(), queue.clone(), 1_000_000).unwrap();
+        let mut gpu_cache =
+            GpuCache::new(device, context.clone(), queue.clone(), 1_000_000).unwrap();
         CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, 12345, 67890).unwrap();
 
         // Near-impossible prefix: whole pipeline runs, ~zero matches stored.
@@ -58,10 +130,18 @@ mod tests {
             .build()
             .unwrap();
         let nb = |len: usize| -> Buffer<u8> {
-            Buffer::<u8>::builder().queue(queue.clone()).len(len).build().unwrap()
+            Buffer::<u8>::builder()
+                .queue(queue.clone())
+                .len(len)
+                .build()
+                .unwrap()
         };
         let nu = |len: usize| -> Buffer<u32> {
-            Buffer::<u32>::builder().queue(queue.clone()).len(len).build().unwrap()
+            Buffer::<u32>::builder()
+                .queue(queue.clone())
+                .len(len)
+                .build()
+                .unwrap()
         };
         let matches_hash160 = nb(MAX_MATCHES * 20);
         let matches_b = nu(MAX_MATCHES);
@@ -74,18 +154,9 @@ mod tests {
         cache_miss.cmd().fill(0u32, None).enq().unwrap();
         let g_tables_buf = g_tables::create_g_tables_buffer(&queue).unwrap();
 
-        let src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
-        let program = match Program::builder()
-            .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
-            .src(src)
-            .devices(device)
-            .build(&context)
-        {
-            Ok(p) => p,
-            Err(e) => {
-                println!("  ppt={:>2}  BUILD FAILED: {}", ppt, e);
-                return;
-            }
+        let (program, _log) = match build_program(&context, device, ppt) {
+            Some(p) => p,
+            None => return,
         };
 
         let (ck, cv, cs) = gpu_cache.get_buffers();
@@ -93,7 +164,7 @@ mod tests {
         kb.program(&program)
             .name("batch_address_search")
             .queue(queue.clone())
-            .global_work_size(WORK_SIZE / ppt as usize)
+            .global_work_size(threads)
             .arg(ck)
             .arg(cv)
             .arg(&ranges_buffer)
@@ -114,6 +185,8 @@ mod tests {
         }
         let kernel = kb.build().unwrap();
 
+        report_registers(&program, &kernel, device, ppt);
+
         for _ in 0..WARMUP_RUNS {
             unsafe { kernel.enq().unwrap() };
         }
@@ -130,22 +203,55 @@ mod tests {
         cache_miss.read(&mut miss).enq().unwrap();
         assert_eq!(miss[0], 0, "cache misses invalidate the benchmark");
 
-        let total = (WORK_SIZE * TIMED_RUNS) as f64;
+        let total = (total_points * TIMED_RUNS) as f64;
         let rate = total / elapsed.as_secs_f64();
-        println!("  ppt={:>2}  {:>10.0} addr/s", ppt, rate);
+        println!(
+            "  ppt={:>2}  threads={:>7}  {:>12.0} addr/s",
+            ppt, threads, rate
+        );
     }
 
-    /// Sweeps POINTS_PER_THREAD to find the batched-inversion sweet spot.
+    /// ORIGINAL sweep: fixed total work (WORK_SIZE), threads = WORK_SIZE / ppt.
+    /// This is the "fair per-batch" view but at high PPT the thread count drops
+    /// (e.g. 32k threads at ppt=16), which can starve a big GPU and mask the true
+    /// PPT effect. Compare against the constant-threads sweep below.
+    ///
     /// cargo test --release -- --ignored bench_batch_search_sweep --nocapture --test-threads=1
     #[test]
     #[ignore]
     fn bench_batch_search_sweep() {
         let (device, _, _) = ctx();
         println!("Device: {}", device.name().unwrap_or_default());
+        println!("== fixed total work (threads = {} / ppt) ==", WORK_SIZE);
         for max_depth in [1000u32, 100_000] {
             println!("max_depth = {}:", max_depth);
             for ppt in [1u64, 2, 4, 8, 16] {
-                bench_one(ppt, max_depth);
+                bench_one(ppt, max_depth, WORK_SIZE / ppt as usize);
+            }
+        }
+    }
+
+    /// CONSTANT-THREADS sweep: threads = WORK_SIZE for every PPT, so the GPU is
+    /// always fully occupied and the only thing changing is how many points each
+    /// thread batches through one shared inversion. This isolates the batched
+    /// inversion's real effect from the thread-starvation confound. If addr/s
+    /// still climbs with PPT here, there is a genuine win beyond ppt=2 that has
+    /// nothing to do with running fewer threads.
+    ///
+    /// cargo test --release -- --ignored bench_batch_search_constant_threads --nocapture --test-threads=1
+    #[test]
+    #[ignore]
+    fn bench_batch_search_constant_threads() {
+        let (device, _, _) = ctx();
+        println!("Device: {}", device.name().unwrap_or_default());
+        println!(
+            "== constant threads = {} (batch = threads * ppt) ==",
+            WORK_SIZE
+        );
+        for max_depth in [1000u32, 100_000] {
+            println!("max_depth = {}:", max_depth);
+            for ppt in [1u64, 2, 4, 8, 16] {
+                bench_one(ppt, max_depth, WORK_SIZE);
             }
         }
     }

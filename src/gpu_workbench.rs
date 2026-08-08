@@ -36,7 +36,7 @@ fn points_per_thread() -> u64 {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(1);
-    if ppt == 0 || GPU_WORK_SIZE % ppt != 0 {
+    if ppt == 0 || !GPU_WORK_SIZE.is_multiple_of(ppt) {
         eprintln!(
             "Invalid ADDRESS_ARTISAN_PPT={} (must be >0 and divide {}); using 1",
             ppt, GPU_WORK_SIZE
