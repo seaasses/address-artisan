@@ -22,15 +22,21 @@ inline JacobianPoint g_times_scalar(const Uint256 scalar, __global const Point *
         {.limbs = {0, 0, 0, 0}},
         {.limbs = {0, 0, 0, 0}}}; // z = 0: point at infinity
 
-    int w = 63; // limbs[0] holds the most significant bits
+    // Walk the tables from the most significant window (w = 63) down,
+    // with the loops kept rolled (see the 8-bit variant: unrolling
+    // crashes NVIDIA's NVVM compiler and hurts Intel performance).
+    __global const Point *window = g_times_tables + 63 * 16;
+
+#pragma unroll 1
     for (int limb_index = 0; limb_index < 4; limb_index++)
     {
         const ulong limb = scalar.limbs[limb_index];
+#pragma unroll 1
         for (int shift = 60; shift >= 0; shift -= 4)
         {
-            const ulong digit = (limb >> shift) & 15;
-            result = jacobian_point_affine_point_addition(result, g_times_tables[(w << 4) + digit]);
-            w--;
+            const uint digit = (uint)((limb >> shift) & 15);
+            result = jacobian_point_affine_point_addition(result, window[digit]);
+            window -= 16;
         }
     }
 
