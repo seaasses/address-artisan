@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::extended_public_key::ExtendedPubKey;
-    use crate::extended_public_key_deriver::ExtendedPublicKeyDeriver;
+    use crate::extended_public_key_deriver::{ExtendedPublicKeyDeriver, KeyDeriver};
     use crate::opencl::cache_preloader::CachePreloader;
     use crate::opencl::g_tables;
     use crate::opencl::gpu_cache::{CacheKey, GpuCache, Hash160RangeGpu, PointGpu, XPub};
@@ -32,7 +32,7 @@ mod tests {
         _matches_index_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
         _matches_prefix_id_buffer: Buffer<u8>, // Needed for kernel args but not read in tests
         match_count_buffer: Buffer<u32>,
-        _cache_miss_error_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
+        cache_miss_error_buffer: Buffer<u32>,
         _g_times_tables_buffer: Buffer<PointGpu>, // Needed for kernel args but not read in tests
     }
 
@@ -99,7 +99,7 @@ mod tests {
                 _matches_index_buffer: matches_index_buffer,
                 _matches_prefix_id_buffer: matches_prefix_id_buffer,
                 match_count_buffer,
-                _cache_miss_error_buffer: cache_miss_error_buffer,
+                cache_miss_error_buffer,
                 _g_times_tables_buffer: g_times_tables_buffer,
             })
         }
@@ -171,12 +171,16 @@ mod tests {
             work_size: usize,
             max_depth: u32,
         ) -> Result<(), String> {
-            // Reset match count
+            // Reset match count and cache miss counter
             let zero = vec![0u32; 1];
             self.match_count_buffer
                 .write(&zero)
                 .enq()
                 .map_err(|e| format!("Error resetting match count: {}", e))?;
+            self.cache_miss_error_buffer
+                .write(&zero)
+                .enq()
+                .map_err(|e| format!("Error resetting cache miss counter: {}", e))?;
 
             self.kernel
                 .set_arg(3, range_count)
@@ -205,6 +209,15 @@ mod tests {
             }
 
             Ok(())
+        }
+
+        fn read_cache_miss_errors(&self) -> Result<u32, String> {
+            let mut miss_count = vec![0u32; 1];
+            self.cache_miss_error_buffer
+                .read(&mut miss_count)
+                .enq()
+                .map_err(|e| format!("Error reading cache miss counter: {}", e))?;
+            Ok(miss_count[0])
         }
 
         fn read_matches(&self) -> Result<(Vec<[u8; 20]>, u32), String> {
@@ -423,5 +436,197 @@ mod tests {
             index
         );
         assert_eq!(matches.len(), 1);
+    }
+
+    /// Ordinal of a cache key: the position of (b, a) in the global key
+    /// sequence that CacheRangeAnalyzer walks.
+    fn key_ordinal(b: u32, a: u32) -> u64 {
+        ((b as u64) << 31) + a as u64
+    }
+
+    #[test]
+    fn test_batch_search_fetches_correct_parents_across_rollover() {
+        use std::collections::HashSet;
+
+        // Cache crossing the a -> b rollover, with max_depth = 1 so every
+        // thread uses a DIFFERENT parent xpub: any indexing mistake in the
+        // O(1) cache lookup produces a wrong hash160 and fails the test.
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let seed0 = 111u32;
+        let seed1 = 222u32;
+        let max_depth = 1u32;
+        let cache_keys = vec![[0u32, 0x7FFFFFFE], [0, 0x7FFFFFFF], [1, 0], [1, 1]];
+
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, seed0, seed1).unwrap();
+
+        let mut search = BatchAddressSearch::new().unwrap();
+        search.load_cache(&gpu_cache).unwrap();
+
+        // Prefix "1" matches every P2PKH address: all 4 threads must report
+        let prefix = Prefix::new("1").unwrap();
+        search.load_ranges(&prefix).unwrap();
+
+        let start_counter = key_ordinal(0, 0x7FFFFFFE) * max_depth as u64;
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                start_counter,
+                cache_keys.len(),
+                max_depth,
+            )
+            .unwrap();
+
+        assert_eq!(search.read_cache_miss_errors().unwrap(), 0);
+
+        let (matches, count) = search.read_matches().unwrap();
+        assert_eq!(count, 4, "all 4 threads must match prefix '1'");
+
+        // Ground truth: derive each thread's hash160 on the CPU
+        let expected: HashSet<[u8; 20]> = cache_keys
+            .iter()
+            .map(|&[b, a]| {
+                deriver
+                    .get_pubkey_hash_160(&[seed0, seed1, b, a, 0, 0])
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(expected.len(), 4, "parents must produce distinct hashes");
+
+        let got: HashSet<[u8; 20]> = matches.into_iter().collect();
+        assert_eq!(got, expected, "GPU fetched a wrong parent from the cache");
+    }
+
+    #[test]
+    fn test_batch_search_value_alignment_multiple_parents() {
+        use std::collections::HashSet;
+
+        // 5 contiguous parents with max_depth = 2: 10 counters covering
+        // (parent, index) pairs. The full hash160 set must match the CPU.
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let seed0 = 42u32;
+        let seed1 = 4242u32;
+        let max_depth = 2u32;
+        let cache_keys = vec![[7u32, 100], [7, 101], [7, 102], [7, 103], [7, 104]];
+
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, seed0, seed1).unwrap();
+
+        let mut search = BatchAddressSearch::new().unwrap();
+        search.load_cache(&gpu_cache).unwrap();
+
+        let prefix = Prefix::new("1").unwrap();
+        search.load_ranges(&prefix).unwrap();
+
+        let work_size = cache_keys.len() * max_depth as usize;
+        let start_counter = key_ordinal(7, 100) * max_depth as u64;
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                start_counter,
+                work_size,
+                max_depth,
+            )
+            .unwrap();
+
+        assert_eq!(search.read_cache_miss_errors().unwrap(), 0);
+
+        let (matches, count) = search.read_matches().unwrap();
+        assert_eq!(count, work_size as u32);
+
+        let mut expected: HashSet<[u8; 20]> = HashSet::new();
+        for &[b, a] in &cache_keys {
+            for index in 0..max_depth {
+                expected.insert(
+                    deriver
+                        .get_pubkey_hash_160(&[seed0, seed1, b, a, 0, index])
+                        .unwrap(),
+                );
+            }
+        }
+        assert_eq!(expected.len(), work_size);
+
+        let got: HashSet<[u8; 20]> = matches.into_iter().collect();
+        assert_eq!(got, expected, "GPU (parent, index) mapping is misaligned");
+    }
+
+    #[test]
+    fn test_batch_search_counter_before_cache_reports_miss() {
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let max_depth = 1u32;
+        let cache_keys = vec![[3u32, 1000]];
+
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, 0, 0).unwrap();
+
+        let mut search = BatchAddressSearch::new().unwrap();
+        search.load_cache(&gpu_cache).unwrap();
+        let prefix = Prefix::new("1").unwrap();
+        search.load_ranges(&prefix).unwrap();
+
+        // Counter points to (3, 999): the key immediately BEFORE the cache
+        let start_counter = key_ordinal(3, 999) * max_depth as u64;
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                start_counter,
+                1,
+                max_depth,
+            )
+            .unwrap();
+
+        let (_, count) = search.read_matches().unwrap();
+        assert_eq!(count, 0, "no address may be produced from a missing key");
+        assert_eq!(search.read_cache_miss_errors().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_batch_search_counter_after_cache_reports_miss() {
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let max_depth = 5u32;
+        let cache_keys = vec![[3u32, 1000], [3, 1001]];
+
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        CachePreloader::preload(&mut gpu_cache, &cache_keys, &mut deriver, 0, 0).unwrap();
+
+        let mut search = BatchAddressSearch::new().unwrap();
+        search.load_cache(&gpu_cache).unwrap();
+        let prefix = Prefix::new("1").unwrap();
+        search.load_ranges(&prefix).unwrap();
+
+        // 10 counters cover the cache; work_size 13 overshoots by 3 threads
+        let start_counter = key_ordinal(3, 1000) * max_depth as u64;
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                start_counter,
+                13,
+                max_depth,
+            )
+            .unwrap();
+
+        let (_, count) = search.read_matches().unwrap();
+        assert_eq!(count, 10, "the 10 in-range threads must match prefix '1'");
+        assert_eq!(
+            search.read_cache_miss_errors().unwrap(),
+            3,
+            "the 3 overshooting threads must report a miss"
+        );
     }
 }

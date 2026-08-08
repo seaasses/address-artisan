@@ -309,6 +309,52 @@ mod tests {
     }
 
     #[test]
+    fn test_generated_keys_are_contiguous_ordinals() {
+        // The GPU O(1) cache_index relies on this invariant: keys are
+        // generated in ordinal order (b * 2^31 + a) without gaps, the first
+        // key's ordinal is start_counter / max_depth and the last key's
+        // ordinal is (start_counter + count - 1) / max_depth.
+        let ordinal = |k: &[u32; 2]| ((k[0] as u64) << 31) + k[1] as u64;
+
+        let cases: [(u64, u64, u32); 6] = [
+            (0, 100_000, 10),
+            (0, 524_288, 1_000),
+            (2147483638, 11, 1),
+            (1325598705305344, 1_000_000, 123456),
+            (1152921504606846966, 10_000_000, 123456),
+            (u64::MAX - 1_000_000, 1_000_000, 7),
+        ];
+
+        for (start, count, depth) in cases {
+            let keys = CacheRangeAnalyzer::analyze_counter_range(start, count, depth);
+
+            assert_eq!(
+                ordinal(&keys[0]),
+                start / depth as u64,
+                "first key ordinal mismatch for start={} depth={}",
+                start,
+                depth
+            );
+            assert_eq!(
+                ordinal(keys.last().unwrap()),
+                (start + count - 1) / depth as u64,
+                "last key ordinal mismatch for start={} depth={}",
+                start,
+                depth
+            );
+            for pair in keys.windows(2) {
+                assert_eq!(
+                    ordinal(&pair[1]),
+                    ordinal(&pair[0]) + 1,
+                    "keys are not contiguous: {:?} -> {:?}",
+                    pair[0],
+                    pair[1]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_result_size_guarantees() {
         // Test that result size matches expected size for various scenarios
 

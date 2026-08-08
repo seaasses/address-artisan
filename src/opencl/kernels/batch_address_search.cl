@@ -1,4 +1,4 @@
-#include "src/opencl/headers/cache/cache_lookup.cl.h"
+#include "src/opencl/headers/cache/cache_index.cl.h"
 #include "src/opencl/headers/secp256k1/ckdpub.cl.h"
 #include "src/opencl/headers/hash/hash160.cl.h"
 
@@ -87,19 +87,21 @@ __kernel void batch_address_search(
     uint a = (uint)(temp % NON_HARDENED_COUNT);
     uint b = (uint)(temp / NON_HARDENED_COUNT);
 
-    // Lookup cache [b, a]
-    CacheKey search_key;
-    search_key.b = b;
-    search_key.a = a;
+    // O(1) cache lookup: the cache holds contiguous (b, a) keys ordered by
+    // ordinal (b * 2^31 + a), so the position of this thread's parent is
+    // its ordinal distance from the first cached key.
+    CacheKey first_key = cache_keys[0];
 
     int found;
-    XPub parent = cache_lookup_value(cache_keys, cache_values, cache_size, search_key, &found);
+    uint parent_index = cache_index(b, a, first_key.b, first_key.a, cache_size, &found);
 
     if (!found)
     {
         atomic_inc(cache_miss_error); // Increment error counter on cache miss
         return;
     }
+
+    XPub parent = cache_values[parent_index];
 
     // Derive child at index
     uchar compressed_key[33];
