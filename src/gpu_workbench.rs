@@ -243,8 +243,12 @@ impl GpuWorkbench {
         let (batch_tx, batch_rx) = sync_channel::<PreloadedBatch>(1);
         let producer_stop = Arc::clone(&stop_signal);
         let producer_config = config.clone();
+        // ~8 threads already bring derivation (~20ms) below the kernel time
+        // (~9ms), making the GPU the bottleneck. Capping here avoids
+        // oversubscribing the CPU workbenches in the default CPU+GPU mode and
+        // avoids spawning dozens of threads per batch on many-core hosts.
         let derive_threads = thread::available_parallelism()
-            .map(|n| n.get())
+            .map(|n| n.get().min(8))
             .unwrap_or(4);
 
         let producer = thread::spawn(move || {
