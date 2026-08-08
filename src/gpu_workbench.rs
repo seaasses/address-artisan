@@ -1,16 +1,25 @@
 use crate::events::EventSender;
-use crate::extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use crate::opencl::cache_preloader::CachePreloader;
 use crate::opencl::cache_range_analyzer::CacheRangeAnalyzer;
 use crate::opencl::g_tables;
-use crate::opencl::gpu_cache::GpuCache;
+use crate::opencl::gpu_cache::{GpuCache, XPub};
 use crate::workbench::Workbench;
 use crate::workbench_config::WorkbenchConfig;
 use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+/// One preloaded batch handed from the CPU producer to the GPU consumer.
+/// The producer derives the parent XPubs (the expensive CPU work) ahead of
+/// time so the GPU never stalls waiting for them.
+struct PreloadedBatch {
+    start_counter: u64,
+    cache_keys: Vec<[u32; 2]>,
+    xpubs: Vec<XPub>,
+}
 
 // Global flag to coordinate kernel compilation
 // Only one GPU compiles at a time to avoid driver issues
@@ -77,8 +86,6 @@ impl GpuWorkbench {
                     return;
                 }
             };
-
-        let mut deriver = ExtendedPublicKeyDeriver::new(&config.xpub);
 
         // Build kernel program
         let program = match Self::build_kernel_program(device, context.clone()) {
@@ -229,29 +236,80 @@ impl GpuWorkbench {
             Err(_) => return,
         };
 
-        let mut counter = 0u64;
+        // Spawn the CPU producer: it derives the parent XPubs for each batch
+        // (the expensive CPU work) across all cores, one batch ahead, so the
+        // GPU consumer below never waits for the CPU. A sync_channel with
+        // capacity 1 bounds memory and provides backpressure.
+        let (batch_tx, batch_rx) = sync_channel::<PreloadedBatch>(1);
+        let producer_stop = Arc::clone(&stop_signal);
+        let producer_config = config.clone();
+        // ~8 threads already bring derivation (~20ms) below the kernel time
+        // (~9ms), making the GPU the bottleneck. Capping here avoids
+        // oversubscribing the CPU workbenches in the default CPU+GPU mode and
+        // avoids spawning dozens of threads per batch on many-core hosts.
+        let derive_threads = thread::available_parallelism()
+            .map(|n| n.get().min(8))
+            .unwrap_or(4);
+
+        let producer = thread::spawn(move || {
+            let mut counter = 0u64;
+            while !producer_stop.load(Ordering::Relaxed) {
+                let cache_keys = CacheRangeAnalyzer::analyze_counter_range(
+                    counter,
+                    GPU_WORK_SIZE,
+                    producer_config.max_depth,
+                );
+
+                let xpubs = match CachePreloader::derive_xpubs_parallel(
+                    &cache_keys,
+                    &producer_config.xpub,
+                    producer_config.seed0,
+                    producer_config.seed1,
+                    derive_threads,
+                ) {
+                    Ok(xpubs) => xpubs,
+                    Err(e) => {
+                        eprintln!("Cache derivation error: {}", e);
+                        break;
+                    }
+                };
+
+                let batch = PreloadedBatch {
+                    start_counter: counter,
+                    cache_keys,
+                    xpubs,
+                };
+
+                // Blocks until the consumer takes the previous batch. Fails
+                // once the consumer drops the receiver during shutdown.
+                if batch_tx.send(batch).is_err() {
+                    break;
+                }
+
+                counter += GPU_WORK_SIZE;
+            }
+        });
+
         let mut last_report = Instant::now();
         let mut generated_since_last_report = 0u64;
         let mut needs_match_count_reset = false; // Track if we need to reset match count
 
         while !stop_signal.load(Ordering::Relaxed) {
-            // Analyze which cache keys we need for this batch
-            let cache_keys =
-                CacheRangeAnalyzer::analyze_counter_range(counter, GPU_WORK_SIZE, config.max_depth);
-
-            let _cache_updated = match CachePreloader::preload(
-                &mut gpu_cache,
-                &cache_keys,
-                &mut deriver,
-                config.seed0,
-                config.seed1,
-            ) {
-                Ok(updated) => updated,
-                Err(e) => {
-                    eprintln!("Cache preload error: {}", e);
-                    break;
-                }
+            // Receive the next preloaded batch from the producer. An error
+            // means the producer has stopped (shutdown or derivation error).
+            let batch = match batch_rx.recv() {
+                Ok(batch) => batch,
+                Err(_) => break,
             };
+
+            // Upload the pre-derived parents to the GPU cache. This is cheap
+            // (~tens of KB) and only happens after the previous batch's kernel
+            // has finished, so the single cache buffer is never read and
+            // written at the same time.
+            if let Err(e) = gpu_cache.replace_data(&batch.cache_keys, &batch.xpubs) {
+                eprintln!("Cache upload error: {}", e);
+                break;
+            }
 
             // Only reset match counter if there were matches in the previous iteration
             if needs_match_count_reset {
@@ -270,7 +328,7 @@ impl GpuWorkbench {
             }
 
             // Only need to update the counter arg - cache size is now managed by GpuCache buffer
-            if let Err(e) = kernel.set_arg(5, counter) {
+            if let Err(e) = kernel.set_arg(5, batch.start_counter) {
                 eprintln!("Failed to set start_counter arg: {}", e);
                 break;
             }
@@ -366,9 +424,12 @@ impl GpuWorkbench {
                 generated_since_last_report = 0;
                 last_report = Instant::now();
             }
-
-            counter += GPU_WORK_SIZE;
         }
+
+        // Drop the receiver first so a producer blocked on send() unblocks
+        // (its send fails), then join it to avoid a detached thread.
+        drop(batch_rx);
+        let _ = producer.join();
 
         // Send stopped event with final stats
         let total_generated = global_generated.load(Ordering::Relaxed);
