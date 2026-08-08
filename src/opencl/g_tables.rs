@@ -10,8 +10,7 @@ pub const WINDOW_SIZE: usize = 256;
 pub const G_TABLES_POINT_COUNT: usize = WINDOW_COUNT * WINDOW_SIZE;
 
 // secp256k1 group order n
-const SECP256K1_N_HEX: &[u8] =
-    b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
+const SECP256K1_N_HEX: &[u8] = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
 
 // Point at infinity sentinel: x = P (an impossible affine x coordinate), y = 0.
 // Must match is_infinity_affine_point in the OpenCL code.
@@ -24,7 +23,9 @@ const INFINITY_POINT: PointGpu = PointGpu {
             0xFFFFFFFEFFFFFC2F,
         ],
     },
-    y: Uint256 { limbs: [0, 0, 0, 0] },
+    y: Uint256 {
+        limbs: [0, 0, 0, 0],
+    },
 };
 
 static G_TABLES: OnceLock<Vec<PointGpu>> = OnceLock::new();
@@ -146,11 +147,9 @@ mod tests {
         let secp = Secp256k1::new();
         let mut scalar_bytes = [0u8; 32];
         scalar_bytes[30] = 1; // 256 in big-endian bytes
-        let expected = PublicKey::from_secret_key(
-            &secp,
-            &SecretKey::from_byte_array(scalar_bytes).unwrap(),
-        )
-        .serialize_uncompressed();
+        let expected =
+            PublicKey::from_secret_key(&secp, &SecretKey::from_byte_array(scalar_bytes).unwrap())
+                .serialize_uncompressed();
 
         let entry = &g_tables()[WINDOW_SIZE + 1]; // w = 1, d = 1
         assert_eq!(entry.x, uint256_from_be_bytes(&expected[1..33]));

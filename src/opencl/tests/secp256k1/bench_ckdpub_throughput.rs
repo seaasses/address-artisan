@@ -64,7 +64,10 @@ mod tests {
         let g_times_tables_buffer =
             crate::opencl::g_tables::create_g_tables_buffer(&queue).unwrap();
 
-        let src = include_str!(concat!(env!("OUT_DIR"), "/ckdpub_throughput_benchmark_kernel"));
+        let src = include_str!(concat!(
+            env!("OUT_DIR"),
+            "/ckdpub_throughput_benchmark_kernel"
+        ));
         let program = Program::builder()
             .src(src)
             .devices(device)
