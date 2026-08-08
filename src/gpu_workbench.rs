@@ -27,6 +27,24 @@ static KERNEL_COMPILING: AtomicBool = AtomicBool::new(false);
 
 // GPU processing constants
 const GPU_WORK_SIZE: u64 = 524_288;
+
+/// EXPERIMENTAL: addresses processed per GPU thread. When > 1, each thread
+/// batches the modular inversions of its points (Montgomery's trick).
+/// Controlled by ADDRESS_ARTISAN_PPT (default 1). Must divide GPU_WORK_SIZE.
+fn points_per_thread() -> u64 {
+    let ppt = std::env::var("ADDRESS_ARTISAN_PPT")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(1);
+    if ppt == 0 || GPU_WORK_SIZE % ppt != 0 {
+        eprintln!(
+            "Invalid ADDRESS_ARTISAN_PPT={} (must be >0 and divide {}); using 1",
+            ppt, GPU_WORK_SIZE
+        );
+        return 1;
+    }
+    ppt
+}
 const CACHE_CAPACITY: usize = 1_000_000; // ~ 100 MB
 const MAX_MATCHES: usize = 1000; // Max matches per kernel call
 const REPORT_INTERVAL: Duration = Duration::from_millis(1000);
@@ -88,7 +106,8 @@ impl GpuWorkbench {
             };
 
         // Build kernel program
-        let program = match Self::build_kernel_program(device, context.clone()) {
+        let ppt = points_per_thread();
+        let program = match Self::build_kernel_program(device, context.clone(), ppt) {
             Ok(prog) => prog,
             Err(e) => {
                 eprintln!("Failed to build kernel program: {}", e);
@@ -207,7 +226,7 @@ impl GpuWorkbench {
             .program(&program)
             .name("batch_address_search")
             .queue(queue.clone())
-            .global_work_size(GPU_WORK_SIZE as usize)
+            .global_work_size((GPU_WORK_SIZE / ppt) as usize)
             .arg(cache_keys_buffer) // arg 0 - fixed (same buffer object always)
             .arg(cache_values_buffer) // arg 1 - fixed (same buffer object always)
             .arg(&ranges_buffer) // arg 2 - fixed (Hash160RangeGpu struct buffer)
@@ -473,7 +492,7 @@ impl GpuWorkbench {
         Ok((*device, context, queue))
     }
 
-    fn build_kernel_program(device: Device, context: Context) -> Result<Program, String> {
+    fn build_kernel_program(device: Device, context: Context, ppt: u64) -> Result<Program, String> {
         let batch_search_src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
 
         // Wait for any other GPU that might be compiling
@@ -488,6 +507,7 @@ impl GpuWorkbench {
         // We have the "lock", compile the kernel
         let result = Program::builder()
             .devices(device)
+            .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
             .src(batch_search_src)
             .build(&context)
             .map_err(|e| format!("Failed to build program: {}", e));

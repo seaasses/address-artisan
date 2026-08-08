@@ -8,10 +8,13 @@
 #include "src/opencl/headers/secp256k1/jacobian_point_affine_point_addition.cl.h"
 #include "src/opencl/headers/secp256k1/jacobian_to_affine.cl.h"
 
-inline void ckdpub(
+// CKDpub up to (but not including) the jacobian -> affine conversion.
+// Callers that process several children can batch the expensive modular
+// inversions of the Z coordinates (see modular_inverse_batch) instead of
+// paying one full inversion per child.
+inline JacobianPoint ckdpub_jacobian(
     const XPub parent,
     uint index,
-    uchar *restrict result,
     __global const Point *g_times_tables)
 {
     uchar compressed_key[33];
@@ -32,11 +35,19 @@ inline void ckdpub(
     uchar hmac_hash[64];
     hmac_sha512_key32_msg37(parent.chain_code, hmac_message, hmac_hash);
 
-    Point k_child = jacobian_to_affine(
-        jacobian_point_affine_point_addition(
-            g_times_scalar(
-                UINT256_FROM_BYTES(hmac_hash), g_times_tables),
-            parent.k_par));
+    return jacobian_point_affine_point_addition(
+        g_times_scalar(
+            UINT256_FROM_BYTES(hmac_hash), g_times_tables),
+        parent.k_par);
+}
+
+inline void ckdpub(
+    const XPub parent,
+    uint index,
+    uchar *restrict result,
+    __global const Point *g_times_tables)
+{
+    Point k_child = jacobian_to_affine(ckdpub_jacobian(parent, index, g_times_tables));
 
     result[0] = (uchar)(0x02 | (((uchar)(k_child.y.limbs[3])) & 1));
     uint256_to_bytes(k_child.x, &result[1]);

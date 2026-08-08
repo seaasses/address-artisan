@@ -34,10 +34,15 @@ mod tests {
         match_count_buffer: Buffer<u32>,
         cache_miss_error_buffer: Buffer<u32>,
         _g_times_tables_buffer: Buffer<PointGpu>, // Needed for kernel args but not read in tests
+        ppt: u64,
     }
 
     impl BatchAddressSearch {
         fn new() -> Result<Self, String> {
+            Self::new_with_ppt(1)
+        }
+
+        fn new_with_ppt(ppt: u64) -> Result<Self, String> {
             let (device, context, queue) = Self::get_device_context_and_queue()?;
 
             let cache_keys_buffer = Self::new_buffer::<CacheKey>(&queue, 1000)?;
@@ -53,7 +58,7 @@ mod tests {
             let cache_miss_error_buffer = Self::new_buffer::<u32>(&queue, 1)?;
             let g_times_tables_buffer = g_tables::create_g_tables_buffer(&queue)?;
 
-            let program = Self::build_program(device, context.clone())?;
+            let program = Self::build_program(device, context.clone(), ppt)?;
 
             let mut kernel_builder = Kernel::builder();
             kernel_builder
@@ -101,6 +106,7 @@ mod tests {
                 match_count_buffer,
                 cache_miss_error_buffer,
                 _g_times_tables_buffer: g_times_tables_buffer,
+                ppt,
             })
         }
 
@@ -200,10 +206,13 @@ mod tests {
                 .set_arg(6, max_depth)
                 .map_err(|e| format!("Error setting max_depth: {}", e))?;
 
+            // Each thread processes `ppt` counters, so the launch needs
+            // work_size / ppt threads. Callers pass work_size as a multiple.
+            let threads = work_size / self.ppt as usize;
             unsafe {
                 self.kernel
                     .cmd()
-                    .global_work_size(work_size)
+                    .global_work_size(threads)
                     .enq()
                     .map_err(|e| format!("Error executing kernel: {}", e))?;
             }
@@ -256,10 +265,11 @@ mod tests {
                 .map_err(|e| format!("Error creating buffer: {}", e))
         }
 
-        fn build_program(device: Device, context: Context) -> Result<Program, String> {
+        fn build_program(device: Device, context: Context, ppt: u64) -> Result<Program, String> {
             let src = include_str!(concat!(env!("OUT_DIR"), "/batch_address_search"));
 
             Program::builder()
+                .cmplr_opt(format!("-D POINTS_PER_THREAD={}", ppt))
                 .src(src)
                 .devices(device)
                 .build(&context)
@@ -628,5 +638,132 @@ mod tests {
             3,
             "the 3 overshooting threads must report a miss"
         );
+    }
+
+    // ================= Batched inversion (POINTS_PER_THREAD) =================
+
+    /// Run the same counter range through the kernel built with a given
+    /// POINTS_PER_THREAD and return the set of matched hash160s.
+    fn run_match_set(
+        ppt: u64,
+        cache_keys: &[[u32; 2]],
+        seed0: u32,
+        seed1: u32,
+        max_depth: u32,
+        start_counter: u64,
+        work_size: usize,
+        prefix: &Prefix,
+    ) -> std::collections::HashSet<[u8; 20]> {
+        use std::collections::HashSet;
+
+        let xpub_str = "xpub6CbJVZm8i81HtKFhs61SQw5tR7JxPMdYmZbrhx7UeFdkPG75dX2BNctqPdFxHLU1bKXLPotWbdfNVWmea1g3ggzEGnDAxKdpJcqCUpc5rNn";
+        let (device, context, queue) = create_test_opencl_context();
+        let mut gpu_cache = GpuCache::new(device, context, queue, 100).unwrap();
+        let xpub = ExtendedPubKey::from_str(xpub_str).unwrap();
+        let mut deriver = ExtendedPublicKeyDeriver::new(&xpub);
+        CachePreloader::preload(&mut gpu_cache, cache_keys, &mut deriver, seed0, seed1).unwrap();
+
+        let mut search = BatchAddressSearch::new_with_ppt(ppt).unwrap();
+        search.load_cache(&gpu_cache).unwrap();
+        search.load_ranges(prefix).unwrap();
+
+        search
+            .execute(
+                prefix.ranges.len() as u32,
+                gpu_cache.size() as u32,
+                start_counter,
+                work_size,
+                max_depth,
+            )
+            .unwrap();
+
+        assert_eq!(
+            search.read_cache_miss_errors().unwrap(),
+            0,
+            "ppt={} produced cache misses",
+            ppt
+        );
+
+        let (matches, count) = search.read_matches().unwrap();
+        assert_eq!(count as usize, matches.len().min(1000));
+        matches.into_iter().collect::<HashSet<[u8; 20]>>()
+    }
+
+    #[test]
+    fn test_ppt_batched_matches_ppt1_broad_prefix() {
+        // Broad prefix "1": every address matches, so this compares the full
+        // per-thread output of the batched-inversion path (ppt=8) against the
+        // one-inversion-per-thread path (ppt=1) over the same counters.
+        let cache_keys = vec![[0u32, 0], [0, 1], [0, 2], [0, 3]];
+        let max_depth = 250u32;
+        let work_size = cache_keys.len() * max_depth as usize; // 1000 counters
+        let prefix = Prefix::new("1").unwrap();
+
+        let baseline = run_match_set(1, &cache_keys, 7, 9, max_depth, 0, work_size, &prefix);
+        assert_eq!(baseline.len(), work_size, "broad prefix should match every address");
+
+        for ppt in [2u64, 4, 8] {
+            let batched = run_match_set(ppt, &cache_keys, 7, 9, max_depth, 0, work_size, &prefix);
+            assert_eq!(
+                batched, baseline,
+                "ppt={} produced a different match set than ppt=1",
+                ppt
+            );
+        }
+    }
+
+    #[test]
+    fn test_ppt_batched_matches_ppt1_across_rollover() {
+        // Counters spanning the a -> b rollover with max_depth = 1, so every
+        // counter uses a distinct parent: any misalignment in the batched
+        // path changes the hashes.
+        let cache_keys = vec![
+            [0u32, 0x7FFFFFFE],
+            [0, 0x7FFFFFFF],
+            [1, 0],
+            [1, 1],
+            [1, 2],
+            [1, 3],
+            [1, 4],
+            [1, 5],
+        ];
+        let max_depth = 1u32;
+        let work_size = cache_keys.len(); // 8 counters
+        let start_counter = (0u64 << 31) + 0x7FFFFFFE; // ordinal of first key
+        let prefix = Prefix::new("1").unwrap();
+
+        let baseline = run_match_set(1, &cache_keys, 123, 456, max_depth, start_counter, work_size, &prefix);
+        assert_eq!(baseline.len(), 8);
+
+        for ppt in [2u64, 4, 8] {
+            let batched = run_match_set(ppt, &cache_keys, 123, 456, max_depth, start_counter, work_size, &prefix);
+            assert_eq!(
+                batched, baseline,
+                "ppt={} diverged from ppt=1 across the rollover",
+                ppt
+            );
+        }
+    }
+
+    #[test]
+    fn test_ppt_batched_matches_ppt1_selective_prefix() {
+        // A longer prefix: most addresses do NOT match. Verifies the batched
+        // path reports the same rare matches (and no spurious ones) as ppt=1.
+        let cache_keys: Vec<[u32; 2]> = (0..8).map(|a| [5u32, 1000 + a]).collect();
+        let max_depth = 256u32;
+        let work_size = cache_keys.len() * max_depth as usize; // 2048 counters
+        let start_counter = ((5u64) << 31 | 1000) * max_depth as u64;
+        let prefix = Prefix::new("1a").unwrap();
+
+        let baseline = run_match_set(1, &cache_keys, 11, 22, max_depth, start_counter, work_size, &prefix);
+
+        for ppt in [2u64, 4, 8] {
+            let batched = run_match_set(ppt, &cache_keys, 11, 22, max_depth, start_counter, work_size, &prefix);
+            assert_eq!(
+                batched, baseline,
+                "ppt={} diverged from ppt=1 with a selective prefix",
+                ppt
+            );
+        }
     }
 }
