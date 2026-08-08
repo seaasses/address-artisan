@@ -8,6 +8,7 @@ mod tests {
         k_par_y_buffer: Buffer<u8>,
         index_buffer: Buffer<u32>,
         compressed_key_buffer: Buffer<u8>,
+        _g_times_tables_buffer: Buffer<crate::opencl::gpu_cache::PointGpu>,
         ckdpub_kernel: Kernel,
     }
 
@@ -22,11 +23,13 @@ mod tests {
             let k_par_y_buffer = Self::new_u8_buffer(&queue, 32)?;
             let index_buffer = Self::new_u32_buffer(&queue, 1)?;
             let compressed_key_buffer = Self::new_u8_buffer(&queue, 33)?;
+            let g_times_tables_buffer = crate::opencl::g_tables::create_g_tables_buffer(&queue)?;
 
             let program = Self::build_program(device, context)?;
 
             // Create kernel
-            let ckdpub_kernel = match Kernel::builder()
+            let mut kernel_builder = Kernel::builder();
+            kernel_builder
                 .program(&program)
                 .name("ckdpub_kernel")
                 .queue(queue.clone())
@@ -35,9 +38,16 @@ mod tests {
                 .arg(&k_par_y_buffer)
                 .arg(&index_buffer)
                 .arg(&compressed_key_buffer)
-                .global_work_size(1)
-                .build()
-            {
+                .arg(&g_times_tables_buffer)
+                .global_work_size(1);
+
+            // ocl's arg type check parses "Point*" as an int pointer
+            // ("Point" contains "int"), rejecting the tables buffer.
+            unsafe {
+                kernel_builder.disable_arg_type_check();
+            }
+
+            let ckdpub_kernel = match kernel_builder.build() {
                 Ok(kernel) => kernel,
                 Err(e) => return Err("Error creating kernel: ".to_string() + &e.to_string()),
             };
@@ -48,6 +58,7 @@ mod tests {
                 k_par_y_buffer,
                 index_buffer,
                 compressed_key_buffer,
+                _g_times_tables_buffer: g_times_tables_buffer,
                 ckdpub_kernel,
             })
         }

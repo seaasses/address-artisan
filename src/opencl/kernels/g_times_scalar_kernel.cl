@@ -6,7 +6,8 @@
 __kernel void g_times_scalar_kernel(
     __global uchar *scalar_buffer,
     __global uchar *result_x_buffer,
-    __global uchar *result_y_buffer)
+    __global uchar *result_y_buffer,
+    __global const Point *g_times_tables)
 {
     Uint256 scalar;
     JacobianPoint jacobian_result;
@@ -23,7 +24,7 @@ __kernel void g_times_scalar_kernel(
     scalar = UINT256_FROM_BYTES(scalar_private);
 
     // Perform g times scalar multiplication (returns Jacobian point)
-    jacobian_result = g_times_scalar(scalar);
+    jacobian_result = g_times_scalar(scalar, g_times_tables);
 
     // Convert to affine coordinates
     result = jacobian_to_affine(jacobian_result);

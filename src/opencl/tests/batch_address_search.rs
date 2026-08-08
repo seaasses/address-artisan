@@ -3,7 +3,8 @@ mod tests {
     use crate::extended_public_key::ExtendedPubKey;
     use crate::extended_public_key_deriver::ExtendedPublicKeyDeriver;
     use crate::opencl::cache_preloader::CachePreloader;
-    use crate::opencl::gpu_cache::{CacheKey, GpuCache, Hash160RangeGpu, XPub};
+    use crate::opencl::g_tables;
+    use crate::opencl::gpu_cache::{CacheKey, GpuCache, Hash160RangeGpu, PointGpu, XPub};
     use crate::prefix::Prefix;
     use ocl::{Buffer, Context, Device, Kernel, Platform, Program, Queue};
 
@@ -32,6 +33,7 @@ mod tests {
         _matches_prefix_id_buffer: Buffer<u8>, // Needed for kernel args but not read in tests
         match_count_buffer: Buffer<u32>,
         _cache_miss_error_buffer: Buffer<u32>, // Needed for kernel args but not read in tests
+        _g_times_tables_buffer: Buffer<PointGpu>, // Needed for kernel args but not read in tests
     }
 
     impl BatchAddressSearch {
@@ -49,10 +51,12 @@ mod tests {
             let matches_prefix_id_buffer = Self::new_buffer::<u8>(&queue, 1000)?;
             let match_count_buffer = Self::new_buffer::<u32>(&queue, 1)?;
             let cache_miss_error_buffer = Self::new_buffer::<u32>(&queue, 1)?;
+            let g_times_tables_buffer = g_tables::create_g_tables_buffer(&queue)?;
 
             let program = Self::build_program(device, context.clone())?;
 
-            let kernel = Kernel::builder()
+            let mut kernel_builder = Kernel::builder();
+            kernel_builder
                 .program(&program)
                 .name("batch_address_search")
                 .queue(queue.clone())
@@ -71,6 +75,15 @@ mod tests {
                 .arg(&matches_prefix_id_buffer)
                 .arg(&match_count_buffer)
                 .arg(&cache_miss_error_buffer)
+                .arg(&g_times_tables_buffer);
+
+            // ocl's arg type check parses "Point*" as an int pointer
+            // ("Point" contains "int"), rejecting the tables buffer.
+            unsafe {
+                kernel_builder.disable_arg_type_check();
+            }
+
+            let kernel = kernel_builder
                 .build()
                 .map_err(|e| format!("Error creating kernel: {}", e))?;
 
@@ -87,6 +100,7 @@ mod tests {
                 _matches_prefix_id_buffer: matches_prefix_id_buffer,
                 match_count_buffer,
                 _cache_miss_error_buffer: cache_miss_error_buffer,
+                _g_times_tables_buffer: g_times_tables_buffer,
             })
         }
 

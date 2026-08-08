@@ -11,7 +11,8 @@
 inline void ckdpub(
     const XPub parent,
     uint index,
-    uchar *restrict result)
+    uchar *restrict result,
+    __global const Point *g_times_tables)
 {
     uchar compressed_key[33];
     compressed_key[0] = (uchar)(0x02 | (((uchar)(parent.k_par.y.limbs[3])) & 1));
@@ -34,7 +35,7 @@ inline void ckdpub(
     Point k_child = jacobian_to_affine(
         jacobian_point_affine_point_addition(
             g_times_scalar(
-                UINT256_FROM_BYTES(hmac_hash)),
+                UINT256_FROM_BYTES(hmac_hash), g_times_tables),
             parent.k_par));
 
     result[0] = (uchar)(0x02 | (((uchar)(k_child.y.limbs[3])) & 1));

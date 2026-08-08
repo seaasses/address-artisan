@@ -7,7 +7,8 @@ __kernel void g_times_scalar_compute_kernel(
     __global uchar *scalar_buffer,
     __global int *max_threads,
     __global int *output,
-    __global ulong *iteration_offset)
+    __global ulong *iteration_offset,
+    __global const Point *g_times_tables)
 {
     int thread_id = get_global_id(0);
     ulong offset = *iteration_offset;
@@ -32,7 +33,7 @@ __kernel void g_times_scalar_compute_kernel(
     scalar.limbs[3] += (ulong)thread_id;
 
     // Perform g times scalar multiplication (returns Jacobian point)
-    JacobianPoint jacobian_result = g_times_scalar(scalar);
+    JacobianPoint jacobian_result = g_times_scalar(scalar, g_times_tables);
 
     // Convert to affine coordinates
     Point result = jacobian_to_affine(jacobian_result);

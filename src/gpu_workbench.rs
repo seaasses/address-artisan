@@ -2,6 +2,7 @@ use crate::events::EventSender;
 use crate::extended_public_key_deriver::ExtendedPublicKeyDeriver;
 use crate::opencl::cache_preloader::CachePreloader;
 use crate::opencl::cache_range_analyzer::CacheRangeAnalyzer;
+use crate::opencl::g_tables;
 use crate::opencl::gpu_cache::GpuCache;
 use crate::workbench::Workbench;
 use crate::workbench_config::WorkbenchConfig;
@@ -105,6 +106,16 @@ impl GpuWorkbench {
             Err(_) => return,
         };
 
+        // Precomputed g_times_scalar tables: computed once on the CPU,
+        // written once to GPU global memory, then read-only for the whole run
+        let g_times_tables_buffer = match g_tables::create_g_tables_buffer(&queue) {
+            Ok(buf) => buf,
+            Err(e) => {
+                eprintln!("Failed to create g_times_tables buffer: {}", e);
+                return;
+            }
+        };
+
         let matches_hash160_buffer = match Buffer::<u8>::builder()
             .queue(queue.clone())
             .len(MAX_MATCHES * 20)
@@ -184,7 +195,8 @@ impl GpuWorkbench {
         let (cache_keys_buffer, cache_values_buffer, cache_size_buffer) = gpu_cache.get_buffers();
 
         // Create kernel ONCE before the loop
-        let kernel = match Kernel::builder()
+        let mut kernel_builder = Kernel::builder();
+        kernel_builder
             .program(&program)
             .name("batch_address_search")
             .queue(queue.clone())
@@ -203,8 +215,16 @@ impl GpuWorkbench {
             .arg(&matches_prefix_id_buffer) // arg 11 - fixed (NEW!)
             .arg(&match_count_buffer) // arg 12 - fixed (reset separately)
             .arg(&cache_miss_error_buffer) // arg 13 - fixed (reset separately)
-            .build()
-        {
+            .arg(&g_times_tables_buffer); // arg 14 - fixed (precomputed tables)
+
+        // ocl's arg type check parses the "Point*" type name as an int
+        // pointer ("Point" contains "int"), rejecting the tables buffer.
+        // The check is best-effort anyway (skipped entirely on NVIDIA).
+        unsafe {
+            kernel_builder.disable_arg_type_check();
+        }
+
+        let kernel = match kernel_builder.build() {
             Ok(k) => k,
             Err(_) => return,
         };
