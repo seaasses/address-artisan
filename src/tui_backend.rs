@@ -417,11 +417,7 @@ fn run_event_loop(
                     if let Some(stats) = bench_stats.get(bench_id) {
                         // Has stats - show them
                         let runtime = stats.runtime_secs();
-                        let hashrate = if runtime > 0 {
-                            stats.total_generated / runtime
-                        } else {
-                            0
-                        };
+                        let hashrate = stats.total_generated.checked_div(runtime).unwrap_or(0);
 
                         total_generated += stats.total_generated;
                         total_hashrate += hashrate as f64;
