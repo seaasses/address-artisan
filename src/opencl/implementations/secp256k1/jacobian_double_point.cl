@@ -2,6 +2,7 @@
 #include "src/opencl/headers/modular_operations/modular_addition.cl.h"
 #include "src/opencl/headers/modular_operations/modular_subtraction.cl.h"
 #include "src/opencl/headers/modular_operations/modular_multiplication.cl.h"
+#include "src/opencl/headers/modular_operations/modular_square.cl.h"
 #include "src/opencl/headers/modular_operations/modular_double.cl.h"
 #include "src/opencl/headers/secp256k1/jacobian_double_point.cl.h"
 
@@ -10,7 +11,7 @@ inline JacobianPoint jacobian_double_point(const JacobianPoint point)
     JacobianPoint result_point;
     Uint256 tmp_0, tmp_1;
 
-    tmp_1 = modular_multiplication(point.y, point.y);
+    tmp_1 = modular_square(point.y);
     result_point.y = modular_multiplication(point.x, tmp_1);
 
     // TODO: maybe test like a modular_multiply_by_2_power_n that so I can do this in one go and use
@@ -18,11 +19,11 @@ inline JacobianPoint jacobian_double_point(const JacobianPoint point)
     result_point.y = modular_double(result_point.y);
     result_point.y = modular_double(result_point.y);
 
-    tmp_0 = modular_multiplication(tmp_1, tmp_1);                               // --------------
-    result_point.z = modular_multiplication(point.x, point.x);                  // ----------------------
+    tmp_0 = modular_square(tmp_1);                               // --------------
+    result_point.z = modular_square(point.x);                  // ----------------------
     result_point.x = modular_double(result_point.z);                            // ---------------
     result_point.z = modular_addition(result_point.z, result_point.x);          // ---------------
-    result_point.x = modular_multiplication(result_point.z, result_point.z);    // --------------------
+    result_point.x = modular_square(result_point.z);    // --------------------
 
     tmp_1 = modular_double(result_point.y);                         // -------------
     result_point.x = modular_subtraction(result_point.x, tmp_1);    // result_point.x = X3 :D
