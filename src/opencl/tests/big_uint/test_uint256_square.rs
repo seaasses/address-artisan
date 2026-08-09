@@ -139,13 +139,9 @@ mod tests {
         // a = 2^64 - 1: exercises the diagonal product and the carry into
         // the next limb: (2^64-1)^2 = 0xFFFFFFFFFFFFFFFE_0000000000000001
         let mut a = vec![0u8; 32];
-        for i in 24..32 {
-            a[i] = 0xff;
-        }
+        a[24..32].fill(0xff);
         let mut expected = vec![0u8; 64];
-        for i in 48..55 {
-            expected[i] = 0xff;
-        }
+        expected[48..55].fill(0xff);
         expected[55] = 0xfe;
         expected[63] = 0x01;
         assert_eq!(ocl.square(a).unwrap(), expected);
@@ -158,9 +154,7 @@ mod tests {
         // (2^256-1)^2 = 2^512 - 2^257 + 1
         let a = vec![0xffu8; 32];
         let mut expected = vec![0u8; 64];
-        for i in 0..31 {
-            expected[i] = 0xff;
-        }
+        expected[0..31].fill(0xff);
         expected[31] = 0xfe;
         expected[63] = 0x01;
         assert_eq!(ocl.square(a).unwrap(), expected);
