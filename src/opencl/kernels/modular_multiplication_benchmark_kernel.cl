@@ -26,8 +26,8 @@ __kernel void modular_multiplication_benchmark_kernel(
     }
 
     // XOR all limbs together to prevent dead code elimination
-    ulong xor_result = result.limbs[0] ^ result.limbs[1] ^
-                       result.limbs[2] ^ result.limbs[3];
+    uint xor_result = result.limbs[0] ^ result.limbs[1] ^ result.limbs[2] ^ result.limbs[3] ^
+                      result.limbs[4] ^ result.limbs[5] ^ result.limbs[6] ^ result.limbs[7];
 
     // Extremely unlikely condition to prevent optimization
     if (xor_result == 1) {

@@ -186,6 +186,22 @@ mod tests {
     }
 
     #[test]
+    fn test_modular_reduction_2pow255_shifted() {
+        // x = 2^511 (top bit of the 512-bit input). Stresses the second fold
+        // where the remainder spans a 32-bit limb boundary.
+        // x mod p = 0x8000...0000800003d080074668
+        let mut ocl = ModularReduction::new().unwrap();
+        let mut x = vec![0u8; 64];
+        x[0] = 0x80;
+        let expected = vec![
+            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x03, 0xd0,
+            0x80, 0x07, 0x46, 0x68,
+        ];
+        assert_eq!(ocl.reduction(x).unwrap(), expected);
+    }
+
+    #[test]
     fn test_modular_reduction_known_product() {
         let mut ocl = ModularReduction::new().unwrap();
         // x = 0xd358...4e23 * 0x76ba...e83a (the two big numbers from the
