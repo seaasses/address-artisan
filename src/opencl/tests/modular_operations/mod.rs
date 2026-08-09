@@ -3,4 +3,5 @@ pub mod test_modular_double;
 pub mod test_modular_inverse;
 pub mod test_modular_multiplication;
 pub mod test_modular_reduction;
+pub mod test_modular_square;
 pub mod test_modular_subtraction;
