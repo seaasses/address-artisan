@@ -1,108 +1,41 @@
 #include "src/opencl/headers/big_uint/big_uint_multiplication.cl.h"
-#include "src/opencl/headers/big_uint/ulong_operations.cl.h"
 
-inline void add_component_to_limb(ulong a_limb, ulong b_limb,
-                                  ulong *carry_high, ulong *carry_low, ulong *result_limb)
-{
-    ulong carry_tmp_low, carry_tmp_high, result_tmp;
-
-    UINT64_MULTIPLICATION(a_limb, b_limb, carry_tmp_low, result_tmp);
-
-    UINT64_SUM_WITH_OVERFLOW_FLAG(*carry_low, carry_tmp_low, *carry_low, carry_tmp_high);
-    *carry_high += carry_tmp_high;
-    UINT64_SUM_WITH_OVERFLOW_FLAG(*result_limb, result_tmp, *result_limb, carry_tmp_low);
-    UINT64_SUM_WITH_OVERFLOW_FLAG(*carry_low, carry_tmp_low, *carry_low, carry_tmp_high);
-    *carry_high += carry_tmp_high;
-}
-
+// Schoolbook (Comba / column-scanning) 256x256 -> 512 multiply with 8x32-bit
+// limbs. Each partial product a[i]*b[j] is a native 32x32 -> 64 multiply.
+//
+// Big-limb-first layout: limbs[0] is most significant. Term a[i]*b[j] has
+// weight 2^(32*(14-i-j)), so it lands in output column s = i+j (LSW-first),
+// i.e. output word r.limbs[15 - s]. Columns run s = 0..14; the top output
+// word (r.limbs[0], position 15) only receives the carry-out of column 14.
+//
+// A column sums up to 8 products, each < 2^64, so the running total is < 2^67.
+// It is held in a 64-bit accumulator `acc` plus a `uint acc_carry` counting
+// 2^64 wraps (<= 8). Between columns the value is shifted down 32 bits as
+// (acc >> 32) | (acc_carry << 32) < 2^35.
 inline Uint512 uint256_multiplication(const Uint256 a, const Uint256 b)
 {
-    Uint512 result;
-    ulong carry_high = 0;
-    ulong carry_low;
+    Uint512 r;
+    ulong acc = 0;
+    uint acc_carry = 0;
 
-    // limb 7
-    UINT64_MULTIPLICATION(a.limbs[3], b.limbs[3], carry_low, result.limbs[7]); // first limb set (OK)
+#pragma unroll
+    for (int s = 0; s <= 14; s++)
+    {
+        int i_lo = (s > 7) ? (s - 7) : 0;
+        int i_hi = (s < 7) ? s : 7;
+        for (int i = i_lo; i <= i_hi; i++)
+        {
+            int j = s - i;
+            ulong prod = (ulong)a.limbs[7 - i] * (ulong)b.limbs[7 - j];
+            ulong old = acc;
+            acc += prod;
+            acc_carry += (acc < old);
+        }
+        r.limbs[15 - s] = (uint)acc;
+        acc = (acc >> 32) | ((ulong)acc_carry << 32);
+        acc_carry = 0;
+    }
+    r.limbs[0] = (uint)acc;
 
-    // limb 6
-    ////////////////////////////////////////////////////////////////////////////////
-
-    result.limbs[6] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[3], b.limbs[2], &carry_high, &carry_low, &result.limbs[6]);
-    add_component_to_limb(a.limbs[2], b.limbs[3], &carry_high, &carry_low, &result.limbs[6]);
-
-    // limb 5
-    ////////////////////////////////////////////////////////////////////////////////
-
-    result.limbs[5] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[1], b.limbs[3], &carry_high, &carry_low, &result.limbs[5]);
-    add_component_to_limb(a.limbs[2], b.limbs[2], &carry_high, &carry_low, &result.limbs[5]);
-    add_component_to_limb(a.limbs[3], b.limbs[1], &carry_high, &carry_low, &result.limbs[5]);
-
-    // limb 4
-    result.limbs[4] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[3], b.limbs[0], &carry_high, &carry_low, &result.limbs[4]);
-    add_component_to_limb(a.limbs[0], b.limbs[3], &carry_high, &carry_low, &result.limbs[4]);
-    add_component_to_limb(a.limbs[1], b.limbs[2], &carry_high, &carry_low, &result.limbs[4]);
-    add_component_to_limb(a.limbs[2], b.limbs[1], &carry_high, &carry_low, &result.limbs[4]);
-
-    // limb 3
-    result.limbs[3] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[2], b.limbs[0], &carry_high, &carry_low, &result.limbs[3]);
-    add_component_to_limb(a.limbs[0], b.limbs[2], &carry_high, &carry_low, &result.limbs[3]);
-    add_component_to_limb(a.limbs[1], b.limbs[1], &carry_high, &carry_low, &result.limbs[3]);
-
-    // limb 2
-    result.limbs[2] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[0], b.limbs[1], &carry_high, &carry_low, &result.limbs[2]);
-    add_component_to_limb(a.limbs[1], b.limbs[0], &carry_high, &carry_low, &result.limbs[2]);
-
-    // limb 1
-    result.limbs[1] = carry_low; // start with carry low
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[0], b.limbs[0], &carry_high, &carry_low, &result.limbs[1]);
-
-    // most significant limb
-    result.limbs[0] = carry_low;
-
-    return result;
-}
-
-inline Uint320 uint256_ulong_multiplication(const Uint256 a, const ulong b)
-{
-    Uint320 result;
-    ulong carry_high = 0;
-    ulong carry_low;
-
-    UINT64_MULTIPLICATION(a.limbs[3], b, carry_low, result.limbs[4]); // first limb set (OK)
-
-    result.limbs[3] = carry_low;
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[2], b, &carry_high, &carry_low, &result.limbs[3]);
-
-    result.limbs[2] = carry_low;
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[1], b, &carry_high, &carry_low, &result.limbs[2]);
-
-    result.limbs[1] = carry_low;
-    carry_low = carry_high;
-    carry_high = 0;
-    add_component_to_limb(a.limbs[0], b, &carry_high, &carry_low, &result.limbs[1]);
-
-    result.limbs[0] = carry_low;
-
-    return result;
+    return r;
 }
