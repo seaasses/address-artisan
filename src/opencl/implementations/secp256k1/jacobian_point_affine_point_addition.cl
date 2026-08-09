@@ -9,14 +9,17 @@
 inline ulong is_infinity_jacobian_point(JacobianPoint point)
 {
     // Z = 0 means point at infinity
-    return !(point.z.limbs[0] | point.z.limbs[1] | point.z.limbs[2] | point.z.limbs[3]);
+    return !(point.z.limbs[0] | point.z.limbs[1] | point.z.limbs[2] | point.z.limbs[3] |
+             point.z.limbs[4] | point.z.limbs[5] | point.z.limbs[6] | point.z.limbs[7]);
 }
 
 inline ulong is_infinity_affine_point(Point point)
 {
     // x = P means point at infinity
-    return !((point.x.limbs[0] ^ SECP256K1_P_0) | (point.x.limbs[1] ^ SECP256K1_P_1) |
-             (point.x.limbs[2] ^ SECP256K1_P_2) | (point.x.limbs[3] ^ SECP256K1_P_3));
+    return !((point.x.limbs[0] ^ (uint)SECP256K1_P_0) | (point.x.limbs[1] ^ (uint)SECP256K1_P_1) |
+             (point.x.limbs[2] ^ (uint)SECP256K1_P_2) | (point.x.limbs[3] ^ (uint)SECP256K1_P_3) |
+             (point.x.limbs[4] ^ (uint)SECP256K1_P_4) | (point.x.limbs[5] ^ (uint)SECP256K1_P_5) |
+             (point.x.limbs[6] ^ (uint)SECP256K1_P_6) | (point.x.limbs[7] ^ (uint)SECP256K1_P_7));
 }
 
 inline JacobianPoint jacobian_point_affine_point_addition(const JacobianPoint a, const Point b)
@@ -28,16 +31,16 @@ inline JacobianPoint jacobian_point_affine_point_addition(const JacobianPoint a,
         if (is_infinity_affine_point(b)) {
             // Both are infinity, return infinity
             JacobianPoint result = {
-                {.limbs = {0, 0, 0, 0}},
-                {.limbs = {0, 0, 0, 0}},
-                {.limbs = {0, 0, 0, 0}}};
+                {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}},
+                {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}},
+                {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}}};
             return result;
         }
         // a is infinity, b is not, return b in jacobian form (z = 1)
         JacobianPoint result;
         result.x = b.x;
         result.y = b.y;
-        result.z = (Uint256){.limbs = {0, 0, 0, 1}};
+        result.z = (Uint256){.limbs = {0, 0, 0, 0, 0, 0, 0, 1}};
         return result;
     }
 

@@ -18,9 +18,9 @@
 inline JacobianPoint g_times_scalar(const Uint256 scalar, __global const Point *g_times_tables)
 {
     JacobianPoint result = {
-        {.limbs = {0, 0, 0, 0}},
-        {.limbs = {0, 0, 0, 0}},
-        {.limbs = {0, 0, 0, 0}}}; // z = 0: point at infinity
+        {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}},
+        {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}},
+        {.limbs = {0, 0, 0, 0, 0, 0, 0, 0}}}; // z = 0: point at infinity
 
     // Walk the tables from the most significant window (w = 31) down.
     // The loops are kept rolled (#pragma unroll 1): fully unrolling 32
@@ -29,13 +29,13 @@ inline JacobianPoint g_times_scalar(const Uint256 scalar, __global const Point *
     __global const Point *window = g_times_tables + 31 * 256;
 
 #pragma unroll 1
-    for (int limb_index = 0; limb_index < 4; limb_index++)
+    for (int limb_index = 0; limb_index < 8; limb_index++)
     {
-        const ulong limb = scalar.limbs[limb_index];
+        const uint limb = scalar.limbs[limb_index];
 #pragma unroll 1
-        for (int shift = 56; shift >= 0; shift -= 8)
+        for (int shift = 24; shift >= 0; shift -= 8)
         {
-            const uint digit = (uint)((limb >> shift) & 255);
+            const uint digit = (limb >> shift) & 255;
             result = jacobian_point_affine_point_addition(result, window[digit]);
             window -= 256;
         }
