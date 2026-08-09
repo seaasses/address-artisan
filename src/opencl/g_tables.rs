@@ -17,15 +17,11 @@ const SECP256K1_N_HEX: &[u8] = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03
 const INFINITY_POINT: PointGpu = PointGpu {
     x: Uint256 {
         limbs: [
-            0xFFFFFFFFFFFFFFFF,
-            0xFFFFFFFFFFFFFFFF,
-            0xFFFFFFFFFFFFFFFF,
-            0xFFFFFFFEFFFFFC2F,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE,
+            0xFFFFFC2F,
         ],
     },
-    y: Uint256 {
-        limbs: [0, 0, 0, 0],
-    },
+    y: Uint256 { limbs: [0; 8] },
 };
 
 static G_TABLES: OnceLock<Vec<PointGpu>> = OnceLock::new();
@@ -96,10 +92,10 @@ fn biguint_to_be_bytes(value: &BigUint) -> [u8; 32] {
 }
 
 fn uint256_from_be_bytes(bytes: &[u8]) -> Uint256 {
-    let mut limbs = [0u64; 4];
+    let mut limbs = [0u32; 8];
     for (limb_index, limb) in limbs.iter_mut().enumerate() {
-        let offset = limb_index * 8;
-        *limb = u64::from_be_bytes(bytes[offset..offset + 8].try_into().unwrap());
+        let offset = limb_index * 4;
+        *limb = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap());
     }
     Uint256 { limbs }
 }
@@ -108,17 +104,13 @@ fn uint256_from_be_bytes(bytes: &[u8]) -> Uint256 {
 mod tests {
     use super::*;
 
-    const G_X_LIMBS: [u64; 4] = [
-        0x79BE667EF9DCBBAC,
-        0x55A06295CE870B07,
-        0x029BFCDB2DCE28D9,
-        0x59F2815B16F81798,
+    const G_X_LIMBS: [u32; 8] = [
+        0x79BE667E, 0xF9DCBBAC, 0x55A06295, 0xCE870B07, 0x029BFCDB, 0x2DCE28D9, 0x59F2815B,
+        0x16F81798,
     ];
-    const G_Y_LIMBS: [u64; 4] = [
-        0x483ADA7726A3C465,
-        0x5DA4FBFC0E1108A8,
-        0xFD17B448A6855419,
-        0x9C47D08FFB10D4B8,
+    const G_Y_LIMBS: [u32; 8] = [
+        0x483ADA77, 0x26A3C465, 0x5DA4FBFC, 0x0E1108A8, 0xFD17B448, 0xA6855419, 0x9C47D08F,
+        0xFB10D4B8,
     ];
 
     #[test]
@@ -165,8 +157,8 @@ mod tests {
                 continue;
             }
             assert_ne!(point, &INFINITY_POINT, "entry {} is sentinel", i);
-            assert_ne!(point.x.limbs, [0u64; 4], "entry {} has zero x", i);
-            assert_ne!(point.y.limbs, [0u64; 4], "entry {} has zero y", i);
+            assert_ne!(point.x.limbs, [0u32; 8], "entry {} has zero x", i);
+            assert_ne!(point.y.limbs, [0u32; 8], "entry {} has zero y", i);
         }
     }
 }
