@@ -1,0 +1,10 @@
+# Run the test harness single-threaded by default.
+#
+# The OpenCL tests each build a heavy kernel program and allocate GPU buffers
+# (e.g. the g-tables). Running them in parallel makes several compile/allocate
+# at once, which flakily fails under GPU memory/resource pressure (especially
+# on a shared GPU) — surfacing as panics in the EC tests, not value mismatches.
+# Serializing avoids that. Override per-run with `cargo test -- --test-threads=N`
+# or `RUST_TEST_THREADS=N cargo test`.
+[env]
+RUST_TEST_THREADS = "1"
