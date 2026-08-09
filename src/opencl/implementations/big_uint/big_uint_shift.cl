@@ -3,7 +3,6 @@
 inline Uint256 uint256_shift_left(const Uint256 x)
 {
   Uint256 result;
-#pragma unroll
   for (int i = 0; i < 7; i++)
   {
     result.limbs[i] = (x.limbs[i] << 1) | (x.limbs[i + 1] >> 31);
@@ -15,7 +14,6 @@ inline Uint256 uint256_shift_left(const Uint256 x)
 inline Uint256 uint256_shift_right(const Uint256 x)
 {
   Uint256 result;
-#pragma unroll
   for (int i = 7; i > 0; i--)
   {
     result.limbs[i] = (x.limbs[i] >> 1) | (x.limbs[i - 1] << 31);

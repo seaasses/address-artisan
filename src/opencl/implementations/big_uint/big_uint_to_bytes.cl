@@ -2,7 +2,6 @@
 
 inline void uint256_to_bytes(const Uint256 a, uchar *result)
 {
-#pragma unroll
     for (int k = 0; k < 8; k++)
     {
         result[k * 4 + 0] = a.limbs[k] >> 24;
@@ -14,7 +13,6 @@ inline void uint256_to_bytes(const Uint256 a, uchar *result)
 
 inline void uint512_to_bytes(const Uint512 a, uchar *result)
 {
-#pragma unroll
     for (int k = 0; k < 16; k++)
     {
         result[k * 4 + 0] = a.limbs[k] >> 24;

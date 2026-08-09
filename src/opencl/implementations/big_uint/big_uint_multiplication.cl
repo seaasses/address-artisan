@@ -18,7 +18,6 @@ inline Uint512 uint256_multiplication(const Uint256 a, const Uint256 b)
     ulong acc = 0;
     uint acc_carry = 0;
 
-#pragma unroll
     for (int s = 0; s <= 14; s++)
     {
         int i_lo = (s > 7) ? (s - 7) : 0;

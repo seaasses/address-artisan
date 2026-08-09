@@ -4,7 +4,6 @@ inline Uint256WithOverflow uint256_addition_with_overflow_flag(const Uint256 a, 
 {
   Uint256WithOverflow ret;
   uint carry = 0;
-#pragma unroll
   for (int i = 7; i >= 0; i--)
   {
     uint sum = a.limbs[i] + b.limbs[i];
@@ -22,7 +21,6 @@ inline Uint256 uint256_addition(const Uint256 a, const Uint256 b)
 {
   Uint256 result;
   uint carry = 0;
-#pragma unroll
   for (int i = 7; i >= 0; i--)
   {
     uint sum = a.limbs[i] + b.limbs[i];

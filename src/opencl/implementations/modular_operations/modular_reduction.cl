@@ -17,7 +17,6 @@ inline Uint256 modular_reduction(const Uint512 x)
     // LSW-first views: hi = high 256 bits, lo = low 256 bits.
     uint hi[8];
     uint lo[8];
-#pragma unroll
     for (int k = 0; k < 8; k++)
     {
         hi[k] = x.limbs[7 - k];
@@ -27,7 +26,6 @@ inline Uint256 modular_reduction(const Uint512 x)
     // FIRST FOLD: r10 = lo + hi*977 + (hi << 32), 10 words LSW-first.
     uint r10[10];
     ulong acc = 0;
-#pragma unroll
     for (int k = 0; k < 10; k++)
     {
         if (k < 8)
@@ -53,7 +51,6 @@ inline Uint256 modular_reduction(const Uint512 x)
     acc += (ulong)r10[2] + (h2 >> 32); // (H2 << 32) high word
     res[2] = (uint)acc;
     acc >>= 32;
-#pragma unroll
     for (int k = 3; k < 8; k++)
     {
         acc += (ulong)r10[k];
@@ -70,7 +67,6 @@ inline Uint256 modular_reduction(const Uint512 x)
     acc += (ulong)res[1] + cc; // c's 2^32 term
     res[1] = (uint)acc;
     acc >>= 32;
-#pragma unroll
     for (int k = 2; k < 8; k++)
     {
         acc += (ulong)res[k];
@@ -80,7 +76,6 @@ inline Uint256 modular_reduction(const Uint512 x)
 
     // Rebuild big-limb-first, then subtract p if result >= p (branchless).
     Uint256 out;
-#pragma unroll
     for (int k = 0; k < 8; k++)
         out.limbs[7 - k] = res[k];
 
