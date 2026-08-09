@@ -2,8 +2,6 @@
 
 void uint256_to_bytes(const Uint256 a, uchar *result);
 
-void uint320_to_bytes(const Uint320 a, uchar *result);
-
 void uint512_to_bytes(const Uint512 a, uchar *result);
 
 // Macros that work with any address space (__constant, __global, __private, __local)
