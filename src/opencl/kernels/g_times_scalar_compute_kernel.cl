@@ -11,7 +11,7 @@ __kernel void g_times_scalar_compute_kernel(
     __global const Point *g_times_tables)
 {
     int thread_id = get_global_id(0);
-    ulong offset = *iteration_offset;
+    uint offset = (uint)(*iteration_offset);
 
     // Copy data from global to private memory and convert
     uchar scalar_private[32];

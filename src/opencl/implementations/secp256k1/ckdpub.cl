@@ -15,7 +15,7 @@ inline void ckdpub(
     __global const Point *g_times_tables)
 {
     uchar compressed_key[33];
-    compressed_key[0] = (uchar)(0x02 | (((uchar)(parent.k_par.y.limbs[3])) & 1));
+    compressed_key[0] = (uchar)(0x02 | (((uchar)(parent.k_par.y.limbs[7])) & 1));
     uint256_to_bytes(parent.k_par.x, &compressed_key[1]);
 
     uchar hmac_message[37];
@@ -38,6 +38,6 @@ inline void ckdpub(
                 UINT256_FROM_BYTES(hmac_hash), g_times_tables),
             parent.k_par));
 
-    result[0] = (uchar)(0x02 | (((uchar)(k_child.y.limbs[3])) & 1));
+    result[0] = (uchar)(0x02 | (((uchar)(k_child.y.limbs[7])) & 1));
     uint256_to_bytes(k_child.x, &result[1]);
 }

@@ -124,22 +124,18 @@ impl CachePreloader {
     }
 
     fn bytes_to_uint256(bytes: &[u8; 32]) -> Uint256 {
-        const LIMB_COUNT: usize = 4;
-        const BYTES_PER_LIMB: usize = 8;
-        let mut limbs = [0u64; LIMB_COUNT];
+        const LIMB_COUNT: usize = 8;
+        const BYTES_PER_LIMB: usize = 4;
+        let mut limbs = [0u32; LIMB_COUNT];
 
         for (limb_idx, limb) in limbs.iter_mut().enumerate() {
             let byte_offset = limb_idx * BYTES_PER_LIMB;
 
-            *limb = u64::from_be_bytes([
+            *limb = u32::from_be_bytes([
                 bytes[byte_offset],
                 bytes[byte_offset + 1],
                 bytes[byte_offset + 2],
                 bytes[byte_offset + 3],
-                bytes[byte_offset + 4],
-                bytes[byte_offset + 5],
-                bytes[byte_offset + 6],
-                bytes[byte_offset + 7],
             ]);
         }
 
@@ -305,7 +301,7 @@ mod tests {
         let gpu_xpub = CachePreloader::bytes_to_gpu_xpub(&chain_code, &x_bytes, &y_bytes);
 
         assert_eq!(gpu_xpub.chain_code, chain_code);
-        assert_ne!(gpu_xpub.k_par.x.limbs, [0u64; 4]);
-        assert_ne!(gpu_xpub.k_par.y.limbs, [0u64; 4]);
+        assert_ne!(gpu_xpub.k_par.x.limbs, [0u32; 8]);
+        assert_ne!(gpu_xpub.k_par.y.limbs, [0u32; 8]);
     }
 }

@@ -3,17 +3,12 @@
 
 typedef struct
 {
-  ulong limbs[4];
+  uint limbs[8];
 } Uint256;
 
 typedef struct
 {
-  ulong limbs[5];
-} Uint320;
-
-typedef struct
-{
-  ulong limbs[8];
+  uint limbs[16];
 } Uint512;
 
 typedef struct

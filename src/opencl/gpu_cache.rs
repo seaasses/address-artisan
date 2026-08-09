@@ -10,7 +10,7 @@ pub struct CacheKey {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Uint256 {
-    pub limbs: [u64; 4],
+    pub limbs: [u32; 8],
 }
 
 #[repr(C)]
