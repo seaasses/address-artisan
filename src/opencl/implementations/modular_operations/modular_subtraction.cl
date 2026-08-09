@@ -9,12 +9,16 @@ inline Uint256 modular_subtraction(const Uint256 a, const Uint256 b)
     Uint256 tmp = subtraction_result.result;
     uint underflow_flag = subtraction_result.underflow;
 
-    ulong mask_to_sum = -((ulong)underflow_flag);
+    uint mask_to_sum = -underflow_flag;
     const Uint256 to_sum = {.limbs = {
-                                SECP256K1_P_0 & mask_to_sum,
-                                SECP256K1_P_1 & mask_to_sum,
-                                SECP256K1_P_2 & mask_to_sum,
-                                SECP256K1_P_3 & mask_to_sum,
+                                (uint)SECP256K1_P_0 & mask_to_sum,
+                                (uint)SECP256K1_P_1 & mask_to_sum,
+                                (uint)SECP256K1_P_2 & mask_to_sum,
+                                (uint)SECP256K1_P_3 & mask_to_sum,
+                                (uint)SECP256K1_P_4 & mask_to_sum,
+                                (uint)SECP256K1_P_5 & mask_to_sum,
+                                (uint)SECP256K1_P_6 & mask_to_sum,
+                                (uint)SECP256K1_P_7 & mask_to_sum,
                             }};
 
     Uint256 result = uint256_addition(tmp, to_sum);
